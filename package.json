@@ -1,0 +1,19 @@
+{
+  "name": "sy-another-graph-workspace",
+  "packageManager": "pnpm@11.21.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --dir apps/siyuan-plugin dev",
+    "check:deps": "pnpm install --frozen-lockfile --strict-peer-dependencies",
+    "lint": "pnpm --dir apps/siyuan-plugin lint",
+    "typecheck": "pnpm --dir apps/siyuan-plugin typecheck",
+    "test": "pnpm --dir apps/siyuan-plugin test",
+    "build": "pnpm --dir apps/siyuan-plugin build",
+    "check:plugin": "pnpm --dir apps/siyuan-plugin check:plugin",
+    "check": "pnpm check:deps && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:plugin"
+  }
+}
