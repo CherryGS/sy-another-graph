@@ -24,22 +24,34 @@ export function Layout() {
   });
   const hostActive = useHostVisibility();
   return (
-    <div className="workbench" data-host-active={hostActive} data-snapshot={state.data?.loadedAt}>
+    <div
+      className="workbench"
+      data-host-active={hostActive}
+      data-snapshot={state.data?.loadedAt}
+    >
       <header className="app-toolbar">
         <nav className="main-nav" aria-label="图谱导航">
           <Link
             to="/"
             activeProps={{ className: "active" }}
-            activeOptions={{ exact: true }}
+            activeOptions={{ exact: true, includeSearch: false }}
           >
             <Network size={15} />
             图谱
           </Link>
-          <Link to="/insights" activeProps={{ className: "active" }}>
+          <Link
+            to="/insights"
+            activeOptions={{ exact: true, includeSearch: false }}
+            activeProps={{ className: "active" }}
+          >
             <Activity size={15} />
             洞察
           </Link>
-          <Link to="/saved" activeProps={{ className: "active" }}>
+          <Link
+            to="/saved"
+            activeOptions={{ exact: true, includeSearch: false }}
+            activeProps={{ className: "active" }}
+          >
             <Bookmark size={15} />
             已保存
             {state.savedViews.length > 0 && (
@@ -47,23 +59,12 @@ export function Layout() {
             )}
           </Link>
         </nav>
-        <select
-          aria-label="数据来源"
-          id="source-picker"
-          className="source-picker"
-          value={state.source}
-          onChange={(event) => void state.load(event.target.value)}
-        >
-          <option value="siyuan">当前工作空间</option>
-          <option value="10000">测试 · 10,000 节点</option>
-          <option value="100000">测试 · 100,000 节点</option>
-        </select>
         <div className="header-actions">
           <button
             className="icon-button"
             aria-label="刷新图谱"
             title="重新读取工作空间"
-            onClick={() => void state.load(state.source)}
+            onClick={() => void state.load()}
           >
             <RefreshCw size={15} className={state.loading ? "spin" : ""} />
           </button>

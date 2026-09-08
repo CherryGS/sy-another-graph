@@ -151,21 +151,10 @@ small,
   font-size: 10px;
   color: #bab0e4;
 }
-.source-picker {
-  margin-left: auto;
-  max-width: 167px;
-  width: 140px;
-  font-size: 11px;
-  height: 27px;
-  background: transparent;
-  border-color: transparent;
-}
-.source-picker:hover {
-  border-color: var(--line);
-}
 .header-actions {
   display: flex;
   gap: 2px;
+  margin-left: auto;
 }
 .icon-button {
   display: inline-grid;
@@ -228,13 +217,14 @@ small,
   overflow: auto;
 }
 .explore-layout {
-  display: flex;
+  position: relative;
   height: 100%;
   min-width: 0;
 }
 .graph-stage {
   position: relative;
-  flex: 1;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
   background: #11121a;
@@ -422,7 +412,7 @@ small,
   position: absolute;
   z-index: 4;
   top: 49px;
-  right: 10px;
+  left: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -432,6 +422,16 @@ small,
   background: #222232e8;
   border-radius: 5px;
   max-width: calc(100% - 20px);
+}
+.has-inspector .focus-toolbar {
+  max-width: calc(100% - 254px);
+}
+.isolate-focus {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-size: 10px;
 }
 .focus-toolbar > span {
   overflow: hidden;
@@ -454,9 +454,6 @@ small,
   font-size: 10px;
   pointer-events: none;
   z-index: 3;
-}
-.demo-badge {
-  color: #d4b881;
 }
 .canvas-controls {
   position: absolute;
@@ -496,13 +493,19 @@ small,
   color: #d7a59b;
 }
 .inspector-panel {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 7;
   width: 218px;
-  flex: 0 0 218px;
-  height: 100%;
+  max-width: calc(100% - 20px);
+  max-height: calc(100% - 58px);
   min-height: 0;
   overflow: auto;
-  background: #1b1d26;
-  border-left: 1px solid var(--line);
+  background: #1b1d26f5;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #0005;
   padding: 10px 12px;
 }
 .inspector-panel .panel-heading {
@@ -962,8 +965,11 @@ small,
 @media (max-width: 700px) {
   .inspector-panel {
     width: 196px;
-    flex-basis: 196px;
     padding: 8px 10px;
+  }
+  .has-inspector .focus-toolbar {
+    max-width: calc(100% - 234px);
+    flex-wrap: wrap;
   }
   .metric-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -990,10 +996,6 @@ small,
   }
   .main-nav .nav-count {
     display: none;
-  }
-  .source-picker {
-    max-width: 155px;
-    width: 130px;
   }
   .header-actions .icon-button {
     width: 25px;

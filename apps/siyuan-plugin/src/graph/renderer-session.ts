@@ -32,6 +32,7 @@ export interface RendererDiagnostics {
   configurations: number;
   dataRevisions: number;
   highlightedCount: number;
+  outlinedCount: number;
   requestedHighlightCount: number;
   selectedRootId: string | null;
   dragCount: number;
@@ -58,6 +59,9 @@ export class RendererSession {
   private closed = false;
   private ready = false;
   private currentData: PreparedGraph | null = null;
+  private currentConfig: CosmographConfig | null = null;
+  private desiredOutlines: readonly number[] = [];
+  private outlineRevision = 0;
   private selectedId: string | null = null;
   private highlightedIds: readonly string[] = [];
   private selectionDirty = true;
@@ -75,6 +79,7 @@ export class RendererSession {
     configurations: 0,
     dataRevisions: 0,
     highlightedCount: 0,
+    outlinedCount: 0,
     requestedHighlightCount: 0,
     selectedRootId: null,
     dragCount: 0,
@@ -139,6 +144,7 @@ export class RendererSession {
     this.ready = false;
     this.cancelFit();
     this.cancelRefresh();
+    this.outlineRevision++;
   }
 
   update(
@@ -153,6 +159,8 @@ export class RendererSession {
       const dataChanged = this.currentData !== data;
       let uploaded: UploadedGraph | undefined;
       let configurationStarted = false;
+      let appliedConfig: CosmographConfig | null = null;
+      let outlinedIndices: number[] = [];
       try {
         // Label/crossfilter reads have their own queues inside Cosmograph.
         await this.drain();
@@ -163,6 +171,7 @@ export class RendererSession {
           await this.tables.clear();
           this.publishDiagnostics({
             highlightedCount: 0,
+            outlinedCount: 0,
             requestedHighlightCount: 0,
             selectedRootId: null,
           });
@@ -175,12 +184,14 @@ export class RendererSession {
           let rebuildError: Error | undefined;
           let dragMoved = false;
           configurationStarted = true;
-          await this.graph.setConfig({
+          outlinedIndices = this.neighborIndices(data);
+          appliedConfig = {
             ...data.config,
             ...config,
             points: uploaded.points,
             links: uploaded.links,
             fitViewOnInit: false,
+            outlinedPointIndices: outlinedIndices,
             onGraphRebuildError: (error) => {
               rebuildError = error;
             },
@@ -235,7 +246,8 @@ export class RendererSession {
               });
               config.onPointsFiltered?.(...args);
             },
-          });
+          };
+          await this.graph.setConfig(appliedConfig);
           await this.drain();
           // The completed config references these tables, even when superseded meanwhile.
           await this.tables.commit(uploaded);
@@ -255,6 +267,9 @@ export class RendererSession {
           );
         }
         this.currentData = data;
+        this.currentConfig = appliedConfig;
+        this.desiredOutlines = outlinedIndices;
+        this.publishDiagnostics({ outlinedCount: outlinedIndices.length });
         this.ready = true;
         if (dataChanged)
           this.publishDiagnostics({
@@ -367,6 +382,7 @@ export class RendererSession {
         failures.push(error);
       }
       this.currentData = null;
+      this.currentConfig = null;
       this.diagnosticListeners.clear();
       if (failures.length)
         throw new AggregateError(failures, "图谱资源清理失败。");
@@ -407,6 +423,7 @@ export class RendererSession {
         true,
       );
       this.graph.setFocusedPoint(index);
+      this.scheduleOutlines(this.neighborIndices(this.currentData));
       this.publishDiagnostics({
         requestedHighlightCount: selected.size,
         selectedRootId:
@@ -426,6 +443,56 @@ export class RendererSession {
       this.ready = false;
       this.reportError(error);
     }
+  }
+
+  private neighborIndices(data: PreparedGraph) {
+    const indices = new Set<number>();
+    for (const id of this.highlightedIds) {
+      const index = data.idToIndex.get(id);
+      if (id !== this.selectedId && index !== undefined) indices.add(index);
+    }
+    return [...indices];
+  }
+
+  private scheduleOutlines(indices: number[]) {
+    if (
+      indices.length === this.desiredOutlines.length &&
+      indices.every(
+        (index, position) => index === this.desiredOutlines[position],
+      )
+    )
+      return;
+    this.desiredOutlines = indices;
+    const revision = this.revision;
+    const outlineRevision = ++this.outlineRevision;
+    void this.enqueue(async () => {
+      if (
+        !this.isCurrent(revision) ||
+        outlineRevision !== this.outlineRevision ||
+        !this.hasData ||
+        !this.currentConfig
+      )
+        return;
+      // This changes only Cosmos's outline mask; all data columns and source tables retain identity.
+      const config = { ...this.currentConfig, outlinedPointIndices: indices };
+      await this.graph.setConfig(config);
+      this.publishDiagnostics({
+        configurations: this.diagnosticState.configurations + 1,
+      });
+      if (!this.isCurrent(revision)) return;
+      this.currentConfig = config;
+      this.graph.setFocusedPoint(
+        this.selectedId === null
+          ? undefined
+          : this.currentData?.idToIndex.get(this.selectedId),
+      );
+      this.publishDiagnostics({ outlinedCount: indices.length });
+    }).catch((error: unknown) => {
+      if (this.isCurrent(revision)) {
+        this.ready = false;
+        this.reportError(error);
+      }
+    });
   }
 
   private publishDiagnostics(change: Partial<RendererDiagnostics>) {

@@ -23,7 +23,12 @@ export function ExplorePage({ active }: { active: boolean }) {
   const [target, setTarget] = useState("");
   const { data, filters, setFilters, selected, view } = state;
   const highlightedIds = useMemo(
-    () => (state.focus ? view.nodes.map((node) => node.id) : undefined),
+    () =>
+      state.focus
+        ? view.nodes
+            .filter((node) => state.focus!.has(node.index))
+            .map((node) => node.id)
+        : undefined,
     [state.focus, view.nodes],
   );
   const incoming = useMemo(
@@ -45,7 +50,7 @@ export function ExplorePage({ active }: { active: boolean }) {
       hideIsolated: false,
     });
   return (
-    <div className="explore-layout">
+    <div className={`explore-layout ${selected ? "has-inspector" : ""}`}>
       <section className="graph-stage" aria-label="图谱画布区域">
         {data && (
           <CosmographCanvas
@@ -246,10 +251,20 @@ export function ExplorePage({ active }: { active: boolean }) {
         )}
         {state.focus && (
           <div className="focus-toolbar">
-            <span>{state.focusLabel.replace("全图 ", "")}</span>
+            <span>{state.focusLabel}</span>
+            <label className="isolate-focus">
+              <input
+                type="checkbox"
+                checked={state.isolateFocus}
+                onChange={(event) =>
+                  state.setIsolateFocus(event.target.checked)
+                }
+              />
+              仅显示结果
+            </label>
             <button className="secondary-button" onClick={state.clearFocus}>
               <X size={13} />
-              返回全图
+              清除高亮
             </button>
           </div>
         )}
@@ -265,7 +280,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             <p>{state.error}</p>
             <button
               className="primary-button"
-              onClick={() => void state.load(state.source)}
+              onClick={() => void state.load()}
             >
               重新加载
             </button>
@@ -280,12 +295,10 @@ export function ExplorePage({ active }: { active: boolean }) {
             <button
               className="secondary-button"
               onClick={
-                data.nodes.length
-                  ? resetFilters
-                  : () => void state.load("10000")
+                data.nodes.length ? resetFilters : () => void state.load()
               }
             >
-              {data.nodes.length ? "清除筛选" : "体验测试图谱"}
+              {data.nodes.length ? "清除筛选" : "重新读取工作空间"}
             </button>
           </div>
         )}
@@ -294,9 +307,6 @@ export function ExplorePage({ active }: { active: boolean }) {
             {view.nodes.length.toLocaleString()} 节点 ·{" "}
             {view.edges.length.toLocaleString()} 关系
           </span>
-          {state.source !== "siyuan" && (
-            <span className="demo-badge">合成测试</span>
-          )}
         </div>
         <div className="canvas-controls">
           <button
@@ -394,7 +404,7 @@ export function ExplorePage({ active }: { active: boolean }) {
                 ) : (
                   <Focus size={14} />
                 )}
-                聚焦
+                  高亮邻域
               </button>
             </div>
             <div className="detail-divider" />

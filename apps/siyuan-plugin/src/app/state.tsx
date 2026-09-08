@@ -13,7 +13,7 @@ import {
   type EngineStats,
   type GraphEngine,
 } from "../engine/client";
-import { createDemoGraph, loadSiYuanGraph } from "../data/source";
+import { loadSiYuanGraph } from "../data/source";
 import { prepareGraphExport, type ExportFile } from "../data/export";
 import type { GraphColorMode } from "../graph/node-colors";
 import type { GraphDirection } from "../engine/types";
@@ -41,13 +41,13 @@ function userMessage(failure: unknown) {
 function useWorkbenchState() {
   const [data, setData] = useState<GraphDataset | null>(null);
   const [stats, setStats] = useState<EngineStats | null>(null);
-  const [source, setSource] = useState("siyuan");
   const [loading, setLoading] = useState("正在连接思源…");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [filters, setFilters] = useState<GraphFilters>({ ...DEFAULT_FILTERS });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focus, setFocus] = useState<Set<number> | null>(null);
+  const [isolateFocus, setIsolateFocus] = useState(false);
   const [focusLabel, setFocusLabel] = useState("");
   const [showLabels, setShowLabels] = useState(true);
   const [showLinks, setShowLinks] = useState(true);
@@ -66,7 +66,7 @@ function useWorkbenchState() {
   const loadAbort = useRef<AbortController | null>(null);
   const revision = useRef(0);
 
-  const load = useCallback(async (nextSource = "siyuan") => {
+  const load = useCallback(async () => {
     const current = ++revision.current;
     loadAbort.current?.abort();
     exportAbort.current?.abort();
@@ -76,22 +76,19 @@ function useWorkbenchState() {
     engine.current = null;
     const abort = new AbortController();
     loadAbort.current = abort;
-    setSource(nextSource);
     setError("");
     setLoading("准备图谱数据…");
     setBusy(false);
     setFocus(null);
+    setIsolateFocus(false);
     setFocusLabel("");
     setSelectedId(null);
     setStats(null);
     setData(null);
     try {
-      const next =
-        nextSource === "siyuan"
-          ? await loadSiYuanGraph(abort.signal, (message) => {
-              if (current === revision.current) setLoading(message);
-            })
-          : createDemoGraph(Number(nextSource));
+      const next = await loadSiYuanGraph(abort.signal, (message) => {
+        if (current === revision.current) setLoading(message);
+      });
       if (current !== revision.current) return;
       setLoading(
         `正在构建 Rust 图索引 · ${next.nodes.length.toLocaleString()} 个节点`,
@@ -142,16 +139,17 @@ function useWorkbenchState() {
     return () => clearTimeout(timer);
   }, [toast]);
   const { notebook, references, hierarchy, hideIsolated } = filters;
+  const projectedFocus = isolateFocus ? focus : null;
   const view = useMemo(
     () =>
       data
         ? filterGraph(
             data,
             { query: "", notebook, references, hierarchy, hideIsolated },
-            focus,
+            projectedFocus,
           )
         : { nodes: [], edges: [] },
-    [data, notebook, references, hierarchy, hideIsolated, focus],
+    [data, notebook, references, hierarchy, hideIsolated, projectedFocus],
   );
   const selected = useMemo(
     () => data?.nodes.find((node) => node.id === selectedId) ?? null,
@@ -172,8 +170,8 @@ function useWorkbenchState() {
 
   const clearFocus = () => {
     setFocus(null);
+    setIsolateFocus(false);
     setFocusLabel("");
-    setFitRequest((value) => value + 1);
   };
   const neighborhood = async (depth: number) => {
     if (!selected || !engine.current) return;
@@ -198,7 +196,6 @@ function useWorkbenchState() {
       setFocusLabel(
         `${depth} 跳 · ${direction === "out" ? "沿箭头" : direction === "in" ? "逆箭头" : "双向"}${result.truncated ? " · 已达 10,000 节点预算" : ""}`,
       );
-      setFitRequest((value) => value + 1);
     } catch (failure) {
       if (current === revision.current) setToast(String(failure));
     } finally {
@@ -237,7 +234,6 @@ function useWorkbenchState() {
       setFocusLabel(
         `最短路径 · ${Math.max(0, path.length - 1)} 步 · ${direction === "out" ? "沿箭头" : direction === "in" ? "逆箭头" : "双向"}`,
       );
-      setFitRequest((value) => value + 1);
     } catch (failure) {
       if (current === revision.current) setToast(String(failure));
     } finally {
@@ -245,10 +241,6 @@ function useWorkbenchState() {
     }
   };
   const openDocument = (id: string) => {
-    if (data?.source === "demo") {
-      setToast("这是合成数据，不对应实际思源文档");
-      return;
-    }
     if (window.parent !== window)
       window.parent.postMessage(
         { channel: "sy-another-graph", type: "open-block", id },
@@ -276,24 +268,11 @@ function useWorkbenchState() {
       setToast("最多保存 50 个视图，请先移除不需要的视图");
       return;
     }
-    if (
-      persistViews([
-        newSavedView(
-          name,
-          filters,
-          selectedId,
-          data.source,
-          source as SavedView["datasetKey"],
-        ),
-        ...savedViews,
-      ])
-    )
+    if (persistViews([newSavedView(name, filters, selectedId), ...savedViews]))
       setToast("视图已保存到当前浏览器");
   };
   const restoreView = async (saved: SavedView) => {
-    const key =
-      saved.datasetKey ?? (saved.source === "siyuan" ? "siyuan" : "10000");
-    const currentData = key === source && data ? data : await load(key);
+    const currentData = data ?? (await load());
     if (!currentData) return false;
     if (
       saved.filters.notebook &&
@@ -323,7 +302,7 @@ function useWorkbenchState() {
     setExporting(true);
     setExportFile(null);
     try {
-      const file = await prepareGraphExport(data.source, view, abort.signal);
+      const file = await prepareGraphExport(view, abort.signal);
       if (current !== revision.current) return;
       setExportFile(file);
       setToast("JSON 文件已生成，点击「下载 JSON」保存");
@@ -337,7 +316,6 @@ function useWorkbenchState() {
   return {
     data,
     stats,
-    source,
     loading,
     error,
     toast,
@@ -349,6 +327,8 @@ function useWorkbenchState() {
     setSelectedId,
     selected,
     focus,
+    isolateFocus,
+    setIsolateFocus,
     focusLabel,
     clearFocus,
     view,

@@ -9,9 +9,13 @@ Enable the plugin and click the Atlas toolbar icon, or press Alt+Shift+G.
 Search for documents, filter notebooks and relation types, inspect nodes, open
 documents, focus neighborhoods, or find connecting paths.
 
+Neighborhoods are highlighted within the full graph; the result-only toggle can
+isolate them. The details panel overlays the canvas. Dragging across labels does
+not release a node; labels remain clickable outside a drag.
+
 Insights show graph structure and measured runtime information. Saved views
-retain filters, selected documents, and data-source identity in the current
-browser. Synthetic scale fixtures are clearly labeled and do not modify notes.
+retain filters and selected documents in the current browser. The plugin reads
+only the current SiYuan workspace, without built-in test datasets.
 
 ## Runtime
 

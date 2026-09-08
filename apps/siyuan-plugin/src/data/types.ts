@@ -25,7 +25,7 @@ export interface GraphDataset {
   nodes: GraphNode[];
   edges: GraphEdge[];
   notebooks: Notebook[];
-  source: "siyuan" | "demo";
+  source: "siyuan";
   loadedAt: string;
   loadMs: number;
   referenceCount: number;

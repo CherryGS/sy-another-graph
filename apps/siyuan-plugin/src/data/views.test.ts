@@ -12,7 +12,6 @@ const saved: SavedView = {
   name: "Saved perspective",
   createdAt: "2026-09-08T00:00:00.000Z",
   source: "siyuan",
-  datasetKey: "siyuan",
   selectedId: null,
   filters: { ...DEFAULT_FILTERS },
 };
@@ -77,14 +76,30 @@ describe("saved view recovery", () => {
     ).toEqual([]);
   });
 
-  it("preserves both supported demo sizes and legacy views without a dataset key", () => {
-    const views = [
+  it("migrates legitimate SiYuan views and strips obsolete dataset metadata", () => {
+    const views = [saved, { ...saved, id: "previous-schema", datasetKey: "siyuan" }];
+    expect(readSavedViews(storage(views))).toEqual([
       saved,
+      { ...saved, id: "previous-schema" },
+    ]);
+    expect(readSavedViews(storage(views)).every(view => !("datasetKey" in view))).toBe(true);
+  });
+
+  it("rejects all old synthetic views without silently converting them to workspace views", () => {
+    const views = [
       { ...saved, id: "small", source: "demo", datasetKey: "10000" },
       { ...saved, id: "large", source: "demo", datasetKey: "100000" },
-      { ...saved, id: "legacy", source: "demo", datasetKey: undefined },
+      { ...saved, id: "legacy", source: "demo" },
+      saved,
     ];
-    expect(readSavedViews(storage(views))).toEqual(views);
+    expect(readSavedViews(storage(views))).toEqual([saved]);
+  });
+
+  it("does not accept corrupt persisted state", () => {
+    expect(readSavedViews({ getItem: () => "{broken" })).toEqual([]);
+    expect(
+      readSavedViews({ getItem: () => '[{"id":"x","name":"x","filters":{}}]' }),
+    ).toEqual([]);
   });
 
   it("captures independent filter values when a view is created", () => {
@@ -97,8 +112,6 @@ describe("saved view recovery", () => {
       "  Saved scope  ",
       filters,
       "node-2",
-      "siyuan",
-      "siyuan",
     );
     filters.notebook = "notebook-b";
     filters.references = true;
@@ -109,7 +122,8 @@ describe("saved view recovery", () => {
       references: false,
     });
     expect(view.selectedId).toBe("node-2");
-    expect(view.datasetKey).toBe("siyuan");
+    expect(view.source).toBe("siyuan");
+    expect("datasetKey" in view).toBe(false);
   });
 });
 

@@ -85,6 +85,15 @@
   background: #162a3a;
 }
 
+/* Cosmos loses its dragged-point hover when an interactive label intercepts the pointer. */
+.ag-canvas__renderer[data-point-dragging="true"]
+  :is(.css-label--label, .ag-graph-label),
+.ag-canvas__renderer[data-point-dragging="true"]
+  :is(.css-label--label, .ag-graph-label)
+  * {
+  pointer-events: none !important;
+}
+
 .ag-canvas__tooltip {
   position: absolute;
   z-index: 3;

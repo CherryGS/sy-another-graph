@@ -1,13 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  api,
-  createDemoGraph,
-  loadSiYuanGraph,
-  normalizeGraph,
-} from "./source";
-import { filterGraph, readSavedViews } from "./views";
-import { DEFAULT_FILTERS } from "./types";
+import { api, loadSiYuanGraph, normalizeGraph } from "./source";
 
 const databases: DatabaseSync[] = [];
 const documentId = (index: number) => `doc-${String(index).padStart(6, "0")}`;
@@ -122,39 +115,6 @@ describe("SiYuan document graph projection", () => {
       { source: 0, target: 1, kind: "hierarchy", weight: 1 },
     ]);
     expect(graph.skippedReferences).toBe(3);
-  });
-  it("keeps original indices in filtered views so the engine and renderer agree", () => {
-    const data = createDemoGraph(32);
-    const view = filterGraph(data, {
-      ...DEFAULT_FILTERS,
-      notebook: "demo-2",
-      hierarchy: false,
-    });
-    expect(view.nodes.map((node) => node.index)).toEqual([2, 10, 18, 26]);
-    const ids = new Set(view.nodes.map((node) => node.index));
-    expect(
-      view.edges.every(
-        (edge) =>
-          ids.has(edge.source) &&
-          ids.has(edge.target) &&
-          edge.kind === "reference",
-      ),
-    ).toBe(true);
-  });
-  it("does not accept corrupt persisted state", () => {
-    expect(readSavedViews({ getItem: () => "{broken" })).toEqual([]);
-    expect(
-      readSavedViews({ getItem: () => '[{"id":"x","name":"x","filters":{}}]' }),
-    ).toEqual([]);
-  });
-  it("reports weighted demo references independently of hierarchy edges", () => {
-    const graph = createDemoGraph(6);
-    expect(graph.edges.every((edge) => edge.source !== edge.target)).toBe(true);
-    expect(graph.referenceCount).toBe(
-      graph.edges
-        .filter((edge) => edge.kind === "reference")
-        .reduce((sum, edge) => sum + edge.weight, 0),
-    );
   });
 });
 

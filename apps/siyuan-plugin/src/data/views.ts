@@ -6,8 +6,7 @@ export interface SavedView {
   createdAt: string;
   filters: GraphFilters;
   selectedId: string | null;
-  source: "siyuan" | "demo";
-  datasetKey?: "siyuan" | "10000" | "100000";
+  source: "siyuan";
 }
 
 export function filterGraph(
@@ -53,19 +52,32 @@ export function readSavedViews(
           typeof item.id === "string" &&
           typeof item.name === "string" &&
           typeof item.createdAt === "string" &&
-          (item.source === "siyuan" || item.source === "demo") &&
+          item.source === "siyuan" &&
           typeof item.filters?.query === "string" &&
           typeof item.filters?.notebook === "string" &&
           typeof item.filters?.references === "boolean" &&
           typeof item.filters?.hierarchy === "boolean" &&
           typeof item.filters?.hideIsolated === "boolean" &&
           (item.selectedId === null || typeof item.selectedId === "string") &&
-          (item.datasetKey === undefined ||
-            (item.source === "siyuan"
-              ? item.datasetKey === "siyuan"
-              : ["10000", "100000"].includes(item.datasetKey))),
+          // The old schema carried a dataset key. Migrate only genuine SiYuan
+          // views; never relabel a legacy generated dataset as workspace data.
+          (item.datasetKey === undefined || item.datasetKey === "siyuan"),
       )
-      .slice(0, 50);
+      .slice(0, 50)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        createdAt: item.createdAt,
+        filters: {
+          query: item.filters.query,
+          notebook: item.filters.notebook,
+          references: item.filters.references,
+          hierarchy: item.filters.hierarchy,
+          hideIsolated: item.filters.hideIsolated,
+        },
+        selectedId: item.selectedId,
+        source: "siyuan",
+      }));
   } catch {
     return [];
   }
@@ -75,8 +87,6 @@ export function newSavedView(
   name: string,
   filters: GraphFilters,
   selectedId: string | null,
-  source: "siyuan" | "demo",
-  datasetKey?: SavedView["datasetKey"],
 ): SavedView {
   return {
     id: crypto.randomUUID(),
@@ -84,7 +94,6 @@ export function newSavedView(
     createdAt: new Date().toISOString(),
     filters: { ...DEFAULT_FILTERS, ...filters },
     selectedId,
-    source,
-    datasetKey,
+    source: "siyuan",
   };
 }

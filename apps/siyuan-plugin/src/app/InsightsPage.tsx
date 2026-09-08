@@ -67,9 +67,7 @@ export function InsightsPage() {
         <div>
           <h2>洞察</h2>
         </div>
-        <span className="source-chip">
-          {data.source === "demo" ? "合成测试数据" : "思源工作空间"}
-        </span>
+        <span className="source-chip">思源工作空间</span>
       </div>
       <div className="metric-grid">
         {metrics.map(({ label, value, detail, Icon }) => (
@@ -170,7 +168,7 @@ export function InsightsPage() {
             </strong>
           </div>
           <div>
-            <span>数据读取 / 生成</span>
+            <span>数据读取</span>
             <strong>{data.loadMs.toFixed(1)} ms</strong>
           </div>
           <div>

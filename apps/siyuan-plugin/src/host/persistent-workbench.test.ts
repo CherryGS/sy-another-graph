@@ -133,7 +133,7 @@ function harness() {
   const observers: ObserverStub[] = [];
   let sequence = 0;
   const window = Object.assign(new EventTarget(), {
-    location: { origin: "http://127.0.0.1:51436" },
+    location: { origin: "http://127.0.0.1:6806" },
     innerWidth: 1440,
     innerHeight: 900,
     requestAnimationFrame(callback: () => void) {

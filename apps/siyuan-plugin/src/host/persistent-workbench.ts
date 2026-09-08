@@ -101,7 +101,7 @@ export class PersistentWorkbench {
     container.style.cssText =
       "position:fixed;left:0;top:0;width:1px;height:1px;z-index:1;overflow:hidden;visibility:hidden;pointer-events:none;background:#11121a;";
     const frame = document.createElement("iframe");
-    frame.src = `/plugins/${encodeURIComponent(this.pluginName)}/ui/index.html?session=${this.sessionId}`;
+    frame.src = `/plugins/${encodeURIComponent(this.pluginName)}/ui/index.html?session=${this.sessionId}#/`;
     frame.title = "Atlas 思源图谱";
     frame.dataset.atlasSession = this.sessionId;
     frame.dataset.atlasActive = "false";

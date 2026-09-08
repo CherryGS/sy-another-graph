@@ -9,7 +9,7 @@ function host() {
   const target = Object.assign(new EventTarget(), {
     document,
     parent,
-    location: { origin: "http://localhost:51436" },
+    location: { origin: "http://localhost:6806" },
   });
   const publish = vi.fn();
   const close = subscribeHostVisibility(target as unknown as Window, publish);
@@ -33,7 +33,7 @@ describe("host visibility bridge", () => {
     const fixture = host();
     expect(fixture.parent.postMessage).toHaveBeenCalledWith(
       { channel: "sy-another-graph", type: "workbench-ready" },
-      "http://localhost:51436",
+      "http://localhost:6806",
     );
     fixture.publish.mockClear();
     fixture.message(false, "https://untrusted.example");

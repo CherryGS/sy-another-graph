@@ -12,10 +12,11 @@ WASM graph engine. The plugin is named `sy-another-graph`.
 - Draggable nodes, directional reference/hierarchy arrows, and stable colors
   by document branch, notebook, or degree. Focused neighborhoods highlight all
   participating nodes while retaining a distinct selected root.
-- Full-graph neighborhoods and shortest paths computed in a dedicated WASM
-  Worker. Neighborhood views report their 10,000-node budget when reached.
-- Saved filter/selection views, source restoration, and graph insights.
-- Local JSON export and explicitly labeled 10k/100k synthetic scale fixtures.
+- Full-graph neighborhood and path highlighting computed in a dedicated WASM
+  Worker. Neighbors receive cyan outlines against dimmed context; an optional
+  result-only view reports its 10,000-node budget when reached.
+- Saved filter/selection views and graph insights.
+- Local JSON export from the current SiYuan workspace.
 - A retained application session: document switching, insights/saved routes,
   and closing/reopening the graph tab preserve the graph, layout, and camera.
 - Locally bundled renderer/database resources, escaped graph labels, and an
@@ -46,7 +47,8 @@ uses ordinary files.
 
 Reload SiYuan, enable **Atlas Graph / Atlas 思源图谱** in downloaded plugins, and
 use the graph toolbar icon or **Alt+Shift+G**. The supplied test environment is
-`http://127.0.0.1:51436`.
+`http://127.0.0.1:6806`. Runtime requests use the current SiYuan origin rather
+than a hardcoded port.
 
 For frontend development, run these watchers in separate terminals, then
 redeploy and reload after changes:
@@ -72,6 +74,9 @@ Graph indices are revision-local integers; persisted selections use SiYuan IDs.
 The graph core uses directed CSR, deduplication, weak components, BFS
 neighborhoods, and shortest paths. The UI's neighborhood/path operations use
 the full graph and reset relation/notebook filters to show their results.
+Highlighting preserves the surrounding graph and layout by default. The details
+panel overlays the canvas without changing its dimensions. Use the result-only
+toggle when a separate projection is wanted.
 Traversal can follow arrows, reverse arrows, or use both directions. Reference
 arrows point from the citing document to the cited document; hierarchy arrows
 point from parent to child. Refresh explicitly reloads the workspace snapshot.
@@ -98,18 +103,12 @@ temporary export directory. Use the persistent **Download JSON** link to save
 the generated snapshot. The UI confirms file generation separately from the
 browser's download action; exporting does not alter notes.
 
-## Observed scale evidence
+## Benchmarks
 
-In the supplied SiYuan 3.8.3 WebUI, the renderer's actual counts matched
-**100,000 nodes and 233,331 links** for the synthetic fixture. High-index
-selection and a bounded neighborhood also worked. One run measured 25.2 ms for
-fixture generation and 11.1 ms for Worker/WASM graph construction. These are
-single-run measurements, not GPU frame rates or universal capacity guarantees.
-
-The test workspace's stored native global-graph output cap was 16,384. That is a
-configuration limit, not a native rendering benchmark or intrinsic ceiling.
-The Rust core's separate 100k/400k benchmark is documented in
-[its README](crates/graph-core/README.md).
+The runtime reads only indexed SiYuan workspace data. Synthetic workloads are
+restricted to automated tests and standalone algorithm benchmarks; there is no
+demo dataset generator or source picker in the plugin. The Rust core's separate
+100k/400k benchmark is documented in [its README](crates/graph-core/README.md).
 
 ## Repository
 

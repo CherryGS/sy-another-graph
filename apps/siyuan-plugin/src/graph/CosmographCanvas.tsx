@@ -13,6 +13,7 @@ import { prepareGraph } from "./prepare-graph";
 import type { PreparedGraph } from "./prepare-graph";
 import { GraphTableStore } from "./graph-tables";
 import { RendererSession } from "./renderer-session";
+import { DragLabelGuard } from "./drag-label-guard";
 import type { CosmographCanvasProps } from "./types";
 import "./canvas.css";
 
@@ -38,16 +39,20 @@ const BASE_CONFIG: CosmographConfig = {
   showHoveredPointLabel: false,
   showDynamicLabels: true,
   showDynamicLabelsLimit: 40,
+  showUnselectedPointLabels: false,
+  showSelectedLabels: true,
   showTopLabels: false,
   pointLabelColor: "#dce9f6",
   pointLabelFontSize: 12,
   pointLabelClassName: "ag-graph-label",
   focusedPointRingColor: "#effaff",
+  outlinedPointRingColor: "#69d9eb",
   renderHoveredPointRing: true,
   hoveredPointRingColor: "#9addf4",
   pointDefaultColor: "#8bd6e6",
-  pointGreyoutOpacity: 0.15,
-  linkGreyoutOpacity: 0.05,
+  pointGreyoutColor: "#526078",
+  pointGreyoutOpacity: 0.28,
+  linkGreyoutOpacity: 0.035,
   linkOpacity: 0.88,
   linkDefaultWidth: 1.55,
   linkDefaultArrows: true,
@@ -98,6 +103,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   const pointer = useRef({ x: 12, y: 12 });
   const latestProps = useRef(props);
   const owner = useRef<RendererSession | null>(null);
+  const dragLabels = useRef<DragLabelGuard | null>(null);
   const interactiveConfig = useRef<CosmographConfig>({});
   const [session, setSession] = useState<RendererSession | null>(null);
   const diagnostics = useSyncExternalStore(
@@ -139,7 +145,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     setInitializationError(null);
     setError(null);
     const element = container.current;
+    const labelGuard = element ? new DragLabelGuard(element) : null;
+    dragLabels.current = labelGuard;
     const fail = (failure: unknown) => {
+      labelGuard?.end();
       if (active) {
         setError(errorMessage(failure));
         setIsRendering(false);
@@ -148,6 +157,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     };
     const handleContextLost = (event: Event) => {
       event.preventDefault();
+      labelGuard?.end();
       owned?.suspend();
       if (active)
         setInitializationError("图形上下文已丢失，请重试图谱以恢复显示。");
@@ -186,6 +196,12 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           onPointMouseOut: () => {
             if (active) setHovered(null);
           },
+          // Native start is synchronous: labels must stop intercepting the very next move.
+          onDragStart: () => {
+            labelGuard?.begin();
+            setHovered(null);
+          },
+          onDragEnd: () => labelGuard?.end(),
           onGraphRebuildError: fail,
         };
         interactiveConfig.current = base;
@@ -211,6 +227,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     const initializing = initialize();
     return () => {
       active = false;
+      labelGuard?.dispose();
+      if (dragLabels.current === labelGuard) dragLabels.current = null;
       controller.abort();
       element?.removeEventListener("webglcontextlost", handleContextLost, true);
       const closing = owned?.dispose(); // Invalidates controls synchronously, destruction stays queued.
@@ -226,6 +244,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
 
   useEffect(() => {
     const controller = new AbortController();
+    dragLabels.current?.end();
     owner.current?.suspend();
     // eslint-disable-next-line react/set-state-in-effect -- Publish the external renderer's preparation state.
     setIsPreparing(true);
@@ -251,6 +270,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   useEffect(() => {
     if (!session || !prepared) return;
     let active = true;
+    dragLabels.current?.end();
     // eslint-disable-next-line react/set-state-in-effect -- Controls stay disabled while the external GPU configuration is changing.
     setIsRendering(true);
     setHovered(null);
@@ -295,6 +315,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   }, [session, prepared, showLabels, showLinks, pointSize, colorBy]);
 
   useLayoutEffect(() => {
+    if (!visible) dragLabels.current?.end();
     session?.setActive(visible);
   }, [session, visible]);
 
@@ -319,6 +340,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-configurations={diagnostics?.configurations ?? 0}
       data-data-revisions={diagnostics?.dataRevisions ?? 0}
       data-highlighted-count={diagnostics?.highlightedCount ?? 0}
+      data-outlined-count={diagnostics?.outlinedCount ?? 0}
       data-requested-highlighted-count={
         diagnostics?.requestedHighlightCount ?? 0
       }

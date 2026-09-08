@@ -36,9 +36,7 @@ export function SavedPage() {
             <article className="saved-card" key={saved.id}>
               <div className="saved-card-art">
                 <Bookmark size={14} />
-                <span>
-                  {saved.source === "siyuan" ? "思源图谱" : "合成图谱"}
-                </span>
+                <span>思源图谱</span>
               </div>
               <h3>{saved.name}</h3>
               <p>

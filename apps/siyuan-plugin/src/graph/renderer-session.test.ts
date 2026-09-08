@@ -476,4 +476,58 @@ describe("renderer lifetime", () => {
     config.onDragEnd?.(event);
     expect(order).toEqual([]);
   });
+
+  it("outlines every visible neighbor while keeping the root separate and reuses source tables across selection changes", async () => {
+    const h = harness();
+    const prepared = data();
+    h.session.controls("a", true, ["a", "b", "outside", "b"]);
+    await h.session.update(prepared, { outlinedPointRingColor: "#69d9eb" });
+    const first = h.configurations[0];
+    expect(first.outlinedPointIndices).toEqual([1]);
+    expect(h.session.getDiagnostics().outlinedCount).toBe(1);
+    h.tables.stage.mockClear();
+    h.session.controls("b", true, ["a", "b"]);
+    await vi.waitFor(() => expect(h.graph.setConfig).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([0]),
+    );
+    expect(h.configurations.at(-1)).toMatchObject({
+      points: first.points,
+      links: first.links,
+      outlinedPointRingColor: "#69d9eb",
+    });
+    expect(h.tables.stage).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics().dataRevisions).toBe(1);
+    expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(1);
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    h.session.controls(null, true, []);
+    await vi.waitFor(() =>
+      expect(h.session.getDiagnostics().outlinedCount).toBe(0),
+    );
+    expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([]);
+    await h.session.dispose();
+  });
+
+  it("applies the latest outline mask when the neighborhood changes during an earlier visual update", async () => {
+    const h = harness();
+    await h.session.update(data(), {});
+    const started = deferred();
+    const finish = deferred();
+    const setConfig = h.graph.setConfig.getMockImplementation()!;
+    h.graph.setConfig.mockImplementationOnce(async (config) => {
+      started.resolve();
+      await finish.promise;
+      await setConfig(config);
+    });
+    h.session.controls("a", false, ["a", "b"]);
+    await started.promise;
+    h.session.controls("b", false, ["a", "b"]);
+    h.session.controls(null, false, []);
+    finish.resolve();
+    await vi.waitFor(() => expect(h.graph.setConfig).toHaveBeenCalledTimes(3));
+    expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([]);
+    expect(h.session.getDiagnostics().dataRevisions).toBe(1);
+    expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(undefined);
+    await h.session.dispose();
+  });
 });

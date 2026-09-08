@@ -1,4 +1,4 @@
-import type { GraphDataset, GraphEdge, GraphNode } from "./types";
+import type { GraphEdge, GraphNode } from "./types";
 
 export interface ExportFile {
   url: string;
@@ -8,7 +8,6 @@ export interface ExportFile {
 }
 
 export async function prepareGraphExport(
-  source: GraphDataset["source"],
   view: { nodes: GraphNode[]; edges: GraphEdge[] },
   signal?: AbortSignal,
 ): Promise<ExportFile> {
@@ -21,7 +20,7 @@ export async function prepareGraphExport(
         JSON.stringify(
           {
             schemaVersion: 1,
-            source,
+            source: "siyuan",
             exportedAt: new Date().toISOString(),
             ...view,
           },
