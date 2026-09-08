@@ -14,8 +14,8 @@ export interface CanvasGestureOptions {
   chosenIds(): readonly string[];
   nodeAt(event: MouseEvent): string | null;
   overRelationship(event: MouseEvent): boolean;
-  spacePosition(event: MouseEvent): [number, number] | undefined;
-  begin(ids: readonly string[], origin: [number, number]): GroupMotion;
+  pointerPosition(event: MouseEvent): [number, number] | undefined;
+  begin(ids: readonly string[], origin: [number, number], grabbedId: string): GroupMotion;
   onStart(): void;
   onMove(): void;
   onEnd(moved: boolean): void;
@@ -35,6 +35,7 @@ export class CanvasGestures {
     y: number;
     origin?: [number, number];
     ids?: readonly string[];
+    grabbedId?: string;
     shift: boolean;
     moved: boolean;
   };
@@ -45,7 +46,7 @@ export class CanvasGestures {
   private suppressClick = false;
   private suppressDoubleUntil = 0;
   private disposed = false;
-  private readonly capture = { capture: true };
+  private readonly capture = { capture: true, passive: false };
   private readonly host: EventTarget;
   private readonly options: CanvasGestureOptions;
   private readonly targets: GestureTargets;
@@ -70,6 +71,7 @@ export class CanvasGestures {
     host.addEventListener("dblclick", this.doubleClick, this.capture);
     targets.window.addEventListener("mousemove", this.move, this.capture);
     targets.window.addEventListener("mouseup", this.up, this.capture);
+    targets.window.addEventListener("wheel", this.wheel, this.capture);
     targets.window.addEventListener(
       "pointercancel",
       this.cancelEvent,
@@ -94,8 +96,9 @@ export class CanvasGestures {
     this.pending = {
       x: event.clientX,
       y: event.clientY,
-      origin: collective ? this.options.spacePosition(event) : undefined,
+      origin: collective ? this.options.pointerPosition(event) : undefined,
       ids: collective ? [...ids] : undefined,
+      grabbedId: collective ? id : undefined,
       shift: event.shiftKey,
       moved: false,
     };
@@ -118,13 +121,13 @@ export class CanvasGestures {
     pending.moved = true;
     this.suppressClick = true;
     this.suppressDoubleUntil = this.scheduler.now() + 500;
-    if (!pending.ids || !pending.origin) return;
+    if (!pending.ids || !pending.origin || !pending.grabbedId) return;
     try {
       if (!this.motion) {
-        this.motion = this.options.begin(pending.ids, pending.origin);
+        this.motion = this.options.begin(pending.ids, pending.origin, pending.grabbedId);
         this.options.onStart();
       }
-      this.latestPosition = this.options.spacePosition(event);
+      this.latestPosition = this.options.pointerPosition(event);
       if (this.frame === undefined)
         this.frame = this.scheduler.frame(() => {
           this.frame = undefined;
@@ -158,6 +161,10 @@ export class CanvasGestures {
 
   private click = (event: Event) => {
     if (this.suppressClick) consume(event);
+  };
+  private wheel = (event: Event) => {
+    // A collective drag owns one fixed camera-facing plane until release.
+    if (this.pending?.shift) consume(event);
   };
 
   private doubleClick = (raw: Event) => {
@@ -222,6 +229,7 @@ export class CanvasGestures {
       this.capture,
     );
     this.targets.window.removeEventListener("mouseup", this.up, this.capture);
+    this.targets.window.removeEventListener("wheel", this.wheel, this.capture);
     this.targets.window.removeEventListener(
       "pointercancel",
       this.cancelEvent,

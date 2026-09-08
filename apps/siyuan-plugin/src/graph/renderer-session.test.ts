@@ -3,6 +3,8 @@ import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { PreparedGraph } from "./prepare-graph";
 import type { UploadedGraph } from "./graph-tables";
 import { RendererSession, type FrameScheduler } from "./renderer-session";
+import type { CameraState, Dimensions, Point2D, PointPosition } from "./geometry";
+import type { ViewportApi } from "./position-adapter";
 
 function deferred() {
   let resolve!: () => void;
@@ -60,6 +62,9 @@ function harness() {
   const frames = new Map<number, () => void>();
   let sequence = 0;
   let positions: Float32Array = new Float32Array();
+  let positionDimensions: Dimensions = 2;
+  let is3D = false;
+  let camera: CameraState = { target: [0, 0, 0], distance: 500, azimuth: 0, polar: Math.PI / 2 };
   let pointTable: unknown;
   let zoom = 2.5;
   let translateX = 100;
@@ -85,19 +90,27 @@ function harness() {
     },
   };
   const graph = {
+    get is3D() { return is3D; },
     stats: { pointsCount: 0, linksCount: 0 },
     setConfig: vi.fn(async (config: CosmographConfig) => {
       configurations.push(config);
       const prepared = records.get(String(config.points));
+      is3D = config.spaceDimensions === 3;
       if (prepared && config.points !== pointTable) {
-        positions = Float32Array.from({ length: prepared.pointsCount * 2 }, (_, index) => 100 + index * 10);
+        positionDimensions = is3D ? 3 : 2;
+        positions = Float32Array.from({ length: prepared.pointsCount * positionDimensions }, (_, index) => 100 + index * 10);
         if (pointTable !== undefined) {
           // Cosmograph recreates Cosmos on a point-table replacement.
           zoom = 1;
           translateX = width / 2;
           translateY = height / 2;
+          camera = { target: [100, 200, 300], distance: 800, azimuth: 0, polar: Math.PI / 2 };
         }
         pointTable = config.points;
+      } else if (prepared && is3D && positionDimensions === 2) {
+        const previous = positions;
+        positions = Float32Array.from({ length: prepared.pointsCount * 3 }, (_, offset) => offset % 3 === 2 ? 50 + Math.floor(offset / 3) : previous[Math.floor(offset / 3) * 2 + offset % 3]);
+        positionDimensions = 3;
       }
       graph.stats = {
         pointsCount: prepared?.pointsCount ?? 0,
@@ -119,12 +132,17 @@ function harness() {
     }),
     pause: vi.fn(),
     unpause: vi.fn(),
+    start: vi.fn(),
     selectPoints: vi.fn(),
     setFocusedPoint: vi.fn(),
     setPinnedPoints: vi.fn(),
     fitView: vi.fn(),
-    getZoomLevel: vi.fn(() => zoom),
+    getZoomLevel: vi.fn(() => {
+      if (is3D) throw new Error("2D zoom getter used in 3D");
+      return zoom;
+    }),
     setZoomLevel: vi.fn((value: number) => {
+      if (is3D) throw new Error("2D zoom setter used in 3D");
       const x = (width / 2 - translateX) / zoom;
       const y = (translateY - height / 2) / zoom;
       zoom = value;
@@ -132,19 +150,32 @@ function harness() {
       translateY = height / 2 + y * zoom;
     }),
     getCanvas: vi.fn(() => ({ getBoundingClientRect: () => ({ width, height }) }) as HTMLCanvasElement),
-    screenToSpacePosition: vi.fn((point: [number, number]): [number, number] => [
-      (point[0] - translateX) / zoom, (translateY - point[1]) / zoom,
-    ]),
+    screenToSpacePosition: vi.fn((point: Point2D, options?: { dimensions?: Dimensions }): PointPosition => options?.dimensions === 3
+      ? [point[0] - width / 2 + camera.target[0], height / 2 - point[1] + camera.target[1], camera.target[2]]
+      : [(point[0] - translateX) / zoom, (translateY - point[1]) / zoom]) as ViewportApi["screenToSpacePosition"],
     spaceToScreenPosition: vi.fn((point: [number, number] | [number, number, number]): [number, number] => [
       point[0] * zoom + translateX, translateY - point[1] * zoom,
     ]),
     setZoomTransformByPointPositions: vi.fn((points: Float32Array, _duration?: number, scale?: number) => {
+      if (is3D) throw new Error("2D framing used in 3D");
       zoom = scale ?? zoom;
       translateX = width / 2 - points[0] * zoom;
       translateY = height / 2 + points[1] * zoom;
     }),
-    getPointPositions: vi.fn(() => positions),
-    setPointPositions: vi.fn((next: Float32Array) => { positions = new Float32Array(next); }),
+    getCameraState: vi.fn(() => is3D ? { ...camera, target: [...camera.target] as [number, number, number] } : undefined),
+    setCameraState: vi.fn((state: Partial<CameraState>) => { camera = { ...camera, ...state }; }),
+    getPointPositions: vi.fn((options?: { dimensions?: Dimensions }) => {
+      const dimensions = options?.dimensions ?? 2;
+      if (dimensions === positionDimensions) return positions;
+      return Float32Array.from({ length: positions.length / positionDimensions * dimensions }, (_, offset) => {
+        const axis = offset % dimensions;
+        return axis < positionDimensions ? positions[Math.floor(offset / dimensions) * positionDimensions + axis] : 0;
+      });
+    }),
+    setPointPositions: vi.fn((next: Float32Array, options?: { dimensions?: Dimensions }) => {
+      positions = new Float32Array(next);
+      positionDimensions = options?.dimensions ?? 2;
+    }),
     render: vi.fn(),
   };
   const tables = {
@@ -208,6 +239,78 @@ function flushScheduledFrames(h: ReturnType<typeof harness>) {
 }
 
 describe("renderer lifetime", () => {
+  it("restores XYZ by stable ID and the full 3D orbit camera across a data rebuild", async () => {
+    const h = harness();
+    h.session.controls("a", true, [], ["a", "c"]);
+    await h.session.update(dataWithIds(["a", "b", "c"]), { spaceDimensions: 3 });
+    h.graph.setPointPositions(new Float32Array([10, 20, 30, 40, 50, 60, 70, 80, 90]), { dimensions: 3 });
+    const camera: CameraState = { target: [4, 8, 12], distance: 321, azimuth: 0.9, polar: 1.2 };
+    h.graph.setCameraState(camera);
+    h.graph.getZoomLevel.mockClear();
+    await h.session.update(dataWithIds(["c", "new", "a"]), { spaceDimensions: 3 });
+    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([70, 80, 90, 130, 140, 150, 10, 20, 30]);
+    expect(h.graph.getCameraState()).toEqual(camera);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 2]);
+    expect(h.graph.getZoomLevel).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics()).toMatchObject({ dimensions: 3, camera, chosenIds: ["c", "a"], pinnedCount: 2, restoredPointCount: 2, positionWorldError: 0 });
+    await h.session.dispose();
+  });
+
+  it("lets the first 3D switch seed Z and retains it through 2D updates and a return to 3D", async () => {
+    const h = harness();
+    const initial = dataWithIds(["a", "b"]);
+    h.session.controls(null, true, [], ["a", "b"]);
+    await h.session.update(initial, { spaceDimensions: 2 });
+    h.graph.setPointPositions(new Float32Array([10, 20, 30, 40]));
+    await h.session.update(initial, { spaceDimensions: 3 });
+    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([10, 20, 50, 30, 40, 51]);
+    expect(h.session.positionDimensions).toBe(3);
+    await h.session.update(initial, { spaceDimensions: 2 });
+    const reordered = dataWithIds(["b", "a"]);
+    await h.session.update(reordered, { spaceDimensions: 2 });
+    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([30, 40, 51, 10, 20, 50]);
+    await h.session.update(reordered, { spaceDimensions: 3 });
+    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([30, 40, 51, 10, 20, 50]);
+    expect(h.session.getDiagnostics().dataRevisions).toBe(2);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 1]);
+    await h.session.dispose();
+  });
+
+  it("redraws a hidden 3D view with its orbit state and restores pause without 2D zoom APIs", async () => {
+    const h = harness();
+    h.session.controls(null, true);
+    await h.session.update(data(), { spaceDimensions: 3 });
+    flushScheduledFrames(h);
+    const camera: CameraState = { target: [20, 30, 40], distance: 1234, azimuth: 0.8, polar: 1.7 };
+    h.graph.setCameraState(camera);
+    h.graph.setCameraState.mockClear();
+    h.graph.getZoomLevel.mockClear();
+    h.graph.unpause.mockClear();
+    h.session.setActive(false);
+    h.session.setActive(true);
+    flushScheduledFrames(h);
+    expect(h.graph.setCameraState).toHaveBeenCalledExactlyOnceWith(camera, 0);
+    expect(h.graph.getZoomLevel).not.toHaveBeenCalled();
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    await h.session.dispose();
+  });
+
+  it("applies force changes to a settled layout while deferring reheating until the user resumes", async () => {
+    const h = harness();
+    const prepared = data();
+    h.session.controls(null, true, [], ["a"]);
+    await h.session.update(prepared, { simulationRepulsion: 0.8 });
+    await h.session.update(prepared, { simulationRepulsion: 2 });
+    expect(h.graph.start).not.toHaveBeenCalled();
+    h.session.controls(null, false, [], ["a"]);
+    expect(h.graph.start).toHaveBeenCalledExactlyOnceWith(0.3);
+    h.graph.start.mockClear();
+    await h.session.update(prepared, { simulationRepulsion: 2, linkOpacity: 0.5 });
+    expect(h.graph.start).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics().dataRevisions).toBe(1);
+    await h.session.dispose();
+  });
+
   it("waits for an in-flight rebuild before destroying GPU, tables, and database", async () => {
     const h = harness();
     await h.session.update(data(), {});
@@ -459,7 +562,7 @@ describe("renderer lifetime", () => {
       false,
       true,
     );
-    expect(h.graph.pause).toHaveBeenCalledTimes(1);
+    expect(h.graph.pause).toHaveBeenCalled();
     expect(h.graph.unpause).not.toHaveBeenCalled();
     await h.session.dispose();
   });

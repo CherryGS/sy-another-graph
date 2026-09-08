@@ -10,6 +10,7 @@ import { InsightsPage } from "./InsightsPage";
 import { Layout } from "./Layout";
 import { SavedPage } from "./SavedPage";
 import { WorkbenchProvider } from "./state";
+import "./theme.css";
 import "./styles.css";
 
 const rootRoute = createRootRoute({ component: Layout });
@@ -39,6 +40,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
+document.documentElement.classList.add("dark");
 createRoot(document.getElementById("root")!).render(
   <WorkbenchProvider>
     <RouterProvider router={router} />

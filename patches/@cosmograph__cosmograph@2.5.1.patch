@@ -1,0 +1,48 @@
+diff --git a/cosmograph/managers/event-manager.js b/cosmograph/managers/event-manager.js
+index ad8ad3e60eae9b2879dc71d5ccda80ecf65565b6..de328aac59d27d78b594ff1f7557dc17be05dab9 100644
+--- a/cosmograph/managers/event-manager.js
++++ b/cosmograph/managers/event-manager.js
+@@ -7,6 +7,7 @@ class CosmographEventManager {
+     __publicField(this, "_");
+     __publicField(this, "_hoveredPointIndex");
+     __publicField(this, "_isZooming", false);
++    __publicField(this, "_nextLabelPositionUpdateTime", 0);
+     this._ = _;
+   }
+   attachCosmosEvents(config = {}) {
+@@ -210,9 +211,17 @@ class CosmographEventManager {
+     this._.dispatchEvent(new CustomEvent("onSimulationStart"));
+   }
+   onSimulationTick(...args) {
+-    var _a, _b, _c, _d;
++    var _a, _b, _d;
+     (_b = (_a = this._.config).onSimulationTick) == null ? void 0 : _b.call(_a, ...args);
+-    (_c = this._.labels) == null ? void 0 : _c.updatePositions();
++    const labelUpdateStarted = performance.now();
++    if (this._.labels && labelUpdateStarted >= this._nextLabelPositionUpdateTime) {
++      this._.labels.updatePositions();
++      const labelUpdateFinished = performance.now();
++      // At most 20 simulation label updates/second; expensive readbacks receive
++      // up to 250ms of cooldown after completion. Interaction updates stay immediate.
++      const cooldown = Math.min(250, Math.max(50, (labelUpdateFinished - labelUpdateStarted) * 3));
++      this._nextLabelPositionUpdateTime = labelUpdateFinished + cooldown;
++    }
+     (_d = this._.annotations) == null ? void 0 : _d.updatePositions();
+     this._.dispatchEvent(new CustomEvent("onSimulationTick"));
+   }
+diff --git a/cosmograph/modules/labels/index.js b/cosmograph/modules/labels/index.js
+index 660385391da03c1af727c23233b8f3ecbac1f2e0..1486166b8b43fd606968f3d88019aee38c8b2507 100644
+--- a/cosmograph/modules/labels/index.js
++++ b/cosmograph/modules/labels/index.js
+@@ -223,6 +223,11 @@ class Labels {
+   }
+   updatePositions() {
+     var _a, _b;
++    // Hidden or empty label layers have no coordinates to read back from the GPU.
++    if (!this._.config.showLabels || this._labelDataMap.size === 0) {
++      this._renderLabels();
++      return;
++    }
+     const dimensions = this._.public.is3D ? 3 : 2;
+     const pointPositions = (_a = this._.cosmos) == null ? void 0 : _a.getPointPositions({ dimensions });
+     const rawClusterPositions = (_b = this._.cosmos) == null ? void 0 : _b.getClusterPositions({ dimensions });

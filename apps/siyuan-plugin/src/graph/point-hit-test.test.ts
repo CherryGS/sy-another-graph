@@ -1,7 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 import { hitTestPoint } from "./point-hit-test";
+import type { PointPosition } from "./geometry";
 
 describe("point hit testing", () => {
+  it("uses 3D coordinates and chooses the frontmost rendered point when projected circles overlap", () => {
+    const geometry = {
+      is3D: true,
+      getCameraState: () => ({ target: [0, 0, 0] as [number, number, number], distance: 100, azimuth: 0, polar: Math.PI / 2 }),
+      findPointsInRect: vi.fn(() => [0, 1]),
+      getPointPositions: vi.fn(() => new Float32Array([10, 20, 0, 10, 20, 50])),
+      spaceToScreenPosition: vi.fn((_position: PointPosition): [number, number] => [100, 100]),
+      getPointScreenRadiusByIndex: vi.fn(() => 6),
+    };
+    expect(hitTestPoint(geometry, [100, 100])).toBe(1);
+    expect(geometry.getPointPositions).toHaveBeenCalledWith({ dimensions: 3 });
+    expect(geometry.getPointPositions).toHaveBeenCalledTimes(1);
+    expect(geometry.findPointsInRect).not.toHaveBeenCalled();
+    expect(geometry.spaceToScreenPosition).toHaveBeenCalledWith([10, 20, 50], { dimensions: 3 });
+    expect(geometry.getPointScreenRadiusByIndex).toHaveBeenCalledWith(1, [10, 20, 50]);
+  });
+
   it.each([0.25, 2.5])("queries screen coordinates after zoom %s and pan", (zoom) => {
     const world: [number, number] = [1040, 880];
     const screen: [number, number] = [320, 210];
@@ -11,7 +29,7 @@ describe("point hit testing", () => {
         rect[0][1] <= screen[1] && rect[1][1] >= screen[1] ? [0] : [],
       ),
       getPointPositions: vi.fn(() => new Float32Array(world)),
-      spaceToScreenPosition: vi.fn((position: [number, number]): [number, number] => [
+      spaceToScreenPosition: vi.fn((position: PointPosition): [number, number] => [
         (position[0] - world[0]) * zoom + screen[0],
         -(position[1] - world[1]) * zoom + screen[1],
       ]),
@@ -25,7 +43,7 @@ describe("point hit testing", () => {
     const geometry = {
       findPointsInRect: vi.fn(() => [0, 1, 2, 3]),
       getPointPositions: vi.fn(() => new Float32Array([90, 100, 103, 100, 99, 100, NaN, NaN])),
-      spaceToScreenPosition: (point: [number, number]) => point,
+      spaceToScreenPosition: (point: PointPosition): [number, number] => [point[0], point[1]],
       getPointScreenRadiusByIndex: () => 4,
     };
     expect(hitTestPoint(geometry, [100, 100])).toBe(2);

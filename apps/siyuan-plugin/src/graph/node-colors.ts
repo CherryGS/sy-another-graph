@@ -1,11 +1,21 @@
-export type GraphColorMode = "notebook" | "branch" | "degree";
+import type { GraphNode } from "../data/types";
+import { nodeType } from "../data/graph-model";
 
-interface ColorNode {
-  notebook: string;
-  path: string;
-  degree: number;
-  color: string;
-  external?: boolean;
+export type GraphColorMode = "type" | "notebook" | "branch" | "degree";
+
+export const NODE_TYPE_COLORS: Readonly<Record<string, string>> = {
+  d: "#65b8ff", p: "#69d6b4", h: "#ffc56a", l: "#be9aff", i: "#a5d778",
+  b: "#ee96bc", s: "#a2abc1", c: "#f28d70", m: "#75d6e7", t: "#d6c26d",
+  tb: "#8696a8", html: "#c792ea", iframe: "#82b1ca", video: "#ed799c",
+  audio: "#d49b6a", widget: "#9fbcdf", query_embed: "#b6be77", av: "#9fd0ce",
+  database: "#dbabef", "database-item": "#f0b59b",
+};
+
+export function nodeTypeColor(type: string): string {
+  if (Object.hasOwn(NODE_TYPE_COLORS, type)) return NODE_TYPE_COLORS[type];
+  let hash = 2166136261;
+  for (let index = 0; index < type.length; index++) hash = Math.imul(hash ^ type.charCodeAt(index), 16777619);
+  return BRANCH_COLORS[(hash >>> 0) % BRANCH_COLORS.length];
 }
 
 export const EXTERNAL_NODE_COLOR = "#c58be6";
@@ -30,7 +40,8 @@ const DEGREE_COLORS = [
 ];
 
 /** Shared by the canvas and document accents; colors do not change when filtering. */
-export function nodeColor(node: ColorNode, mode: GraphColorMode): string {
+export function nodeColor(node: GraphNode, mode: GraphColorMode): string {
+  if (mode === "type") return nodeTypeColor(nodeType(node));
   if (node.external) return EXTERNAL_NODE_COLOR;
   if (mode === "notebook") return node.color;
   if (mode === "degree") {

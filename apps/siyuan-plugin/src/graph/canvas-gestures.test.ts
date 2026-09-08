@@ -22,7 +22,7 @@ function harness() {
     chosenIds: vi.fn(() => ["a", "b"]),
     nodeAt: vi.fn((): string | null => "a"),
     overRelationship: vi.fn(() => false),
-    spacePosition: vi.fn((event: MouseEvent): [number, number] => [
+    pointerPosition: vi.fn((event: MouseEvent): [number, number] => [
       event.clientX / 2,
       event.clientY / 2,
     ]),
@@ -83,6 +83,7 @@ describe("canvas gestures", () => {
     expect(h.options.begin).toHaveBeenCalledExactlyOnceWith(
       ["a", "b"],
       [5, 10],
+      "a",
     );
     expect(h.frames.size).toBe(1);
     h.draw();
@@ -110,6 +111,19 @@ describe("canvas gestures", () => {
     h.targetWindow.dispatchEvent(mouse("mouseup", 20, 30, false));
     expect(nativeDown).toHaveBeenCalledTimes(1);
     expect(h.options.begin).not.toHaveBeenCalled();
+    h.gesture.dispose();
+  });
+
+  it("keeps the camera plane fixed during a Shift drag and restores wheel navigation on release", () => {
+    const h = harness();
+    const zoom = vi.fn();
+    h.targetWindow.addEventListener("wheel", zoom);
+    h.host.dispatchEvent(mouse("mousedown"));
+    h.targetWindow.dispatchEvent(new Event("wheel", { cancelable: true }));
+    expect(zoom).not.toHaveBeenCalled();
+    h.targetWindow.dispatchEvent(mouse("mouseup"));
+    h.targetWindow.dispatchEvent(new Event("wheel", { cancelable: true }));
+    expect(zoom).toHaveBeenCalledTimes(1);
     h.gesture.dispose();
   });
 

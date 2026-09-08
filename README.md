@@ -1,6 +1,6 @@
 # Atlas · SiYuan Graph
 
-A SiYuan graph workbench using Cosmograph, React, TanStack Router, and a Rust
+A SiYuan graph workbench using Cosmograph, React, shadcn/ui, TanStack Router, and a Rust
 WASM graph engine. The plugin is named `sy-another-graph`.
 
 ## Features
@@ -23,10 +23,14 @@ WASM graph engine. The plugin is named `sy-another-graph`.
   opens eligible native blocks or database contexts.
 - Native document-title, document-tree, top-right More, and single-block menus
   open a scoped graph. Source-change notifications refresh the retained workbench
-  while keeping valid choices, matching node positions, and the 2D camera across
+  while keeping valid choices, matching node positions, and the current camera across
   data updates.
-- Saved filter/inspection views, existing path and insight tools, stable colors
-  by document branch/notebook/degree, and local export of the visible graph.
+- 2D and 3D views, node-type colors by default, and a separate display/force
+  settings panel with browser-local preferences. Branch/notebook/degree coloring
+  remains available. In 3D, drag blank space to orbit and Space-drag to pan;
+  Shift-drag retains chosen-set movement.
+- Saved filter/inspection views, existing path and insight tools, and local
+  export of the visible graph.
 - Locally bundled renderer/database resources, escaped graph labels, and an
   iframe network policy that restricts connections to the current origin.
 
@@ -92,8 +96,9 @@ the intervening source IDs.
 
 Only the explicit chosen set S supplies neighborhood origins. The contained
 scope B remains visible as background, while N controls outward hop depth in Q.
-N and traversal direction are configured at the top of the settings panel and
-take effect automatically.
+N and traversal direction are directly editable in the wrapping graph toolbar
+and take effect automatically. Search and filter popovers anchor below the
+entire toolbar, including when its controls wrap onto additional rows.
 Changing N retracts or adds reached nodes without treating all of B as origins.
 All chosen members have equal status; inspecting a different node during
 multi-selection does not change S. Hidden or excluded choices lose membership
@@ -113,9 +118,18 @@ are coalesced while the workbench is active; hidden changes wait until it become
 active, and visibility alone does not trigger a reload. Changes arriving during
 acquisition remain pending for another read. Manual refresh is also available.
 Source updates keep filters and valid identities. Renderer table updates restore
-coordinates for matching IDs and the captured 2D viewport; new nodes receive new
+coordinates for matching IDs and the captured 2D or 3D viewport; new nodes receive new
 initial positions. Only S is pinned against subsequent simulation. Ordinary tab
 and route transitions keep the existing graph and camera without rebuilding.
+
+Lookup caches and stable view arrays avoid repeated whole-graph scans and
+renderer uploads for unchanged views. Panel scrolling briefly yields simulation
+work while preserving explicit user pause. A version-pinned pnpm patch for
+Cosmograph 2.5.1 skips hidden/empty label GPU readbacks and limits simulation
+label refreshes with a 50–250 ms adaptive cooldown. Drag, resize, and camera
+interaction updates remain immediate. This controls label readback frequency,
+not a guaranteed frame rate. The patch and its tests are checked in under
+`patches/` and `src/graph/vendor-labels.test.ts` in the plugin sources.
 
 SharedArrayBuffer transport is enabled only in a supported cross-origin
 isolated context. The supplied SiYuan WebUI does not provide that context, so

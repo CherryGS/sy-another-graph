@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -19,7 +20,7 @@ import {
   projectGraph,
   resolveOpenBlock,
   scopeBackground,
-  scopeGraph,
+  createViewProjector,
   type CurrentGraph,
 } from "../data/graph-model";
 import { newSavedView, readSavedViews, type SavedView } from "../data/views";
@@ -29,6 +30,12 @@ import { EMPTY_SELECTION, retainSelection, selectNode } from "./selection";
 import { useGraphEngine } from "./use-graph-engine";
 import { ExplorationRequest } from "./exploration-request";
 import { SourceRefresh, subscribeSourceRefresh } from "./source-refresh";
+import {
+  normalizeVisualPreferences,
+  useVisualPreferences,
+} from "./visual-preferences";
+import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
+import { getGraphLookups, searchGraphNodes } from "../data/graph-lookups";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -77,10 +84,27 @@ export function useWorkbenchState() {
   );
   const [busy, setBusy] = useState(false);
   const requests = useRef(new ExplorationRequest());
-  const [showLabels, setShowLabels] = useState(true);
-  const [showLinks, setShowLinks] = useState(true);
-  const [pointSize, setPointSize] = useState(4);
-  const [colorBy, setColorBy] = useState<GraphColorMode>("branch");
+  const { preferences, setPreferences } = useVisualPreferences();
+  const { showLabels, showLinks, pointSize, colorBy, graphSettings } =
+    preferences;
+  const setShowLabels = (showLabels: boolean) =>
+    setPreferences((value) => ({ ...value, showLabels }));
+  const setShowLinks = (showLinks: boolean) =>
+    setPreferences((value) => ({ ...value, showLinks }));
+  const setPointSize = (pointSize: number) =>
+    setPreferences((value) =>
+      normalizeVisualPreferences({ ...value, pointSize }),
+    );
+  const setColorBy = (colorBy: GraphColorMode) =>
+    setPreferences((value) => ({ ...value, colorBy }));
+  const setGraphSettings = (patch: Partial<GraphSettings>) =>
+    setPreferences((value) => ({
+      ...value,
+      graphSettings: normalizeGraphSettings({
+        ...value.graphSettings,
+        ...patch,
+      }),
+    }));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fitRequest, setFitRequest] = useState(0);
@@ -254,7 +278,8 @@ export function useWorkbenchState() {
     const requestToken = ownership.currentToken;
     void pending
       .then((result) => {
-        if (!active || !result) return;
+        if (!active || !result || ownership.currentToken !== requestToken)
+          return;
         setExploration({
           kind: "neighborhood",
           graph: loaded.graph,
@@ -271,8 +296,18 @@ export function useWorkbenchState() {
         });
       })
       .catch((failure: unknown) => {
-        if (active && ownership.currentToken === requestToken)
+        if (active && ownership.currentToken === requestToken) {
           setToast(userMessage(failure));
+          // A failed replacement must not silently keep a different hop/direction result.
+          setExploration((previous) =>
+            previous?.graph === loaded.graph &&
+            previous.chosenKey === chosenKey &&
+            previous.kind === "neighborhood" &&
+            (previous.depth !== depth || previous.direction !== direction)
+              ? null
+              : previous,
+          );
+        }
       })
       .finally(() => {
         if (active && ownership.currentToken === requestToken) setBusy(false);
@@ -286,61 +321,65 @@ export function useWorkbenchState() {
   const activeExploration =
     exploration?.graph === currentGraph &&
     exploration.chosenKey === chosenKey &&
-    exploration.depth === depth &&
-    exploration.direction === direction
+    (exploration.kind === "neighborhood" ||
+      (exploration.depth === depth && exploration.direction === direction))
       ? exploration
       : null;
+  const viewProjector = useMemo(
+    () => (currentGraph ? createViewProjector(currentGraph) : null),
+    [currentGraph],
+  );
   const focus =
     chosenIds.length || activeExploration?.kind === "path"
       ? (activeExploration?.indices ?? null)
       : null;
   const view = useMemo(
     () =>
-      currentGraph
-        ? scopeGraph(
-            currentGraph,
+      viewProjector
+        ? viewProjector.project(
             backgroundIds,
             chosenSet,
             focus,
             filters.hideIsolated,
           )
         : emptyView,
-    [currentGraph, backgroundIds, chosenSet, focus, filters.hideIsolated],
+    [viewProjector, backgroundIds, chosenSet, focus, filters.hideIsolated],
+  );
+  const sourceLookups = useMemo(
+    () => (data ? getGraphLookups(data) : null),
+    [data],
+  );
+  const currentLookups = useMemo(
+    () => (currentGraph ? getGraphLookups(currentGraph) : null),
+    [currentGraph],
   );
   const selectedId = availableSelection.inspectedId;
-  const selected = useMemo(
-    () => currentGraph?.nodes.find((node) => node.id === selectedId) ?? null,
-    [currentGraph, selectedId],
+  const selected = selectedId
+    ? (currentLookups?.byId.get(selectedId) ?? null)
+    : null;
+  const edge = useMemo(
+    () =>
+      inspectedEdge?.graph === currentGraph &&
+      view.edges.includes(inspectedEdge.edge)
+        ? inspectedEdge.edge
+        : null,
+    [inspectedEdge, currentGraph, view.edges],
   );
-  const edge =
-    inspectedEdge?.graph === currentGraph &&
-    view.edges.includes(inspectedEdge.edge)
-      ? inspectedEdge.edge
-      : null;
   const spotlightIds = useMemo(
     () =>
-      edge && currentGraph
-        ? currentGraph.nodes
-            .filter(
-              (node) =>
-                node.index === edge.source || node.index === edge.target,
-            )
-            .map((node) => node.id)
+      edge && currentLookups
+        ? [...new Set([edge.source, edge.target])].flatMap((index) => {
+            const node = currentLookups.byIndex.get(index);
+            return node ? [node.id] : [];
+          })
         : [],
-    [edge, currentGraph],
+    [edge, currentLookups],
   );
-  const results = useMemo(() => {
-    const needle = filters.query.trim().toLocaleLowerCase();
-    return needle
-      ? view.nodes
-          .filter(
-            (node) =>
-              node.label.toLocaleLowerCase().includes(needle) ||
-              node.id.includes(needle),
-          )
-          .slice(0, 30)
-      : [];
-  }, [filters.query, view.nodes]);
+  const deferredQuery = useDeferredValue(filters.query);
+  const results = useMemo(
+    () => searchGraphNodes({ nodes: view.nodes }, deferredQuery),
+    [deferredQuery, view.nodes],
+  );
 
   const setSelectedId = (
     id: string | null,
@@ -395,7 +434,7 @@ export function useWorkbenchState() {
     const requestToken = requests.current.currentToken;
     try {
       const path = await pendingPath;
-      if (!path) return;
+      if (!path || requests.current.currentToken !== requestToken) return;
       if (!path.length) {
         setToast("当前关系设置下没有连接路径");
         return;
@@ -415,7 +454,8 @@ export function useWorkbenchState() {
         label: `最短路径 · ${Math.max(0, path.length - 1)} 步`,
       });
     } catch (failure) {
-      setToast(userMessage(failure));
+      if (requests.current.currentToken === requestToken)
+        setToast(userMessage(failure));
     } finally {
       if (requests.current.currentToken === requestToken) setBusy(false);
     }
@@ -547,6 +587,8 @@ export function useWorkbenchState() {
   return {
     data,
     currentGraph,
+    sourceLookups,
+    currentLookups,
     stats: loaded?.stats ?? null,
     loading,
     error: error || engineError,
@@ -580,6 +622,9 @@ export function useWorkbenchState() {
     setPointSize,
     colorBy,
     setColorBy,
+    graphSettings,
+    setGraphSettings,
+    resetAppearance: () => setPreferences(normalizeVisualPreferences(null)),
     filtersOpen,
     setFiltersOpen,
     direction,

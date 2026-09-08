@@ -122,7 +122,8 @@ describe("prepareGraph", () => {
     expect(points.getChild("degreeColor")!.get(0)).toBe(
       nodeColor(input, "degree"),
     );
-    expect(result.config.pointColorBy).toBe("branchColor");
+    expect(points.getChild("typeColor")!.get(0)).toBe(nodeColor(input, "type"));
+    expect(result.config.pointColorBy).toBe("typeColor");
   });
 
   it("keeps an exact edge-index map for filtered, projected, database and self-loop edges", async () => {

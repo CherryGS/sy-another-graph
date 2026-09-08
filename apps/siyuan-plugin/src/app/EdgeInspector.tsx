@@ -1,8 +1,36 @@
 import { useState } from "react";
-import { ArrowUpRight, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { WorkbenchState } from "./state";
 import { EDGE_KIND_LABELS, NODE_TYPE_LABELS } from "../data/labels";
 import { nodeType } from "../data/graph-model";
+import { getGraphLookups } from "../data/graph-lookups";
 import type { GraphNode } from "../data/types";
 
 function SourceCard({
@@ -17,18 +45,19 @@ function SourceCard({
   canOpen: boolean;
 }) {
   return (
-    <button
-      className="source-card"
+    <Button
+      variant="outline"
+      className="h-auto w-full flex-col items-start gap-2 py-3"
       disabled={!canOpen}
       onClick={() => open(id)}
       title={canOpen ? "打开这一原始位置" : "暂无可打开的原生上下文"}
     >
-      <span className="source-card-title">
-        {node?.label ?? id}
-        {canOpen && <ArrowUpRight size={12} />}
+      <span className="flex w-full min-w-0 items-center justify-between gap-2">
+        <span className="min-w-0 truncate">{node?.label ?? id}</span>
+        {canOpen && <ArrowUpRight data-icon="inline-end" />}
       </span>
       {node && (
-        <small>
+        <span className="w-full whitespace-normal break-words text-left text-xs text-muted-foreground">
           {[
             NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node),
             node.humanPath || node.documentLabel,
@@ -36,13 +65,17 @@ function SourceCard({
           ]
             .filter(Boolean)
             .join(" · ")}
-        </small>
+        </span>
       )}
       {node?.content && (
-        <span className="source-card-excerpt">{node.content}</span>
+        <span className="pointer-events-auto max-h-28 w-full overflow-y-auto whitespace-pre-wrap break-words text-left text-xs text-muted-foreground">
+          {node.content}
+        </span>
       )}
-      <code>{id}</code>
-    </button>
+      <code className="w-full whitespace-normal break-all text-left text-xs text-muted-foreground">
+        {id}
+      </code>
+    </Button>
   );
 }
 
@@ -50,101 +83,166 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
   const [limit, setLimit] = useState(15);
   const edge = state.inspectedEdge;
   if (!edge || !state.data) return null;
-  const byId = new Map(state.data.nodes.map((node) => [node.id, node]));
-  const source = state.currentGraph?.nodes.find(
-    (node) => node.index === edge.source,
-  );
-  const target = state.currentGraph?.nodes.find(
-    (node) => node.index === edge.target,
-  );
+  const byId = getGraphLookups(state.data).byId;
+  const byIndex = state.currentGraph
+    ? getGraphLookups(state.currentGraph).byIndex
+    : undefined;
+  const source = byIndex?.get(edge.source);
+  const target = byIndex?.get(edge.target);
   const occurrences = edge.provenance ?? [];
+
   return (
     <aside className="inspector-panel edge-inspector" aria-label="关系出处">
-      <div className="panel-heading">
-        <strong>{EDGE_KIND_LABELS[edge.kind]}</strong>
-        <button
-          className="icon-button"
-          aria-label="关闭关系出处"
-          onClick={state.closeEdge}
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <div className="inspector-content">
-        <p className="edge-endpoints">
-          {source?.label} → {target?.label}
-        </p>
-        <p className="input-note">
-          {edge.kind === "hierarchy"
-            ? "虚线表示内容包含，不是正文引用。"
-            : edge.kind === "reference"
-              ? "以下是这条连线对应的原始引用端点。"
-              : "以下关系来自数据库的真实成员、绑定或关系字段。"}
-        </p>
-        <p className="field-label">
-          {occurrences.length.toLocaleString()} 组出处 ·{" "}
-          {edge.weight.toLocaleString()} 条记录
-        </p>
-        {occurrences.slice(0, limit).map((occurrence, index) => (
-          <section
-            className="edge-occurrence"
-            key={`${occurrence.sourceId}:${occurrence.targetId}:${occurrence.fieldId ?? ""}:${index}`}
-          >
-            {occurrence.fieldName && <strong>{occurrence.fieldName}</strong>}
-            <SourceCard
-              node={byId.get(occurrence.sourceId)}
-              id={occurrence.sourceId}
-              open={state.openDocument}
-              canOpen={state.canOpen(occurrence.sourceId)}
-            />
-            <span className="source-arrow">
-              {occurrence.kind === "hierarchy" ? "包含 ↓" : "↓"}
+      <Card className="h-full min-h-0">
+        <CardHeader>
+          <CardTitle>{EDGE_KIND_LABELS[edge.kind]}</CardTitle>
+          <CardAction>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="关闭关系出处"
+                  onClick={state.closeEdge}
+                >
+                  <X />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>关闭关系出处</TooltipContent>
+            </Tooltip>
+          </CardAction>
+          <CardDescription>
+            <span className="break-words">
+              {source?.label ?? "未知端点"} → {target?.label ?? "未知端点"}
             </span>
-            {occurrence.viaIds?.map((id) => (
-              <SourceCard
-                key={id}
-                node={byId.get(id)}
-                id={id}
-                open={state.openDocument}
-                canOpen={state.canOpen(id)}
-              />
+          </CardDescription>
+        </CardHeader>
+        <ScrollArea data-scroll-panel className="min-h-0 flex-1">
+          <CardContent className="flex min-w-0 flex-col gap-4">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {edge.kind === "hierarchy"
+                ? "虚线表示内容包含，不是正文引用。"
+                : edge.kind === "reference"
+                  ? "以下是这条连线对应的原始引用端点。"
+                  : "以下关系来自数据库的真实成员、绑定或关系字段。"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">
+                {occurrences.length.toLocaleString()} 组出处
+              </Badge>
+              <Badge variant="secondary">
+                {edge.weight.toLocaleString()} 条记录
+              </Badge>
+            </div>
+            {occurrences.slice(0, limit).map((occurrence, index) => (
+              <Card
+                size="sm"
+                key={`${occurrence.sourceId}:${occurrence.targetId}:${occurrence.fieldId ?? ""}:${index}`}
+              >
+                <CardHeader>
+                  <CardTitle>
+                    {occurrence.fieldName ||
+                      `出处 ${String(index + 1).padStart(2, "0")}`}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex min-w-0 flex-col gap-2">
+                  <SourceCard
+                    node={byId.get(occurrence.sourceId)}
+                    id={occurrence.sourceId}
+                    open={state.openDocument}
+                    canOpen={state.canOpen(occurrence.sourceId)}
+                  />
+                  <span className="self-center text-xs text-muted-foreground">
+                    {occurrence.kind === "hierarchy" ? "包含 ↓" : "↓"}
+                  </span>
+                  {occurrence.viaIds?.map((id) => (
+                    <SourceCard
+                      key={id}
+                      node={byId.get(id)}
+                      id={id}
+                      open={state.openDocument}
+                      canOpen={state.canOpen(id)}
+                    />
+                  ))}
+                  <SourceCard
+                    node={byId.get(occurrence.targetId)}
+                    id={occurrence.targetId}
+                    open={state.openDocument}
+                    canOpen={state.canOpen(occurrence.targetId)}
+                  />
+                  {occurrence.weight > 1 && (
+                    <Badge variant="outline">
+                      {occurrence.weight} 条索引记录
+                    </Badge>
+                  )}
+                  {occurrence.databaseId && (
+                    <Collapsible>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="group w-full justify-between"
+                        >
+                          数据库来源
+                          <ChevronDown
+                            data-icon="inline-end"
+                            className="transition-transform group-data-[state=open]:rotate-180"
+                          />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
+                          <p className="break-all">
+                            数据库：{occurrence.databaseId}
+                          </p>
+                          {occurrence.targetDatabaseId && (
+                            <p className="break-all">
+                              目标数据库：{occurrence.targetDatabaseId}
+                            </p>
+                          )}
+                          {occurrence.fieldId && (
+                            <p className="break-all">
+                              字段：{occurrence.fieldId}
+                            </p>
+                          )}
+                          {occurrence.sourceItemId && (
+                            <p className="break-all">
+                              来源条目：{occurrence.sourceItemId}
+                            </p>
+                          )}
+                          {occurrence.targetItemId && (
+                            <p className="break-all">
+                              目标条目：{occurrence.targetItemId}
+                            </p>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </CardContent>
+              </Card>
             ))}
-            <SourceCard
-              node={byId.get(occurrence.targetId)}
-              id={occurrence.targetId}
-              open={state.openDocument}
-              canOpen={state.canOpen(occurrence.targetId)}
-            />
-            {occurrence.weight > 1 && (
-              <small>{occurrence.weight} 条索引记录</small>
+            {!occurrences.length && (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>暂无可用出处</EmptyTitle>
+                  <EmptyDescription>
+                    这条关系没有附带可展开的原始位置。
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             )}
-            {occurrence.databaseId && (
-              <details className="document-meta">
-                <summary>数据库来源</summary>
-                <p>数据库：{occurrence.databaseId}</p>
-                {occurrence.targetDatabaseId && (
-                  <p>目标数据库：{occurrence.targetDatabaseId}</p>
-                )}
-                {occurrence.fieldId && <p>字段：{occurrence.fieldId}</p>}
-                {occurrence.sourceItemId && (
-                  <p>来源条目：{occurrence.sourceItemId}</p>
-                )}
-                {occurrence.targetItemId && (
-                  <p>目标条目：{occurrence.targetItemId}</p>
-                )}
-              </details>
+            {occurrences.length > limit && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setLimit((value) => value + 15)}
+              >
+                显示更多出处（剩余 {occurrences.length - limit}）
+              </Button>
             )}
-          </section>
-        ))}
-        {occurrences.length > limit && (
-          <button
-            className="secondary-button full-width"
-            onClick={() => setLimit((value) => value + 15)}
-          >
-            显示更多出处（剩余 {occurrences.length - limit}）
-          </button>
-        )}
-      </div>
+          </CardContent>
+        </ScrollArea>
+      </Card>
     </aside>
   );
 }

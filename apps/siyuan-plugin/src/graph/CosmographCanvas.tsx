@@ -3,7 +3,6 @@ import type { CosmographConfig } from "@cosmograph/cosmograph";
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -17,8 +16,13 @@ import { RendererSession } from "./renderer-session";
 import { DragLabelGuard } from "./drag-label-guard";
 import { CanvasGestures } from "./canvas-gestures";
 import { ChosenLabels } from "./chosen-labels";
-import { beginGroupMotion } from "./position-adapter";
+import { beginCanvasGroupMotion } from "./position-adapter";
+import { DEFAULT_GRAPH_SETTINGS } from "./settings";
+import { displayConfig } from "./display-config";
+import { GraphLegend } from "./GraphLegend";
+import { GraphCanvasState } from "./GraphCanvasState";
 import { nodeContext } from "./node-context";
+import { nodeLabelClass } from "./node-label-class";
 import { canvasClick } from "./canvas-click";
 import { hitTestPoint } from "./point-hit-test";
 import type { CanvasNode, CosmographCanvasProps } from "./types";
@@ -102,7 +106,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     highlightedIds,
     spotlightIds,
     active: visible = true,
-    colorBy = "branch",
+    colorBy = "type",
+    settings = DEFAULT_GRAPH_SETTINGS,
     showLabels,
     showLinks,
     pointSize,
@@ -135,10 +140,6 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   const [error, setError] = useState<string | null>(null);
   const [hovered, setHovered] = useState<CanvasNode | null>(null);
   const context = hovered ? nodeContext(hovered, props.notebookNames) : null;
-  const hasExternal = useMemo(
-    () => nodes.some((node) => node.external),
-    [nodes],
-  );
   const [retry, setRetry] = useState(0);
   useLayoutEffect(() => {
     latestProps.current = props;
@@ -248,15 +249,13 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labelGuard?.end();
             labels?.refresh();
           },
-          onSimulationTick: () => labels?.refresh(),
-          onZoom: () => labels?.refresh(),
-          onResize: () => labels?.refresh(),
+          onSimulationTick: () => labels?.refresh("simulation"),
+          onZoom: () => labels?.refresh("projection"),
+          onResize: () => labels?.refresh("projection"),
           pointLabelClassName: (_text, _index, id) =>
-            id &&
-            (latestProps.current.chosenIds.includes(id) ||
-              latestProps.current.spotlightIds?.includes(id))
-              ? "ag-graph-label ag-graph-label--chosen"
-              : "ag-graph-label",
+            nodeLabelClass(owned?.displayed, id, Boolean(id &&
+              (latestProps.current.chosenIds.includes(id) ||
+                latestProps.current.spotlightIds?.includes(id)))),
           onGraphRebuildError: fail,
         };
         interactiveConfig.current = base;
@@ -292,15 +291,16 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             hoveredLink.current !== undefined ||
             (event.target instanceof Element &&
               Boolean(event.target.closest(".css-label--label"))),
-          spacePosition: (event) =>
-            graph.screenToSpacePosition(localPosition(event)),
-          begin: (ids, origin) => {
+          pointerPosition: localPosition,
+          begin: (ids, origin, grabbedId) => {
             const displayed = owned?.displayed;
             if (!displayed) throw new Error("图谱尚未就绪。");
             const indices = ids.map((id) => displayed.idToIndex.get(id));
             if (indices.some((index) => index === undefined))
               throw new Error("选中节点已变化，请重新开始拖动。");
-            return beginGroupMotion(graph, indices as number[], origin);
+            const grabbedIndex = displayed.idToIndex.get(grabbedId);
+            if (grabbedIndex === undefined) throw new Error("拖动节点已变化，请重新开始拖动。");
+            return beginCanvasGroupMotion(graph, indices as number[], grabbedIndex, origin, owned!.positionDimensions);
           },
           onStart: () => {
             labelGuard?.begin();
@@ -397,17 +397,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     void session
       .update(prepared, {
         ...interactiveConfig.current,
-        pointColorBy: colorBy === "notebook" ? "color" : `${colorBy}Color`,
-        showLabels,
-        renderLinks: showLinks,
-        linkOpacity: prepared.pointsCount > 20_000 ? 0.2 : 0.88,
-        linkWidthScale: prepared.pointsCount > 20_000 ? 0.7 : 1,
-        linkArrowsSizeScale: prepared.pointsCount > 20_000 ? 1.6 : 2.6,
-        linkVisibilityDistanceRange:
-          prepared.pointsCount > 20_000 ? [50, 150] : [200, 700],
-        linkVisibilityMinTransparency:
-          prepared.pointsCount > 20_000 ? 0.25 : 0.8,
-        pointSizeRange: [Math.max(1, pointSize), Math.max(2, pointSize * 2.8)],
+        ...displayConfig({ settings, colorBy, showLabels, showLinks, pointSize, pointsCount: prepared.pointsCount }),
       })
       .then((stats) => {
         if (!active || !stats) return;
@@ -433,7 +423,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       active = false;
       session.suspend();
     };
-  }, [session, prepared, showLabels, showLinks, pointSize, colorBy]);
+  }, [session, prepared, showLabels, showLinks, pointSize, colorBy, settings]);
 
   useLayoutEffect(() => {
     if (!visible) {
@@ -483,6 +473,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-configurations={diagnostics?.configurations ?? 0}
       data-data-revisions={diagnostics?.dataRevisions ?? 0}
       data-last-data-update-ms={diagnostics?.lastDataUpdateMs ?? ""}
+      data-dimensions={diagnostics?.dimensions ?? 2}
+      data-camera={JSON.stringify(diagnostics?.camera ?? null)}
       data-highlighted-count={diagnostics?.highlightedCount ?? 0}
       data-outlined-count={diagnostics?.outlinedCount ?? 0}
       data-requested-highlighted-count={
@@ -525,35 +517,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           ))}
         </div>
       )}
-      {hasExternal && visible && !loading && !visibleError && (
-        <span className="ag-canvas__external-key">范围外补充节点</span>
+      {visible && !loading && !visibleError && (
+        <GraphLegend nodes={nodes} colorBy={colorBy} />
       )}
-      {visibleError ? (
-        <div className="ag-canvas__state ag-canvas__state--error" role="alert">
-          <strong>图谱暂时无法显示</strong>
-          <span>{visibleError}</span>
-          <button type="button" onClick={() => setRetry((value) => value + 1)}>
-            重试图谱
-          </button>
-        </div>
-      ) : loading ? (
-        <div className="ag-canvas__state" role="status">
-          <span className="ag-canvas__spinner" aria-hidden="true" />
-          <strong>
-            {!session
-              ? "正在启动图谱引擎"
-              : isPreparing
-                ? "正在准备图谱数据"
-                : "正在绘制知识连接"}
-          </strong>
-          <span>{nodes.length.toLocaleString()} 个节点 · 在本机处理</span>
-        </div>
-      ) : nodes.length === 0 ? (
-        <div className="ag-canvas__state" role="status">
-          <strong>当前范围中没有节点</strong>
-          <span>调整筛选条件，探索更多笔记。</span>
-        </div>
-      ) : null}
+      <GraphCanvasState error={visibleError} loading={loading} initializing={!session} preparing={isPreparing} nodeCount={nodes.length} onRetry={() => setRetry((value) => value + 1)} />
     </div>
   );
 }

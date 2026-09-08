@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { nodeColor } from "./node-colors";
+import { NODE_TYPE_COLORS, nodeColor, nodeTypeColor } from "./node-colors";
 
 const node = {
+  id: "a", index: 0, label: "Node",
   notebook: "book",
   path: "/root/concepts.sy",
   degree: 4,
@@ -9,6 +10,16 @@ const node = {
 };
 
 describe("node colors", () => {
+  it("assigns stable type colors across filtering, notebooks, and external membership", () => {
+    expect(new Set(Object.values(NODE_TYPE_COLORS)).size).toBe(Object.keys(NODE_TYPE_COLORS).length);
+    expect(nodeColor({ ...node, blockType: "p" }, "type")).toBe(NODE_TYPE_COLORS.p);
+    expect(nodeColor({ ...node, blockType: "h" }, "type")).toBe(NODE_TYPE_COLORS.h);
+    expect(nodeColor({ ...node, blockType: "p", external: true, notebook: "other", degree: 2000 }, "type")).toBe(NODE_TYPE_COLORS.p);
+    expect(nodeColor({ ...node, entity: "database", blockType: "p" }, "type")).toBe(NODE_TYPE_COLORS.database);
+    expect(nodeColor({ ...node, entity: "database-item" }, "type")).toBe(NODE_TYPE_COLORS["database-item"]);
+    expect(nodeTypeColor("future-type")).toMatch(/^#[\da-f]{6}$/);
+    expect(nodeTypeColor("constructor")).toMatch(/^#[\da-f]{6}$/);
+  });
   it("groups descendants by the first branch below their root", () => {
     const concept = nodeColor(node, "branch");
     expect(

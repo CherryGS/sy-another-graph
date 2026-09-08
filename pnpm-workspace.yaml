@@ -1,2 +1,4 @@
 packages:
   - apps/*
+patchedDependencies:
+  '@cosmograph/cosmograph@2.5.1': patches/@cosmograph__cosmograph@2.5.1.patch

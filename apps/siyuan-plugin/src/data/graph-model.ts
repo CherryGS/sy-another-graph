@@ -5,6 +5,7 @@ import type {
   GraphNode,
   GraphProvenance,
 } from "./types";
+import { getGraphLookups, type GraphLike } from "./graph-lookups";
 
 export interface GraphView {
   nodes: GraphNode[];
@@ -30,8 +31,8 @@ export function isBlock(node: GraphNode): boolean {
 }
 
 function sourceParents(
-  data: Pick<GraphDataset, "nodes" | "edges">,
-  byIndex = new Map(data.nodes.map((node) => [node.index, node])),
+  data: GraphLike,
+  byIndex: ReadonlyMap<number, GraphNode>,
 ) {
   const parents = new Map<string, string>();
   for (const node of data.nodes) {
@@ -58,16 +59,25 @@ function sourceParents(
 }
 
 interface ContainmentIndex {
-  byId: Map<string, GraphNode>;
+  byId: ReadonlyMap<string, GraphNode>;
   parents: Map<string, string>;
   children: Map<string, string[]>;
 }
 
-function containmentIndex(
-  data: Pick<GraphDataset, "nodes" | "edges">,
-  byId = new Map(data.nodes.map((node) => [node.id, node])),
-  byIndex = new Map(data.nodes.map((node) => [node.index, node])),
-): ContainmentIndex {
+const containmentCache = new WeakMap<
+  readonly GraphNode[],
+  WeakMap<readonly GraphEdge[], ContainmentIndex>
+>();
+
+function containmentIndex(data: GraphLike): ContainmentIndex {
+  let byEdges = containmentCache.get(data.nodes);
+  if (!byEdges) {
+    byEdges = new WeakMap();
+    containmentCache.set(data.nodes, byEdges);
+  }
+  const cached = byEdges.get(data.edges);
+  if (cached) return cached;
+  const { byId, byIndex } = getGraphLookups(data);
   const parents = sourceParents(data, byIndex);
   const children = new Map<string, string[]>();
   for (const [child, parent] of parents) {
@@ -75,7 +85,9 @@ function containmentIndex(
     siblings.push(child);
     children.set(parent, siblings);
   }
-  return { byId, parents, children };
+  const result = { byId, parents, children };
+  byEdges.set(data.edges, result);
+  return result;
 }
 
 function expandContainment(
@@ -105,7 +117,7 @@ function expandContainment(
 
 /** Containment is independent of whether virtual containment edges are enabled. */
 export function containedIds(
-  data: Pick<GraphDataset, "nodes" | "edges">,
+  data: GraphLike,
   rootId: string,
   includeChildDocuments = true,
 ): Set<string> {
@@ -118,7 +130,7 @@ export function containedIds(
 
 function provenanceOf(
   edge: GraphEdge,
-  byIndex: Map<number, GraphNode>,
+  byIndex: ReadonlyMap<number, GraphNode>,
 ): GraphProvenance[] {
   if (edge.provenance?.length) return edge.provenance;
   const source = byIndex.get(edge.source);
@@ -143,11 +155,10 @@ export function projectGraph(
   data: GraphDataset,
   filters: GraphFilters,
 ): CurrentGraph {
-  const byId = new Map(data.nodes.map((node) => [node.id, node]));
-  const byIndex = new Map(data.nodes.map((node) => [node.index, node]));
+  const { byId, byIndex } = getGraphLookups(data);
   const containment =
     filters.hierarchy || filters.excludeIds.length
-      ? containmentIndex(data, byId, byIndex)
+      ? containmentIndex(data)
       : null;
   // All roots share one index and traversal. Overlapping exclusions visit each
   // contained identity once instead of rebuilding the graph for every root.
@@ -329,9 +340,8 @@ function currentOpenTargets(
   if (cached?.data === data) return cached.targets;
   const targets = new Map<string, string>();
   const nativeSources = new Set<string>();
-  const byIndex = new Map<number, GraphNode>();
+  const { byIndex } = getGraphLookups(data);
   for (const node of data.nodes) {
-    byIndex.set(node.index, node);
     // Type-hidden source blocks remain available through their document
     // representative. Notebook and content exclusions have no representative.
     if (
@@ -415,34 +425,108 @@ export function scopeGraph(
   reachedIndices: ReadonlySet<number> | null,
   hideIsolated: boolean,
 ): GraphView {
-  if (!hideIsolated && backgroundIds.size === graph.nodes.length)
-    return { nodes: graph.nodes, edges: graph.edges };
-  let nodes = graph.nodes.filter(
-    (node) =>
-      backgroundIds.has(node.id) ||
-      chosenIds.has(node.id) ||
-      reachedIndices?.has(node.index),
+  return createViewProjector(graph).project(
+    backgroundIds,
+    chosenIds,
+    reachedIndices,
+    hideIsolated,
   );
-  const included = new Set(nodes.map((node) => node.index));
-  const edges = graph.edges.filter(
-    (edge) => included.has(edge.source) && included.has(edge.target),
+}
+
+export interface GraphViewProjector {
+  project(
+    backgroundIds: ReadonlySet<string>,
+    chosenIds: ReadonlySet<string>,
+    reachedIndices: ReadonlySet<number> | null,
+    hideIsolated: boolean,
+  ): GraphView;
+}
+
+function sameSequence<T>(left: readonly T[], right: readonly T[]): boolean {
+  return (
+    left === right ||
+    (left.length === right.length &&
+      left.every((value, index) => value === right[index]))
   );
-  if (hideIsolated) {
-    const connected = new Set<number>();
-    for (const edge of edges) {
-      connected.add(edge.source);
-      connected.add(edge.target);
+}
+
+/** Own one projector per immutable Q revision, never across changed source facts. */
+export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
+  let candidates = graph.nodes;
+  let edges = graph.edges;
+  let connected: Set<number> | undefined;
+  let previous: GraphView | undefined;
+  const represented = new WeakMap<
+    GraphNode,
+    { inside?: GraphNode; outside?: GraphNode }
+  >();
+
+  const represent = (node: GraphNode, external: boolean): GraphNode => {
+    let versions = represented.get(node);
+    if (!versions) {
+      versions = {};
+      represented.set(node, versions);
     }
-    nodes = nodes.filter(
-      (node) => connected.has(node.index) || chosenIds.has(node.id),
-    );
-  }
+    const key = external ? "outside" : "inside";
+    return versions[key] ??= { ...node, external };
+  };
+
   return {
-    nodes: nodes.map((node) => ({
-      ...node,
-      external: !backgroundIds.has(node.id),
-    })),
-    edges,
+    project(backgroundIds, chosenIds, reachedIndices, hideIsolated) {
+      // scopeBackground always returns B as a subset of this Q revision.
+      const fullBackground = backgroundIds.size === graph.nodes.length;
+      const nextCandidates = fullBackground
+        ? graph.nodes
+        : graph.nodes.filter(
+            (node) =>
+              backgroundIds.has(node.id) ||
+              chosenIds.has(node.id) ||
+              reachedIndices?.has(node.index),
+          );
+      if (!sameSequence(nextCandidates, candidates)) {
+        candidates = nextCandidates;
+        if (candidates.length === graph.nodes.length) edges = graph.edges;
+        else {
+          const included = new Set(candidates.map((node) => node.index));
+          edges = graph.edges.filter(
+            (edge) => included.has(edge.source) && included.has(edge.target),
+          );
+        }
+        connected = undefined;
+      }
+      let nodes = candidates;
+      if (hideIsolated) {
+        if (!connected) {
+          connected = new Set<number>();
+          for (const edge of edges) {
+            connected.add(edge.source);
+            connected.add(edge.target);
+          }
+        }
+        nodes = candidates.filter(
+          (node) => connected!.has(node.index) || chosenIds.has(node.id),
+        );
+      }
+      const sameNodes =
+        previous !== undefined &&
+        previous.nodes.length === nodes.length &&
+        nodes.every(
+          (node, index) =>
+            previous!.nodes[index].index === node.index &&
+            Boolean(previous!.nodes[index].external) === !backgroundIds.has(node.id),
+        );
+      const sameEdges = previous !== undefined && sameSequence(previous.edges, edges);
+      if (sameNodes && sameEdges) return previous!;
+      previous = {
+        nodes: sameNodes
+          ? previous!.nodes
+          : fullBackground && !hideIsolated
+            ? graph.nodes
+            : nodes.map((node) => represent(node, !backgroundIds.has(node.id))),
+        edges: sameEdges ? previous!.edges : edges,
+      };
+      return previous;
+    },
   };
 }
 

@@ -1,5 +1,6 @@
 import type { GraphColorMode } from "./node-colors";
 import type { GraphEdge, GraphNode } from "../data/types";
+import type { GraphSettings } from "./settings";
 
 export type CanvasNode = GraphNode;
 export type CanvasEdge = GraphEdge;
@@ -27,6 +28,7 @@ export interface CosmographCanvasProps {
   spotlightIds?: readonly string[];
   active?: boolean;
   colorBy?: GraphColorMode;
+  settings?: GraphSettings;
   notebookNames?: Readonly<Record<string, string>>;
   onSelect: (id: string | null, event?: CanvasSelectEvent) => void;
   onClearChosen: () => void;

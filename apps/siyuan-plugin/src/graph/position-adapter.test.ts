@@ -1,12 +1,56 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   beginGroupMotion,
+  beginCanvasGroupMotion,
   captureNodePositions,
   positionApi,
   restoreNodePositions,
+  type ViewportApi,
 } from "./position-adapter";
+import type { CameraState, Point2D, PointPosition } from "./geometry";
 
 describe("chosen position movement", () => {
+  it("moves a 3D set in the grabbed node's depth plane while its shape and other points stay unchanged", () => {
+    // Camera at +X looking toward the origin. Its screen axes are -Z and +Y.
+    // Projection is independent of the implementation's orbit depth calculation.
+    const camera: CameraState = { target: [0, 0, 0], distance: 100, azimuth: Math.PI / 2, polar: Math.PI / 2 };
+    let positions: Float32Array = new Float32Array([10, 20, 30, 20, 30, 40, 50, 60, 70]);
+    const project = (point: PointPosition): Point2D => [500 - (point[2] ?? 0) * 100 / (100 - point[0]), 300 - point[1] * 100 / (100 - point[0])];
+    const graph = {
+      is3D: true,
+      getCanvas: () => null,
+      getZoomLevel: vi.fn(() => { throw new Error("2D zoom must not be read"); }),
+      setZoomTransformByPointPositions: vi.fn(),
+      getCameraState: () => camera,
+      spaceToScreenPosition: project,
+      screenToSpacePosition: ((screen: Point2D) => [0, 300 - screen[1], 500 - screen[0]]) as ViewportApi["screenToSpacePosition"],
+      getPointPositions: vi.fn(() => positions),
+      setPointPositions: vi.fn((next: Float32Array) => { positions = next; }),
+      render: vi.fn(),
+    };
+    const origin = project([10, 20, 30]);
+    const movement = beginCanvasGroupMotion(graph, [0, 1], 0, origin, 3);
+    movement.move([origin[0] + 20, origin[1] + 30]);
+    const movedRoot: PointPosition = [positions[0], positions[1], positions[2]];
+    expect(project(movedRoot)[0] - origin[0]).toBeCloseTo(20, 4);
+    expect(project(movedRoot)[1] - origin[1]).toBeCloseTo(30, 4);
+    expect([...positions.slice(0, 6)]).toEqual([10, -7, 12, 20, 3, 22]);
+    expect([...positions.slice(6)]).toEqual([50, 60, 70]);
+    expect(graph.setPointPositions).toHaveBeenLastCalledWith(positions, { dimensions: 3, dontRescale: true });
+    expect(graph.getZoomLevel).not.toHaveBeenCalled();
+  });
+
+  it("preserves newly initialized depth when only XY coordinates existed before a 3D rebuild", () => {
+    let positions: Float32Array = new Float32Array([100, 200, 8, 300, 400, 9]);
+    const graph = {
+      getPointPositions: () => positions,
+      setPointPositions: (next: Float32Array) => { positions = next; },
+      render: vi.fn(),
+    };
+    restoreNodePositions(graph, ["a", "b"], new Map([["a", [10, 20]], ["b", [30, 40]]]), 3);
+    expect([...positions]).toEqual([10, 20, 8, 30, 40, 9]);
+  });
+
   it("translates only the explicit roots by the same delta and preserves current nonmember positions", () => {
     let positions: Float32Array = new Float32Array([10, 20, 30, 40, 50, 60]);
     const initial = positions;

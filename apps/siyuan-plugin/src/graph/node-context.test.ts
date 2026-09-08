@@ -1,6 +1,17 @@
 import { expect, it } from "vitest";
 import { nodeContext } from "./node-context";
 
+it("identifies supplemental nodes independently of their type color without changing the source title", () => {
+  const node = {
+    id: "outside", label: "<b>Literal title</b>", index: 0, degree: 1,
+    color: "#fff", notebook: "", path: "", blockType: "h", external: true,
+  };
+  const context = nodeContext(node);
+  expect(context.title).toBe(node.label);
+  expect(context.lines).toEqual(["标题", "↗ 范围外补充节点"]);
+  expect(nodeContext({ ...node, external: false }).lines).toEqual(["标题"]);
+});
+
 it("keeps distinguishing source context as literal text with a bounded excerpt", () => {
   const context = nodeContext(
     {

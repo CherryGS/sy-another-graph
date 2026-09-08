@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ChosenLabels } from "./chosen-labels";
 import type { PreparedGraph } from "./prepare-graph";
+import type { PointPosition } from "./geometry";
 
 class ElementStub extends EventTarget {
   readonly children: ElementStub[] = [];
@@ -60,11 +61,12 @@ function harness(count = 2) {
   const clicked = vi.fn();
   const hover = vi.fn();
   const geometry = {
+    is3D: false,
     getPointPositions: vi.fn(() =>
       Float32Array.from({ length: count * 2 }, (_, index) => index + 10),
     ),
     spaceToScreenPosition: vi.fn(
-      (position: [number, number]): [number, number] => [
+      (position: PointPosition): [number, number] => [
         position[0] * 2,
         position[1] * 2,
       ],
@@ -95,6 +97,54 @@ function harness(count = 2) {
 }
 
 describe("persistent chosen labels", () => {
+  it("does not read the full position buffer on simulation ticks for pinned labels or camera-only changes", () => {
+    const h = harness();
+    h.labels.update(prepared(2), ["id-0", "id-1"]);
+    h.draw();
+    h.geometry.getPointPositions.mockClear();
+    for (let tick = 0; tick < 60; tick++) {
+      h.labels.refresh("simulation");
+      h.draw();
+    }
+    expect(h.geometry.getPointPositions).not.toHaveBeenCalled();
+    h.geometry.spaceToScreenPosition.mockImplementation((position) => [position[0] * 3, position[1] * 3]);
+    h.labels.refresh("projection");
+    h.draw();
+    expect(h.geometry.getPointPositions).not.toHaveBeenCalled();
+    expect(h.host.children[0].children[0].style.left).toBe("30px");
+    h.labels.refresh();
+    h.draw();
+    expect(h.geometry.getPointPositions).toHaveBeenCalledTimes(1);
+    h.labels.dispose();
+  });
+
+  it("keeps unpinned endpoint labels following simulation movement", () => {
+    const h = harness();
+    h.labels.update(prepared(2), ["id-0"], ["id-1"]);
+    h.draw();
+    h.geometry.getPointPositions.mockClear();
+    h.geometry.getPointPositions.mockReturnValue(new Float32Array([10, 11, 50, 60]));
+    h.labels.refresh("simulation");
+    h.draw();
+    expect(h.geometry.getPointPositions).toHaveBeenCalledTimes(1);
+    expect(h.host.children[0].children[1].style.left).toBe("100px");
+    h.labels.dispose();
+  });
+
+  it("uses XYZ stride and 3D projection, hiding positions behind the camera", () => {
+    const h = harness();
+    h.geometry.is3D = true;
+    h.geometry.getPointPositions.mockReturnValue(new Float32Array([10, 20, 30, 40, 50, -60]));
+    h.geometry.spaceToScreenPosition.mockImplementation((position) => (position[2] ?? 0) < 0 ? [NaN, NaN] : [position[0] + (position[2] ?? 0), position[1]]);
+    h.labels.update(prepared(2), ["id-0", "id-1"]);
+    h.draw();
+    expect(h.geometry.getPointPositions).toHaveBeenCalledWith({ dimensions: 3 });
+    expect(h.geometry.spaceToScreenPosition).toHaveBeenCalledWith([10, 20, 30], { dimensions: 3 });
+    expect(h.host.children[0].children[0].style.left).toBe("40px");
+    expect(h.host.children[0].children[1].style.visibility).toBe("hidden");
+    h.labels.dispose();
+  });
+
   it("creates every chosen label without the native 100-label limit and keeps source text literal", () => {
     const data = prepared(125);
     const h = harness(125);

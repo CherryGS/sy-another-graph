@@ -53,6 +53,7 @@ export async function prepareGraph(
   const color = new Array<string>(nodes.length);
   const branchColor = new Array<string>(nodes.length);
   const degreeColor = new Array<string>(nodes.length);
+  const typeColor = new Array<string>(nodes.length);
   const index = new Uint32Array(nodes.length);
   const degree = new Float32Array(nodes.length);
   const originalToDense = new Map<number, number>();
@@ -88,6 +89,7 @@ export async function prepareGraph(
       color[position] = nodeColor(node, "notebook");
       branchColor[position] = nodeColor(node, "branch");
       degreeColor[position] = nodeColor(node, "degree");
+      typeColor[position] = nodeColor(node, "type");
       index[position] = position;
       degree[position] = Number.isFinite(node.degree)
         ? Math.max(0, node.degree)
@@ -148,6 +150,7 @@ export async function prepareGraph(
     color,
     branchColor,
     degreeColor,
+    typeColor,
     index,
     degree,
   });
@@ -170,11 +173,11 @@ export async function prepareGraph(
       pointIndexBy: "index",
       pointLabelBy: "label",
       pointLabelWeightBy: "degree",
-      pointColorBy: "branchColor",
+      pointColorBy: "typeColor",
       pointColorStrategy: "direct",
       pointSizeBy: "degree",
       pointSizeStrategy: "auto",
-      pointIncludeColumns: ["notebook", "color", "branchColor", "degreeColor"],
+      pointIncludeColumns: ["notebook", "color", "branchColor", "degreeColor", "typeColor"],
       linkSourceBy: "source",
       linkTargetBy: "target",
       linkSourceIndexBy: "sourceIndex",

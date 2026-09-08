@@ -13,6 +13,7 @@ export function nodeContext(
     : type;
   const notebook = notebookNames[node.notebook];
   const lines = [notebook ? `${typeLabel} · ${notebook}` : typeLabel];
+  if (node.external) lines.push("↗ 范围外补充节点");
   if (node.documentLabel && node.documentLabel !== node.label)
     lines.push(node.documentLabel);
   if (node.heading && node.heading !== node.label) lines.push(node.heading);

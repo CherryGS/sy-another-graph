@@ -2,6 +2,7 @@ import type { Cosmograph, CosmographConfig } from "@cosmograph/cosmograph";
 import type { GraphTableStore, UploadedGraph } from "./graph-tables";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasStats } from "./types";
+import type { CameraState, Dimensions } from "./geometry";
 import {
   captureNodePositions,
   captureViewport,
@@ -24,6 +25,7 @@ type Renderer = Pick<
   | "stats"
   | "pause"
   | "unpause"
+  | "start"
   | "selectPoints"
   | "setFocusedPoint"
   | "setPinnedPoints"
@@ -46,6 +48,8 @@ export interface RendererDiagnostics {
   configurations: number;
   dataRevisions: number;
   lastDataUpdateMs: number | null;
+  dimensions: Dimensions;
+  camera: CameraState | null;
   highlightedCount: number;
   outlinedCount: number;
   requestedHighlightCount: number;
@@ -102,6 +106,7 @@ export class RendererSession {
   private active = true;
   private visibilityRevision = 0;
   private paused = false;
+  private needsSimulationRestart = false;
   // Keep the first fit pending through empty or hidden initial views. Later data
   // replacements retain the camera unless the user explicitly calls fit().
   private needsFit = true;
@@ -110,12 +115,16 @@ export class RendererSession {
   private fitFrame: number | undefined;
   private refreshFrame: number | undefined;
   private lastViewport: ViewportSnapshot | null = null;
+  // Keep latent Z through a later 2D projection, including subsequent data rebuilds.
+  private coordinateStride: Dimensions = 2;
   private readonly diagnosticListeners = new Set<() => void>();
   private diagnosticState: RendererDiagnostics = {
     sessionId: `renderer-${crypto.randomUUID()}`,
     configurations: 0,
     dataRevisions: 0,
     lastDataUpdateMs: null,
+    dimensions: 2,
+    camera: null,
     highlightedCount: 0,
     outlinedCount: 0,
     requestedHighlightCount: 0,
@@ -151,6 +160,9 @@ export class RendererSession {
 
   get displayed() {
     return this.currentData;
+  }
+  get positionDimensions(): Dimensions {
+    return this.coordinateStride;
   }
   getDiagnostics = () => this.diagnosticState;
   subscribe = (listener: () => void) => {
@@ -222,7 +234,7 @@ export class RendererSession {
         const replacesPoints = previousData !== data;
         if (replacesPoints && previousData && previousData.pointsCount > 0) {
           this.graph.pause();
-          positionsBefore = captureNodePositions(this.graph, previousData.indexToId);
+          positionsBefore = captureNodePositions(this.graph, previousData.indexToId, this.coordinateStride);
           const chosenProbes = this.chosenIds.filter((id) => positionsBefore!.has(id));
           probes = positionProbes(this.graph, positionsBefore, chosenProbes.length ? chosenProbes : previousData.indexToId);
           viewportBefore = captureViewport(this.graph);
@@ -341,6 +353,8 @@ export class RendererSession {
             },
           };
           await this.graph.setConfig(appliedConfig);
+          if (appliedConfig.spaceDimensions === 3) this.coordinateStride = 3;
+          if (this.paused || !this.active) this.graph.pause();
           await this.drain();
           // The completed config references these tables, even when superseded meanwhile.
           await this.tables.commit(uploaded);
@@ -351,13 +365,13 @@ export class RendererSession {
             this.graph.pause();
             this.graph.setPinnedPoints(this.chosenIndices(data));
             if (positionsBefore)
-              restoreNodePositions(this.graph, data.indexToId, positionsBefore);
+              restoreNodePositions(this.graph, data.indexToId, positionsBefore, this.coordinateStride);
             if (viewportToRestore) restoreViewport(this.graph, viewportToRestore);
             // Programmatic zoom may enable simulation; applyControls later restores
             // the current user/visibility state after the readback is complete.
             this.graph.pause();
             if (positionsBefore) {
-              const after = captureNodePositions(this.graph, data.indexToId);
+              const after = captureNodePositions(this.graph, data.indexToId, this.coordinateStride);
               continuity = measurePositionRestore(this.graph, positionsBefore, after, probes);
             }
           }
@@ -376,17 +390,22 @@ export class RendererSession {
           );
         }
         this.currentData = data;
+        const forceKeys = ["simulationRepulsion", "simulationGravity", "simulationLinkDistance", "simulationLinkSpring", "simulationFriction", "simulationCollision", "simulationCollisionPadding", "simulationDecay"] as const;
+        if (!dataChanged && this.currentConfig && appliedConfig && forceKeys.some((key) => this.currentConfig![key] !== appliedConfig![key]))
+          this.needsSimulationRestart = true;
         this.currentConfig = appliedConfig;
         this.desiredOutlines = outlinedIndices;
         this.publishDiagnostics({
           outlinedCount: outlinedIndices.length,
+          dimensions: this.graph.is3D ? 3 : 2,
+          camera: this.graph.is3D ? (this.graph.getCameraState?.() ?? null) : null,
           positionRestorations: this.diagnosticState.positionRestorations + (continuity ? 1 : 0),
           restoredPointCount: continuity?.restored ?? 0,
           positionWorldError: continuity?.maximumWorldError ?? null,
           positionScreenError: continuity?.maximumScreenError ?? null,
           positionSamples: continuity?.samples ?? [],
-          zoomBefore: viewportBefore?.zoom ?? viewportToRestore?.zoom ?? null,
-          zoomAfter: this.graph.getZoomLevel() ?? null,
+          zoomBefore: viewportBefore?.dimensions === 2 ? viewportBefore.zoom : viewportToRestore?.dimensions === 2 ? viewportToRestore.zoom : null,
+          zoomAfter: this.graph.is3D ? null : (this.graph.getZoomLevel() ?? null),
         });
         this.ready = true;
         if (dataChanged)
@@ -473,12 +492,17 @@ export class RendererSession {
         )
           return;
         this.refreshFrame = undefined;
-        // The supported zoom setter requests a frame even for a settled/paused layout.
-        // With a mounted, fixed-size viewport, the same zoom preserves its camera transform.
+        // Reapply the public camera state to redraw a settled/paused layout.
         this.runControl(() => {
-          const zoom = this.graph.getZoomLevel();
-          if (zoom !== undefined && Number.isFinite(zoom) && zoom > 0)
-            this.graph.setZoomLevel(zoom, 0);
+          if (this.graph.is3D) {
+            const viewport = captureViewport(this.graph);
+            if (viewport) restoreViewport(this.graph, viewport);
+          } else {
+            const zoom = this.graph.getZoomLevel();
+            if (zoom !== undefined && Number.isFinite(zoom) && zoom > 0)
+              this.graph.setZoomLevel(zoom, 0);
+          }
+          if (this.paused || !this.active) this.graph.pause();
         });
         this.scheduleFit(0);
       });
@@ -583,7 +607,10 @@ export class RendererSession {
       this.pinsDirty = false;
     }
     if (this.paused || !this.active) this.graph.pause();
-    else this.graph.unpause();
+    else if (this.needsSimulationRestart) {
+      this.needsSimulationRestart = false;
+      this.graph.start(0.3);
+    } else this.graph.unpause();
   }
 
   private runControl(operation: () => void) {

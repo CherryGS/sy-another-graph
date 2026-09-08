@@ -1,13 +1,6 @@
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasNode } from "./types";
-
-interface Geometry {
-  getPointPositions(): Float32Array | undefined;
-  spaceToScreenPosition(
-    position: [number, number],
-  ): [number, number] | undefined;
-  getPointScreenRadiusByIndex(index: number): number;
-}
+import { pointAt, projectPosition, type Dimensions, type PointGeometry, type PointPosition } from "./geometry";
 interface LabelScheduler {
   frame(callback: () => void): number;
   cancelFrame(id: number): void;
@@ -22,14 +15,18 @@ export class ChosenLabels {
   private frame?: number;
   private active = true;
   private disposed = false;
-  private readonly geometry: Geometry;
+  private readonly geometry: PointGeometry;
+  private readonly positions = new Map<string, PointPosition>();
+  private positionsDirty = true;
+  private hasMovingLabels = false;
+  private positionDimensions: Dimensions = 2;
   private readonly onClick: (id: string, event: MouseEvent) => void;
   private readonly onHover: (node: CanvasNode | null) => void;
   private readonly scheduler: LabelScheduler;
 
   constructor(
     host: HTMLElement,
-    geometry: Geometry,
+    geometry: PointGeometry,
     onClick: (id: string, event: MouseEvent) => void,
     onHover: (node: CanvasNode | null) => void,
     scheduler: LabelScheduler = {
@@ -57,11 +54,13 @@ export class ChosenLabels {
     this.ids = [...new Set([...ids, ...spotlightIds])].filter((id) =>
       data?.idToIndex.has(id),
     );
+    this.hasMovingLabels = this.ids.some((id) => !chosen.has(id));
     const retained = new Set(this.ids);
     for (const [id, label] of this.labels) {
       if (!retained.has(id)) {
         label.remove();
         this.labels.delete(id);
+        this.positions.delete(id);
       }
     }
     for (const id of this.ids) {
@@ -92,6 +91,7 @@ export class ChosenLabels {
       label.className = chosen.has(id)
         ? "ag-canvas__chosen-label"
         : "ag-canvas__chosen-label ag-canvas__chosen-label--spotlight";
+      if (data!.indexToNode[index].external) label.className += " ag-canvas__chosen-label--external";
       label.textContent = data!.indexToLabel[index];
       label.setAttribute(
         "aria-label",
@@ -101,7 +101,11 @@ export class ChosenLabels {
     this.refresh();
   }
 
-  refresh() {
+  refresh(kind: "positions" | "projection" | "simulation" = "positions") {
+    // Chosen points are pinned. Simulation frames cannot change their coordinates.
+    // Only the explicitly temporary, unpinned endpoint labels need tick readbacks.
+    if (kind === "simulation" && !this.hasMovingLabels) return;
+    if (kind !== "projection") this.positionsDirty = true;
     if (
       this.disposed ||
       !this.active ||
@@ -112,22 +116,28 @@ export class ChosenLabels {
     this.frame = this.scheduler.frame(() => {
       this.frame = undefined;
       if (this.disposed || !this.active || !this.data) return;
-      const positions = this.geometry.getPointPositions();
-      if (!positions) return;
+      const dimensions = this.geometry.is3D ? 3 : 2;
+      if (this.positionsDirty || dimensions !== this.positionDimensions) {
+        const positions = this.geometry.getPointPositions({ dimensions });
+        if (!positions) return;
+        for (const id of this.ids) {
+          const index = this.data.idToIndex.get(id);
+          if (index !== undefined) this.positions.set(id, pointAt(positions, index, dimensions));
+        }
+        this.positionsDirty = false;
+        this.positionDimensions = dimensions;
+      }
       for (const id of this.ids) {
         const index = this.data.idToIndex.get(id);
         const label = this.labels.get(id);
         if (index === undefined || !label) continue;
-        const position: [number, number] = [
-          positions[index * 2],
-          positions[index * 2 + 1],
-        ];
-        const screen = this.geometry.spaceToScreenPosition(position);
+        const position = this.positions.get(id);
+        const screen = position && projectPosition(this.geometry, position);
         if (!screen || !screen.every(Number.isFinite)) {
           label.style.visibility = "hidden";
           continue;
         }
-        const radius = this.geometry.getPointScreenRadiusByIndex(index);
+        const radius = this.geometry.getPointScreenRadiusByIndex(index, position?.length === 3 ? position : undefined);
         label.style.left = `${screen[0]}px`;
         label.style.top = `${screen[1] - (Number.isFinite(radius) ? radius : 0) - 7}px`;
         label.style.visibility = "visible";
@@ -150,6 +160,7 @@ export class ChosenLabels {
     this.setActive(false);
     this.disposed = true;
     this.labels.clear();
+    this.positions.clear();
     this.layer.remove();
     this.data = null;
   }
