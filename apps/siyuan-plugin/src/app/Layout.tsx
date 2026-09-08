@@ -161,7 +161,7 @@ export function Layout() {
             }}
           >
             <h2 id="save-title">保存视图</h2>
-            <p>保留筛选条件与选中文档，存于当前浏览器。</p>
+            <p>保留筛选条件与当前查看节点，存于当前浏览器。</p>
             <label htmlFor="view-name">名称</label>
             <input
               autoFocus

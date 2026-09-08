@@ -192,6 +192,157 @@ function harness() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("plugin-lifetime workbench browsing context", () => {
+  it("retains source versions before iframe setup and replays the latest version after readiness", () => {
+    const host = harness();
+    host.session.markSourceChanged();
+    host.session.markSourceChanged();
+    expect(host.document.created).toHaveLength(0);
+    host.attach(host.placeholder());
+    const frame = host.iframe();
+    frame.dispatchEvent(new Event("load"));
+    const latest = {
+      channel: WORKBENCH_CHANNEL,
+      type: "source-changed",
+      version: 2,
+    };
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      latest,
+      host.window.location.origin,
+    );
+    frame.contentWindow.postMessage.mockClear();
+    host.session.announceVisibility();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      latest,
+      host.window.location.origin,
+    );
+    host.session.markSourceChanged();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { ...latest, version: 3 },
+      host.window.location.origin,
+    );
+    host.session.dispose();
+  });
+
+  it("increments only for source mutations and retains hidden changes through ordinary visibility switches", () => {
+    const host = harness();
+    const tab = host.placeholder();
+    host.attach(tab);
+    const frame = host.iframe();
+    host.session.announceVisibility();
+    expect(
+      frame.contentWindow.postMessage.mock.calls.some(
+        ([data]) => data.type === "source-changed",
+      ),
+    ).toBe(false);
+    tab.visible = false;
+    host.session.refresh();
+    host.flush();
+    host.session.markSourceChanged();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "source-changed", version: 1 },
+      host.window.location.origin,
+    );
+    tab.visible = true;
+    host.session.refresh();
+    host.flush();
+    host.session.announceVisibility();
+    const sourceMessages = frame.contentWindow.postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === "source-changed");
+    expect(sourceMessages).toEqual([
+      { channel: WORKBENCH_CHANNEL, type: "source-changed", version: 1 },
+      { channel: WORKBENCH_CHANNEL, type: "source-changed", version: 1 },
+    ]);
+    expect(frame.sourceAssignments).toBe(1);
+    expect(frame.disconnections).toBe(0);
+    host.session.dispose();
+    frame.contentWindow.postMessage.mockClear();
+    host.session.markSourceChanged();
+    host.session.announceVisibility();
+    expect(frame.contentWindow.postMessage).not.toHaveBeenCalled();
+  });
+
+  it("retains a requested scope before the iframe exists and resends it on the ready handshake", () => {
+    const host = harness();
+    const id = "20260909010000-doc0001";
+    host.session.requestScope(id);
+    expect(host.document.created).toHaveLength(0);
+    host.attach(host.placeholder());
+    const frame = host.iframe();
+    frame.dispatchEvent(new Event("load"));
+    const message = { channel: WORKBENCH_CHANNEL, type: "scope-graph", id };
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      message,
+      host.window.location.origin,
+    );
+    frame.contentWindow.postMessage.mockClear();
+    // The application may install its message listener after the DOM load event.
+    host.session.announceVisibility();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      message,
+      host.window.location.origin,
+    );
+    host.session.acknowledgeScope(id);
+    frame.contentWindow.postMessage.mockClear();
+    host.session.announceVisibility();
+    expect(
+      frame.contentWindow.postMessage.mock.calls.map(([data]) => data.type),
+    ).toEqual(["host-visibility"]);
+    host.session.dispose();
+  });
+
+  it("keeps only the latest pending scope and ignores acknowledgements of older requests", () => {
+    const host = harness();
+    const first = "20260909010000-doc0001";
+    const latest = "20260909010001-block01";
+    host.session.requestScope(first);
+    host.session.requestScope(latest);
+    host.session.acknowledgeScope(first);
+    host.attach(host.placeholder());
+    host.session.announceVisibility();
+    const frame = host.iframe();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "scope-graph", id: latest },
+      host.window.location.origin,
+    );
+    expect(
+      frame.contentWindow.postMessage.mock.calls.some(
+        ([data]) => data.id === first,
+      ),
+    ).toBe(false);
+    host.session.requestScope("av:20260909010002-abc0001");
+    host.session.announceVisibility();
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "scope-graph", id: latest },
+      host.window.location.origin,
+    );
+    host.session.dispose();
+  });
+
+  it("applies a new scope through the same browsing context after a tab was closed", () => {
+    const host = harness();
+    const first = host.placeholder();
+    host.attach(first);
+    const frame = host.iframe();
+    host.detach(first);
+    first.remove();
+    const id = "20260909010001-block01";
+    host.session.requestScope(id);
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "scope-graph", id },
+      host.window.location.origin,
+    );
+    host.attach(host.placeholder());
+    expect(host.iframe()).toBe(frame);
+    expect(frame.sourceAssignments).toBe(1);
+    expect(frame.disconnections).toBe(0);
+    host.session.dispose();
+    frame.contentWindow.postMessage.mockClear();
+    host.session.requestScope(id);
+    host.session.announceVisibility();
+    expect(frame.contentWindow.postMessage).not.toHaveBeenCalled();
+  });
+
   it("creates no iframe until the first host tab opens", () => {
     const host = harness();
     expect(host.document.created).toHaveLength(0);

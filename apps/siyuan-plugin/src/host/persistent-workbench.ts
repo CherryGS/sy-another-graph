@@ -1,3 +1,5 @@
+import { isNativeBlockId } from "./scope-menu";
+
 export const WORKBENCH_CHANNEL = "sy-another-graph";
 
 /**
@@ -17,6 +19,8 @@ export class PersistentWorkbench {
   private active = false;
   private disposed = false;
   private bounds = "";
+  private pendingScopeId: string | null = null;
+  private sourceVersion = 0;
 
   constructor(pluginName: string) {
     this.pluginName = pluginName;
@@ -54,11 +58,32 @@ export class PersistentWorkbench {
     );
   }
 
+  /** Keep the latest explicit entry request until the child acknowledges it. */
+  requestScope(id: string): void {
+    if (this.disposed || !isNativeBlockId(id)) return;
+    this.pendingScopeId = id;
+    this.postScope();
+  }
+
+  acknowledgeScope(id: string): void {
+    if (!this.disposed && this.pendingScopeId === id)
+      this.pendingScopeId = null;
+  }
+
+  /** Version changes only for confirmed source events, even before frame setup. */
+  markSourceChanged(): void {
+    if (this.disposed) return;
+    this.sourceVersion++;
+    this.postSourceVersion();
+  }
+
   /** Respond to the child handshake even if visibility has not changed. */
   announceVisibility(): void {
     if (this.disposed) return;
     this.synchronize();
     this.postVisibility();
+    this.postScope();
+    this.postSourceVersion();
   }
 
   refresh = (): void => {
@@ -72,6 +97,7 @@ export class PersistentWorkbench {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.pendingScopeId = null;
     if (this.scheduled !== null) window.cancelAnimationFrame(this.scheduled);
     this.scheduled = null;
     this.resizeObserver.disconnect();
@@ -218,6 +244,30 @@ export class PersistentWorkbench {
         channel: WORKBENCH_CHANNEL,
         type: "host-visibility",
         active: this.active,
+      },
+      window.location.origin,
+    );
+  }
+
+  private postScope(): void {
+    if (!this.pendingScopeId) return;
+    this.frame?.contentWindow?.postMessage(
+      {
+        channel: WORKBENCH_CHANNEL,
+        type: "scope-graph",
+        id: this.pendingScopeId,
+      },
+      window.location.origin,
+    );
+  }
+
+  private postSourceVersion(): void {
+    if (this.sourceVersion === 0) return;
+    this.frame?.contentWindow?.postMessage(
+      {
+        channel: WORKBENCH_CHANNEL,
+        type: "source-changed",
+        version: this.sourceVersion,
       },
       window.location.origin,
     );

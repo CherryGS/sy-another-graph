@@ -5,20 +5,27 @@ WASM graph engine. The plugin is named `sy-another-graph`.
 
 ## Features
 
-- Document graphs from indexed SiYuan notebooks, with aggregated block references
-  and document hierarchy derived from SiYuan paths.
-- Search, notebook/relation filters, visible-graph isolation filtering, node
-  details, and document navigation in a compact embedded toolbar layout.
-- Draggable nodes, directional reference/hierarchy arrows, and stable colors
-  by document branch, notebook, or degree. Focused neighborhoods highlight all
-  participating nodes while retaining a distinct selected root.
-- Full-graph neighborhood and path highlighting computed in a dedicated WASM
-  Worker. Neighbors receive cyan outlines against dimmed context; an optional
-  result-only view reports its 10,000-node budget when reached.
-- Saved filter/selection views and graph insights.
-- Local JSON export from the current SiYuan workspace.
-- A retained application session: document switching, insights/saved routes,
-  and closing/reopening the graph tab preserve the graph, layout, and camera.
+- All indexed native block types, original block-reference endpoints, and native
+  containment. Graph-wide type controls project hidden block endpoints to their
+  owning documents while retaining source provenance.
+- Logical SiYuan databases, real bound and detached items, and explicit relation
+  fields, with distinct carrier, membership, binding, and item-relation edges.
+- Title/ID search, notebook and relation controls, contained document/block
+  scopes, subtree exclusions, and optional hiding of unchosen isolated nodes.
+- Equal chosen membership with persistent labels and fixed positions. Shift-click
+  toggles membership; ordinary dragging moves one node and Shift-drag from a
+  chosen node moves the chosen set together.
+- Automatic directional N-hop expansion from the chosen set over the current
+  projected graph, retaining the initial scope as background. A dedicated WASM
+  Worker reports when the 10,000-node neighborhood budget truncates a result.
+- Node type, readable document path, heading ancestry, and source excerpts in
+  hover/search/details. Edge inspection retains original source records and
+  opens eligible native blocks or database contexts.
+- Native document-title and single-block menus open a scoped graph. Source-change
+  notifications refresh the retained workbench while keeping valid choices,
+  matching node positions, and the 2D camera across data updates.
+- Saved filter/inspection views, existing path and insight tools, stable colors
+  by document branch/notebook/degree, and local export of the visible graph.
 - Locally bundled renderer/database resources, escaped graph labels, and an
   iframe network policy that restricts connections to the current origin.
 
@@ -50,6 +57,9 @@ use the graph toolbar icon or **Alt+Shift+G**. The supplied test environment is
 `http://127.0.0.1:6806`. Runtime requests use the current SiYuan origin rather
 than a hardcoded port.
 
+The native document-title menu and a single block's menu also provide a scoped
+graph entry, using that document or block as the initial contained scope.
+
 For frontend development, run these watchers in separate terminals, then
 redeploy and reload after changes:
 
@@ -70,33 +80,69 @@ history, and the graph route stays mounted beneath auxiliary views. Visibility
 changes pause/resume rendering without reloading notes or rebuilding tables.
 The bridge accepts only its own iframe/parent and origin.
 
-Graph indices are revision-local integers; persisted selections use SiYuan IDs.
-The graph core uses directed CSR, deduplication, weak components, BFS
-neighborhoods, and shortest paths. The UI's neighborhood/path operations use
-the full graph and reset relation/notebook filters to show their results.
-Highlighting preserves the surrounding graph and layout by default. The details
-panel overlays the canvas without changing its dimensions. Use the result-only
-toggle when a separate projection is wanted.
-Traversal can follow arrows, reverse arrows, or use both directions. Reference
-arrows point from the citing document to the cited document; hierarchy arrows
-point from parent to child. Refresh explicitly reloads the workspace snapshot.
+Graph indices are revision-local integers. Native blocks retain their SiYuan
+IDs; database and item graph identities use `av:<avID>` and
+`av-item:<avID>:<itemID>`. The current graph Q applies notebook/content exclusions,
+type projection, and enabled relation kinds before traversal. Hidden block types
+do not hide their visible children. Hidden native endpoints use their owning
+documents; virtual containment connects the nearest visible ancestor and keeps
+the intervening source IDs.
+
+Only the explicit chosen set S supplies neighborhood origins. The contained
+scope B remains visible as background, while N controls outward hop depth in Q.
+Changing N retracts or adds reached nodes without treating all of B as origins.
+All chosen members have equal status; inspecting a different node during
+multi-selection does not change S. Hidden or excluded choices lose membership
+and their fixed position. Optional isolation hiding retains eligible S members.
+The document-scope control includes descendant documents by default and can
+exclude them from B. Node and edge inspectors overlay the canvas.
+
+Traversal follows arrows, reverses them, or uses both directions. Every enabled
+relation costs one hop; disabled relations do not participate. Reference arrows
+point from citing block to cited block before projection, and containment points
+from ancestor to descendant. Database edges preserve their own meanings instead
+of becoming citations or shortcuts between notes. Neighborhoods and the existing
+path tool use Q without resetting notebook or relation settings.
+
+Supported native source events advance a host-side dirty version. Notifications
+are coalesced while the workbench is active; hidden changes wait until it becomes
+active, and visibility alone does not trigger a reload. Changes arriving during
+acquisition remain pending for another read. Manual refresh is also available.
+Source updates keep filters and valid identities. Renderer table updates restore
+coordinates for matching IDs and the captured 2D viewport; new nodes receive new
+initial positions. Only S is pinned against subsequent simulation. Ordinary tab
+and route transitions keep the existing graph and camera without rebuilding.
 
 SharedArrayBuffer transport is enabled only in a supported cross-origin
 isolated context. The supplied SiYuan WebUI does not provide that context, so
 the verified path uses transferable buffers. Shared transport is not threaded
 WASM, and the JS/WASM boundary still involves copies.
 
-Source acquisition is read-only and bounded by the initial scan limits.
+Source acquisition is read-only and bounded by initial scan high watermarks.
+Blocks use indexed keyset pagination and retain their encoded source path as
+well as SiYuan's readable `hpath` for display.
 References are aggregated within 4,096-row SQLite rowid windows and merged
 across windows, avoiding repeated full-table regrouping. Bounded batches are
 returned as a single JSON result so host row caps cannot silently drop groups.
 It detects many concurrent changes, but separate API calls cannot guarantee a
 transactionally consistent snapshot while notes are edited. Refresh after such
-a warning. Closed or unindexed notebook content is not promised by this
-document-level database projection.
+a warning. Closed or unindexed notebook content is not promised by the indexed
+source scan.
 
-Saved views remain in the current browser, with a maximum of 50. Author and
-repository metadata are unset because this is a local development build.
+Database acquisition reads complete logical `getAttributeView` objects from
+native carriers and follows explicit relation targets; filtered display views
+do not define membership. It keeps actual item IDs separate from bound block
+IDs, includes detached items without inventing documents, and does not infer
+connections from ordinary field values or rollups. Limits of 4,096 logical
+databases, 500,000 items, and 1,000,000 field associations are reported when
+reached, as are unavailable databases or endpoints. Reads across logical
+databases have no shared snapshot revision. Unused databases are not independently
+enumerated.
+
+Saved views remain in the current browser, with a maximum of 50. They store
+filters and one inspected identity; they are not named coordinate arrangements
+or complete chosen-set snapshots. Author and repository metadata are unset
+because this is a local development build.
 
 JSON export uses SiYuan's export endpoint to create a file in the workspace's
 temporary export directory. Use the persistent **Download JSON** link to save

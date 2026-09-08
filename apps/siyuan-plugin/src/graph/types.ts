@@ -1,20 +1,12 @@
 import type { GraphColorMode } from "./node-colors";
+import type { GraphEdge, GraphNode } from "../data/types";
 
-export interface CanvasNode {
-  id: string;
-  label: string;
-  notebook: string;
-  path: string;
-  index: number;
-  degree: number;
-  color: string;
-}
+export type CanvasNode = GraphNode;
+export type CanvasEdge = GraphEdge;
 
-export interface CanvasEdge {
-  source: number;
-  target: number;
-  kind: "reference" | "hierarchy";
-  weight: number;
+export interface CanvasSelectEvent {
+  shiftKey: boolean;
+  detail: number;
 }
 
 export interface CanvasStats {
@@ -27,11 +19,18 @@ export interface CanvasStats {
 export interface CosmographCanvasProps {
   nodes: readonly CanvasNode[];
   edges: readonly CanvasEdge[];
+  /** The node being inspected. It has no implicit chosen membership. */
   selectedId: string | null;
+  /** The only set that receives persistent labels and fixed positions. */
+  chosenIds: readonly string[];
   highlightedIds?: readonly string[];
+  spotlightIds?: readonly string[];
   active?: boolean;
   colorBy?: GraphColorMode;
-  onSelect: (id: string | null) => void;
+  notebookNames?: Readonly<Record<string, string>>;
+  onSelect: (id: string | null, event?: CanvasSelectEvent) => void;
+  onClearChosen: () => void;
+  onInspectEdge: (edge: CanvasEdge) => void;
   onOpen: (id: string) => void;
   showLabels: boolean;
   showLinks: boolean;

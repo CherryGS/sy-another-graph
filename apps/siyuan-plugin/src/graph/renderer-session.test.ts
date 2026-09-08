@@ -17,6 +17,21 @@ function data(id = "a", linksCount = 1): PreparedGraph {
     config: {},
     indexToId: [id, "b"],
     indexToLabel: [id, "b"],
+    indexToNode: [id, "b"].map((nodeId, index) => ({
+      id: nodeId,
+      index,
+      label: nodeId,
+      degree: 0,
+      notebook: "",
+      path: "",
+      color: "#000000",
+    })),
+    indexToEdge: Array.from({ length: linksCount }, () => ({
+      source: 0,
+      target: 1,
+      kind: "reference",
+      weight: 1,
+    })),
     idToIndex: new Map([
       [id, 0],
       ["b", 1],
@@ -27,6 +42,16 @@ function data(id = "a", linksCount = 1): PreparedGraph {
   };
 }
 
+function dataWithIds(ids: string[]): PreparedGraph {
+  return {
+    ...data("unused", 0),
+    indexToId: [...ids], indexToLabel: [...ids],
+    indexToNode: ids.map((id, index) => ({ id, index, label: id, degree: 0, notebook: "", path: "", color: "#000000" })),
+    idToIndex: new Map(ids.map((id, index) => [id, index])),
+    pointsCount: ids.length,
+  };
+}
+
 function harness() {
   const order: string[] = [];
   const records = new Map<string, PreparedGraph>();
@@ -34,6 +59,13 @@ function harness() {
   const timers = new Map<number, () => void>();
   const frames = new Map<number, () => void>();
   let sequence = 0;
+  let positions: Float32Array = new Float32Array();
+  let pointTable: unknown;
+  let zoom = 2.5;
+  let translateX = 100;
+  let translateY = 200;
+  const width = 1000;
+  const height = 600;
   const scheduler: FrameScheduler = {
     delay(callback) {
       const id = ++sequence;
@@ -57,6 +89,16 @@ function harness() {
     setConfig: vi.fn(async (config: CosmographConfig) => {
       configurations.push(config);
       const prepared = records.get(String(config.points));
+      if (prepared && config.points !== pointTable) {
+        positions = Float32Array.from({ length: prepared.pointsCount * 2 }, (_, index) => 100 + index * 10);
+        if (pointTable !== undefined) {
+          // Cosmograph recreates Cosmos on a point-table replacement.
+          zoom = 1;
+          translateX = width / 2;
+          translateY = height / 2;
+        }
+        pointTable = config.points;
+      }
       graph.stats = {
         pointsCount: prepared?.pointsCount ?? 0,
         linksCount: prepared?.linksCount ?? 0,
@@ -65,6 +107,11 @@ function harness() {
     }),
     reset: vi.fn(async () => {
       graph.stats = { pointsCount: 0, linksCount: 0 };
+      positions = new Float32Array();
+      pointTable = undefined;
+      zoom = 1;
+      translateX = width / 2;
+      translateY = height / 2;
       order.push("reset");
     }),
     destroy: vi.fn(async () => {
@@ -74,9 +121,31 @@ function harness() {
     unpause: vi.fn(),
     selectPoints: vi.fn(),
     setFocusedPoint: vi.fn(),
+    setPinnedPoints: vi.fn(),
     fitView: vi.fn(),
-    getZoomLevel: vi.fn(() => 2.5),
-    setZoomLevel: vi.fn(),
+    getZoomLevel: vi.fn(() => zoom),
+    setZoomLevel: vi.fn((value: number) => {
+      const x = (width / 2 - translateX) / zoom;
+      const y = (translateY - height / 2) / zoom;
+      zoom = value;
+      translateX = width / 2 - x * zoom;
+      translateY = height / 2 + y * zoom;
+    }),
+    getCanvas: vi.fn(() => ({ getBoundingClientRect: () => ({ width, height }) }) as HTMLCanvasElement),
+    screenToSpacePosition: vi.fn((point: [number, number]): [number, number] => [
+      (point[0] - translateX) / zoom, (translateY - point[1]) / zoom,
+    ]),
+    spaceToScreenPosition: vi.fn((point: [number, number] | [number, number, number]): [number, number] => [
+      point[0] * zoom + translateX, translateY - point[1] * zoom,
+    ]),
+    setZoomTransformByPointPositions: vi.fn((points: Float32Array, _duration?: number, scale?: number) => {
+      zoom = scale ?? zoom;
+      translateX = width / 2 - points[0] * zoom;
+      translateY = height / 2 + points[1] * zoom;
+    }),
+    getPointPositions: vi.fn(() => positions),
+    setPointPositions: vi.fn((next: Float32Array) => { positions = new Float32Array(next); }),
+    render: vi.fn(),
   };
   const tables = {
     active: null as UploadedGraph | null,
@@ -127,6 +196,17 @@ function harness() {
   };
 }
 
+function flushScheduledFrames(h: ReturnType<typeof harness>) {
+  for (const [id, callback] of [...h.timers]) {
+    h.timers.delete(id);
+    callback();
+  }
+  for (const [id, callback] of [...h.frames]) {
+    h.frames.delete(id);
+    callback();
+  }
+}
+
 describe("renderer lifetime", () => {
   it("waits for an in-flight rebuild before destroying GPU, tables, and database", async () => {
     const h = harness();
@@ -143,6 +223,8 @@ describe("renderer lifetime", () => {
     });
     const update = h.session.update(data("c"), {});
     await started.promise;
+    // Capturing coordinates pauses the old simulation before a data replacement.
+    h.graph.pause.mockClear();
     h.session.controls("b", true);
     h.session.fit();
     expect(h.graph.pause).not.toHaveBeenCalled();
@@ -207,6 +289,153 @@ describe("renderer lifetime", () => {
     timer();
     frame();
     expect(h.graph.fitView).not.toHaveBeenCalled();
+  });
+
+  it("fits the first displayed graph but preserves the camera on later data and scope updates", async () => {
+    const h = harness();
+    await h.session.update(data("initial"), {});
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).toHaveBeenCalledExactlyOnceWith(0, 0.15);
+    h.graph.fitView.mockClear();
+    await h.session.update(data("refreshed"), {});
+    await h.session.update(data("scope-changed"), {});
+    expect(h.timers.size).toBe(0);
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
+    expect(
+      h.configurations.every((config) => config.fitViewOnInit === false),
+    ).toBe(true);
+    await h.session.dispose();
+  });
+
+  it("keeps initial fitting pending through an empty view without fitting later empty-to-populated changes", async () => {
+    const h = harness();
+    const empty: PreparedGraph = {
+      config: {},
+      indexToId: [],
+      indexToLabel: [],
+      indexToNode: [],
+      indexToEdge: [],
+      idToIndex: new Map(),
+      pointsCount: 0,
+      linksCount: 0,
+      preparationMs: 0,
+    };
+    await h.session.update(empty, {});
+    expect(h.timers.size).toBe(0);
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    await h.session.update(data("loaded"), {});
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).toHaveBeenCalledTimes(1);
+    h.graph.fitView.mockClear();
+    await h.session.update(empty, {});
+    await h.session.update(data("restored"), {});
+    expect(h.timers.size).toBe(0);
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    await h.session.dispose();
+  });
+
+  it("honors an explicit fit after initial fitting and guards its stale frame across replacement", async () => {
+    const h = harness();
+    await h.session.update(data("initial"), {});
+    flushScheduledFrames(h);
+    h.graph.fitView.mockClear();
+    h.session.fit();
+    const timer = h.timers.values().next().value!;
+    h.timers.clear();
+    timer();
+    const staleFrame = h.frames.values().next().value!;
+    await h.session.update(data("newer"), {});
+    staleFrame();
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).toHaveBeenCalledExactlyOnceWith(0, 0.15);
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.fitView).toHaveBeenCalledTimes(2);
+    await h.session.dispose();
+  });
+
+  it("preserves chosen world and screen coordinates across a reordered data refresh with a new node", async () => {
+    const h = harness();
+    h.session.controls("a", true, ["a", "b"], ["a", "b"]);
+    await h.session.update(dataWithIds(["a", "b"]), {});
+    flushScheduledFrames(h);
+    h.graph.setPointPositions(new Float32Array([100.25, -40.5, 500.75, 60.125]));
+    h.graph.setZoomLevel(4);
+    const beforeA = h.graph.spaceToScreenPosition([100.25, -40.5]);
+    const beforeB = h.graph.spaceToScreenPosition([500.75, 60.125]);
+    h.graph.fitView.mockClear();
+    h.graph.unpause.mockClear();
+    await h.session.update(dataWithIds(["new", "b", "a"]), {});
+    expect([...h.graph.getPointPositions()]).toEqual([100, 110, 500.75, 60.125, 100.25, -40.5]);
+    expect(h.graph.spaceToScreenPosition([100.25, -40.5])).toEqual(beforeA);
+    expect(h.graph.spaceToScreenPosition([500.75, 60.125])).toEqual(beforeB);
+    expect(h.graph.getZoomLevel()).toBe(4);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([1, 2]);
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics()).toMatchObject({
+      dataRevisions: 2, restoredPointCount: 2,
+      positionWorldError: 0, positionScreenError: 0, zoomBefore: 4, zoomAfter: 4,
+      chosenIds: ["b", "a"], pinnedCount: 2,
+    });
+    expect(h.session.getDiagnostics().positionSamples.map((sample) => sample.id)).toEqual(["a", "b"]);
+    await h.session.dispose();
+  });
+
+  it("uses the actual GPU table identity when an intermediate rebuild is superseded", async () => {
+    const h = harness();
+    h.session.controls(null, true, [], ["a", "b"]);
+    await h.session.update(dataWithIds(["a", "b"]), {});
+    h.graph.setPointPositions(new Float32Array([11, 22, 33, 44]));
+    const started = deferred();
+    const release = deferred();
+    const setConfig = h.graph.setConfig.getMockImplementation()!;
+    h.graph.setConfig.mockImplementationOnce(async (config) => {
+      started.resolve();
+      await release.promise;
+      await setConfig(config);
+    });
+    const intermediate = h.session.update(dataWithIds(["b", "temporary", "a"]), {});
+    await started.promise;
+    const latest = h.session.update(dataWithIds(["a", "b", "final"]), {});
+    release.resolve();
+    expect(await intermediate).toBeNull();
+    await latest;
+    expect([...h.graph.getPointPositions()]).toEqual([11, 22, 33, 44, 140, 150]);
+    expect(h.session.getDiagnostics().chosenIds).toEqual(["a", "b"]);
+    expect(h.session.getDiagnostics().positionWorldError).toBe(0);
+    expect(h.graph.getZoomLevel()).toBe(2.5);
+    await h.session.dispose();
+  });
+
+  it("keeps only the previous displayed layout instead of an archive of hidden nodes", async () => {
+    const h = harness();
+    await h.session.update(dataWithIds(["a", "b"]), {});
+    h.graph.setPointPositions(new Float32Array([11, 22, 33, 44]));
+    await h.session.update(dataWithIds(["b", "new"]), {});
+    expect([...h.graph.getPointPositions()]).toEqual([33, 44, 120, 130]);
+    await h.session.update(dataWithIds(["a", "b", "new"]), {});
+    expect([...h.graph.getPointPositions()]).toEqual([100, 110, 33, 44, 120, 130]);
+    expect(h.session.getDiagnostics().restoredPointCount).toBe(2);
+    await h.session.dispose();
+  });
+
+  it("does not rewrite positions or camera for a visual-only configuration change", async () => {
+    const h = harness();
+    const prepared = data();
+    await h.session.update(prepared, {});
+    h.graph.setPointPositions(new Float32Array([11, 22, 33, 44]));
+    h.graph.setPointPositions.mockClear();
+    h.graph.setZoomTransformByPointPositions.mockClear();
+    await h.session.update(prepared, { pointColorBy: "color" });
+    expect([...h.graph.getPointPositions()]).toEqual([11, 22, 33, 44]);
+    expect(h.graph.setPointPositions).not.toHaveBeenCalled();
+    expect(h.graph.setZoomTransformByPointPositions).not.toHaveBeenCalled();
+    await h.session.dispose();
   });
 
   it("applies only the latest requested controls after a rebuild completes", async () => {
@@ -397,7 +626,7 @@ describe("renderer lifetime", () => {
       dataRevisions: 1,
       requestedHighlightCount: 2,
       highlightedCount: 0,
-      selectedRootId: "b",
+      inspectedId: "b",
     });
     h.configurations.at(-1)!.onPointsFiltered?.({} as never, [0, 1], [0]);
     expect(h.session.getDiagnostics().highlightedCount).toBe(2);
@@ -477,16 +706,17 @@ describe("renderer lifetime", () => {
     expect(order).toEqual([]);
   });
 
-  it("outlines every visible neighbor while keeping the root separate and reuses source tables across selection changes", async () => {
+  it("outlines and pins the chosen set while inspection and neighbors remain independent", async () => {
     const h = harness();
     const prepared = data();
-    h.session.controls("a", true, ["a", "b", "outside", "b"]);
+    h.session.controls("a", true, ["a", "b", "outside", "b"], ["b"]);
     await h.session.update(prepared, { outlinedPointRingColor: "#69d9eb" });
     const first = h.configurations[0];
     expect(first.outlinedPointIndices).toEqual([1]);
     expect(h.session.getDiagnostics().outlinedCount).toBe(1);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([1]);
     h.tables.stage.mockClear();
-    h.session.controls("b", true, ["a", "b"]);
+    h.session.controls("b", true, ["a", "b"], ["a"]);
     await vi.waitFor(() => expect(h.graph.setConfig).toHaveBeenCalledTimes(2));
     await vi.waitFor(() =>
       expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([0]),
@@ -499,6 +729,7 @@ describe("renderer lifetime", () => {
     expect(h.tables.stage).not.toHaveBeenCalled();
     expect(h.session.getDiagnostics().dataRevisions).toBe(1);
     expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(1);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
     expect(h.graph.fitView).not.toHaveBeenCalled();
     h.session.controls(null, true, []);
     await vi.waitFor(() =>
@@ -508,7 +739,7 @@ describe("renderer lifetime", () => {
     await h.session.dispose();
   });
 
-  it("applies the latest outline mask when the neighborhood changes during an earlier visual update", async () => {
+  it("applies only the latest chosen outline mask during an earlier visual update", async () => {
     const h = harness();
     await h.session.update(data(), {});
     const started = deferred();
@@ -519,15 +750,113 @@ describe("renderer lifetime", () => {
       await finish.promise;
       await setConfig(config);
     });
-    h.session.controls("a", false, ["a", "b"]);
+    h.session.controls("a", false, ["a", "b"], ["a"]);
     await started.promise;
-    h.session.controls("b", false, ["a", "b"]);
+    h.session.controls("b", false, ["a", "b"], ["b"]);
     h.session.controls(null, false, []);
     finish.resolve();
     await vi.waitFor(() => expect(h.graph.setConfig).toHaveBeenCalledTimes(3));
     expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([]);
     expect(h.session.getDiagnostics().dataRevisions).toBe(1);
     expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(undefined);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([]);
     await h.session.dispose();
+  });
+
+  it("fixes all chosen members equally and never pins derived highlights or edge endpoints", async () => {
+    const h = harness();
+    const prepared = data();
+    prepared.idToIndex.set("c", 2);
+    prepared.indexToId.push("c");
+    prepared.indexToLabel.push("c");
+    prepared.pointsCount = 3;
+    h.session.controls(
+      "c",
+      false,
+      ["a", "b", "c"],
+      ["a", "b", "outside"],
+      ["c"],
+    );
+    await h.session.update(prepared, {});
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 1]);
+    expect(h.configurations[0].outlinedPointIndices).toEqual([0, 1]);
+    expect(h.session.getDiagnostics()).toMatchObject({
+      chosenIds: ["a", "b"],
+      pinnedCount: 2,
+      inspectedId: "c",
+    });
+    const pinCalls = h.graph.setPinnedPoints.mock.calls.length;
+    h.session.controls(
+      "b",
+      false,
+      ["a", "b", "c"],
+      ["outside", "b", "a"],
+      ["c"],
+    );
+    expect(h.graph.setPinnedPoints).toHaveBeenCalledTimes(pinCalls);
+    expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(undefined);
+    expect(h.session.getDiagnostics().inspectedId).toBe("b");
+    expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([0, 1]);
+    await h.session.dispose();
+  });
+
+  it("remaps pins by stable ID after data replacement and does not transfer them to a document representative", async () => {
+    const h = harness();
+    h.session.controls(null, false, [], ["a"]);
+    await h.session.update(data("a"), {});
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
+    // The owner removes a hidden block from S; the new document representative is a different ID.
+    h.session.controls(null, false, [], []);
+    await h.session.update(data("document"), {});
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([]);
+    expect(h.session.getDiagnostics().chosenIds).toEqual([]);
+    h.session.controls(null, false, [], ["b"]);
+    const reordered = data("document");
+    reordered.indexToId = ["b", "document"];
+    reordered.idToIndex = new Map([
+      ["b", 0],
+      ["document", 1],
+    ]);
+    await h.session.update(reordered, {});
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
+    await h.session.dispose();
+  });
+
+  it("rejects stale edge events with the same lifetime rules as node events", async () => {
+    const h = harness();
+    const click = vi.fn();
+    const hover = vi.fn();
+    await h.session.update(data("old"), {
+      onLinkClick: click,
+      onLinkMouseOver: hover,
+    });
+    const obsolete = h.configurations[0];
+    await h.session.update(data("new"), {
+      onLinkClick: click,
+      onLinkMouseOver: hover,
+    });
+    obsolete.onLinkClick?.(0, {} as MouseEvent);
+    obsolete.onLinkMouseOver?.(0);
+    expect(click).not.toHaveBeenCalled();
+    expect(hover).not.toHaveBeenCalled();
+    h.configurations.at(-1)!.onLinkClick?.(0, {} as MouseEvent);
+    expect(click).toHaveBeenCalledTimes(1);
+    await h.session.dispose();
+  });
+
+  it("counts custom group drags without resuming a paused or hidden renderer", async () => {
+    const h = harness();
+    h.session.controls(null, true, [], ["a", "b"]);
+    await h.session.update(data(), {});
+    h.graph.unpause.mockClear();
+    h.session.groupDragFinished(true);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    h.session.setActive(false);
+    h.session.groupDragFinished(true);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
+    await h.session.dispose();
+    h.session.groupDragFinished(true);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
   });
 });

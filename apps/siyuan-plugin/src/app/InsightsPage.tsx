@@ -14,8 +14,8 @@ import { useWorkbench } from "./state";
 export function InsightsPage() {
   const state = useWorkbench();
   const navigate = useNavigate();
-  const { data, stats } = state;
-  if (!data || !stats)
+  const { data, stats, currentGraph } = state;
+  if (!data || !stats || !currentGraph)
     return (
       <div className="page-empty">
         <Activity size={35} />
@@ -23,26 +23,31 @@ export function InsightsPage() {
         <p>{state.error || state.loading}</p>
       </div>
     );
-  const isolated = data.nodes.filter((node) => node.degree === 0).length;
-  const connected = data.nodes.length - isolated;
-  const topNodes = data.nodes
+  const isolated = currentGraph.nodes.filter(
+    (node) => node.degree === 0,
+  ).length;
+  const connected = currentGraph.nodes.length - isolated;
+  const topNodes = currentGraph.nodes
     .slice()
     .sort((a, b) => b.degree - a.degree)
     .slice(0, 8);
-  const references = data.edges.filter(
+  const references = currentGraph.edges.filter(
     (edge) => edge.kind === "reference",
   ).length;
   const metrics = [
     {
-      label: "文档节点",
-      value: data.nodes.length.toLocaleString(),
+      label: "可探索节点",
+      value: currentGraph.nodes.length.toLocaleString(),
       detail: `${data.notebooks.length} 个笔记本`,
       Icon: CircleDot,
     },
     {
-      label: "文档间引用",
+      label: "引用关系",
       value: references.toLocaleString(),
-      detail: `${data.referenceCount.toLocaleString()} 次原始块引用`,
+      detail: `${currentGraph.edges
+        .filter((edge) => edge.kind === "reference")
+        .reduce((total, edge) => total + edge.weight, 0)
+        .toLocaleString()} 条源引用记录`,
       Icon: Link2,
     },
     {
@@ -53,11 +58,11 @@ export function InsightsPage() {
     },
     {
       label: "平均连接度",
-      value: (data.nodes.length
-        ? stats.degrees.reduce((a, b) => a + b, 0) / data.nodes.length
+      value: (currentGraph.nodes.length
+        ? stats.degrees.reduce((a, b) => a + b, 0) / currentGraph.nodes.length
         : 0
       ).toFixed(2),
-      detail: `${isolated.toLocaleString()} 篇孤立文档`,
+      detail: `${isolated.toLocaleString()} 个孤立节点`,
       Icon: GitBranch,
     },
   ];
@@ -117,23 +122,23 @@ export function InsightsPage() {
         <section className="content-card">
           <div className="card-heading">
             <h3>知识覆盖</h3>
-            <span>文档连接情况</span>
+            <span>节点连接情况</span>
           </div>
           <div className="coverage-visual">
             <div
               className="coverage-ring"
               style={{
-                background: `conic-gradient(#a595ff ${data.nodes.length ? (connected / data.nodes.length) * 360 : 0}deg, #2b2d3d 0deg)`,
+                background: `conic-gradient(#a595ff ${currentGraph.nodes.length ? (connected / currentGraph.nodes.length) * 360 : 0}deg, #2b2d3d 0deg)`,
               }}
             >
               <div>
                 <strong>
-                  {data.nodes.length
-                    ? Math.round((connected / data.nodes.length) * 100)
+                  {currentGraph.nodes.length
+                    ? Math.round((connected / currentGraph.nodes.length) * 100)
                     : 0}
                   <small>%</small>
                 </strong>
-                <span>文档已有连接</span>
+                <span>节点已有连接</span>
               </div>
             </div>
             <div className="coverage-legend">
@@ -143,7 +148,7 @@ export function InsightsPage() {
               </p>
               <p>
                 <i style={{ background: "#45485e" }} />
-                孤立文档<strong>{isolated.toLocaleString()}</strong>
+                孤立节点<strong>{isolated.toLocaleString()}</strong>
               </p>
             </div>
           </div>
@@ -183,9 +188,9 @@ export function InsightsPage() {
             : "当前思源页面未启用跨源隔离，使用可转移缓冲区。图计算在专用 Worker 中进行。"}
         </p>
         <p className="muted small">
-          统计基于文档投影与合并后的数值图，不将单次运行时间视为通用容量承诺。
+          统计覆盖当前类型与关系设置下可参与扩展的内容，范围背景和跳数结果不会成为新的统计边界。
           {data.skippedReferences > 0 &&
-            ` 已略过 ${data.skippedReferences.toLocaleString()} 次文档内引用或不可解析引用。`}
+            ` 已略过 ${data.skippedReferences.toLocaleString()} 条端点不可用的源引用记录。`}
         </p>
       </details>
     </div>

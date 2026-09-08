@@ -1,0 +1,468 @@
+import type {
+  GraphDataset,
+  GraphEdge,
+  GraphFilters,
+  GraphNode,
+  GraphProvenance,
+} from "./types";
+
+export interface GraphView {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface CurrentGraph extends GraphView {
+  /** Displayed representative of each eligible source identity. */
+  representatives: Map<string, string>;
+  /** Visible source identities; hidden blocks cannot remain chosen. */
+  eligibleIds: Set<string>;
+  excludedIds: Set<string>;
+}
+
+export function nodeType(node: GraphNode): string {
+  return node.entity && node.entity !== "block"
+    ? node.entity
+    : (node.blockType ?? "d");
+}
+
+export function isBlock(node: GraphNode): boolean {
+  return !node.entity || node.entity === "block";
+}
+
+function sourceParents(
+  data: Pick<GraphDataset, "nodes" | "edges">,
+  byIndex = new Map(data.nodes.map((node) => [node.index, node])),
+) {
+  const parents = new Map<string, string>();
+  for (const node of data.nodes) {
+    if (isBlock(node) && node.parentId && node.parentId !== node.id)
+      parents.set(node.id, node.parentId);
+  }
+  for (const edge of data.edges) {
+    if (edge.kind !== "hierarchy") continue;
+    const source = byIndex.get(edge.source);
+    const target = byIndex.get(edge.target);
+    if (source && target && source.id !== target.id && !parents.has(target.id))
+      parents.set(target.id, source.id);
+  }
+  for (const node of data.nodes) {
+    if (
+      isBlock(node) &&
+      !parents.has(node.id) &&
+      node.rootId &&
+      node.rootId !== node.id
+    )
+      parents.set(node.id, node.rootId);
+  }
+  return parents;
+}
+
+interface ContainmentIndex {
+  byId: Map<string, GraphNode>;
+  parents: Map<string, string>;
+  children: Map<string, string[]>;
+}
+
+function containmentIndex(
+  data: Pick<GraphDataset, "nodes" | "edges">,
+  byId = new Map(data.nodes.map((node) => [node.id, node])),
+  byIndex = new Map(data.nodes.map((node) => [node.index, node])),
+): ContainmentIndex {
+  const parents = sourceParents(data, byIndex);
+  const children = new Map<string, string[]>();
+  for (const [child, parent] of parents) {
+    const siblings = children.get(parent) ?? [];
+    siblings.push(child);
+    children.set(parent, siblings);
+  }
+  return { byId, parents, children };
+}
+
+function expandContainment(
+  { byId, children }: ContainmentIndex,
+  rootIds: readonly string[],
+  includeChildDocuments: boolean,
+): Set<string> {
+  const found = new Set<string>();
+  const queue: string[] = [];
+  for (const rootId of rootIds) {
+    const root = byId.get(rootId);
+    if (!root || !isBlock(root) || found.has(rootId)) continue;
+    found.add(rootId);
+    queue.push(rootId);
+  }
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    for (const child of children.get(queue[cursor]) ?? []) {
+      if (found.has(child)) continue;
+      const node = byId.get(child);
+      if (!node || (!includeChildDocuments && nodeType(node) === "d")) continue;
+      found.add(child);
+      queue.push(child);
+    }
+  }
+  return found;
+}
+
+/** Containment is independent of whether virtual containment edges are enabled. */
+export function containedIds(
+  data: Pick<GraphDataset, "nodes" | "edges">,
+  rootId: string,
+  includeChildDocuments = true,
+): Set<string> {
+  return expandContainment(
+    containmentIndex(data),
+    [rootId],
+    includeChildDocuments,
+  );
+}
+
+function provenanceOf(
+  edge: GraphEdge,
+  byIndex: Map<number, GraphNode>,
+): GraphProvenance[] {
+  if (edge.provenance?.length) return edge.provenance;
+  const source = byIndex.get(edge.source);
+  const target = byIndex.get(edge.target);
+  return source && target
+    ? [
+        {
+          sourceId: source.id,
+          targetId: target.id,
+          kind: edge.kind,
+          weight: edge.weight,
+        },
+      ]
+    : [];
+}
+
+/**
+ * Apply source exclusions before replacing hidden reference endpoints. Every
+ * returned edge belongs to the current graph and costs one traversal step.
+ */
+export function projectGraph(
+  data: GraphDataset,
+  filters: GraphFilters,
+): CurrentGraph {
+  const byId = new Map(data.nodes.map((node) => [node.id, node]));
+  const byIndex = new Map(data.nodes.map((node) => [node.index, node]));
+  const containment =
+    filters.hierarchy || filters.excludeIds.length
+      ? containmentIndex(data, byId, byIndex)
+      : null;
+  // All roots share one index and traversal. Overlapping exclusions visit each
+  // contained identity once instead of rebuilding the graph for every root.
+  const excludedIds = containment
+    ? expandContainment(containment, filters.excludeIds, true)
+    : new Set<string>();
+  const hidden = new Set(filters.hiddenTypes);
+  // Documents remain the representation for globally hidden content types.
+  hidden.delete("d");
+  const candidates = new Set<string>();
+  for (const node of data.nodes) {
+    if (excludedIds.has(node.id)) continue;
+    if (isBlock(node)) {
+      if (!filters.notebook || node.notebook === filters.notebook)
+        candidates.add(node.id);
+    } else if (filters.databases) {
+      const bound = node.boundBlockId ? byId.get(node.boundBlockId) : undefined;
+      if (
+        node.boundBlockId &&
+        (excludedIds.has(node.boundBlockId) ||
+          (filters.notebook && bound?.notebook !== filters.notebook))
+      )
+        continue;
+      candidates.add(node.id);
+    }
+  }
+
+  // Non-block mediators enter a notebook/content-filtered graph through actual
+  // database connections, never through a fabricated owning document.
+  if (filters.notebook || excludedIds.size) {
+    const links = new Map<string, string[]>();
+    for (const edge of data.edges) {
+      if (!edge.kind.startsWith("database-")) continue;
+      const from = byIndex.get(edge.source)?.id;
+      const to = byIndex.get(edge.target)?.id;
+      if (!from || !to || !candidates.has(from) || !candidates.has(to))
+        continue;
+      const outgoing = links.get(from) ?? [];
+      outgoing.push(to);
+      links.set(from, outgoing);
+      const incoming = links.get(to) ?? [];
+      incoming.push(from);
+      links.set(to, incoming);
+    }
+    const reached = new Set(
+      data.nodes
+        .filter((node) => isBlock(node) && candidates.has(node.id))
+        .map((node) => node.id),
+    );
+    const queue = [...reached];
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      for (const next of links.get(queue[cursor]) ?? []) {
+        if (!reached.has(next)) {
+          reached.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    for (const node of data.nodes)
+      if (!isBlock(node) && !reached.has(node.id)) candidates.delete(node.id);
+  }
+
+  const visible = data.nodes.filter(
+    (node) => candidates.has(node.id) && !hidden.has(nodeType(node)),
+  );
+  const eligibleIds = new Set(visible.map((node) => node.id));
+  const representatives = new Map<string, string>();
+  for (const node of data.nodes) {
+    if (!candidates.has(node.id)) continue;
+    if (eligibleIds.has(node.id)) representatives.set(node.id, node.id);
+    else if (isBlock(node) && node.rootId && eligibleIds.has(node.rootId))
+      representatives.set(node.id, node.rootId);
+  }
+  const grouped = new Map<string, GraphEdge>();
+  const add = (
+    source: GraphNode,
+    target: GraphNode,
+    edge: GraphEdge,
+    provenance: GraphProvenance[],
+  ) => {
+    const key = JSON.stringify([edge.kind, source.index, target.index]);
+    const previous = grouped.get(key);
+    if (previous) {
+      previous.weight += edge.weight;
+      previous.provenance!.push(...provenance);
+    } else {
+      grouped.set(key, {
+        source: source.index,
+        target: target.index,
+        kind: edge.kind,
+        weight: edge.weight,
+        provenance: [...provenance],
+      });
+    }
+  };
+  for (const edge of data.edges) {
+    if (edge.kind === "hierarchy") continue;
+    if (edge.kind === "reference" ? !filters.references : !filters.databases)
+      continue;
+    const originalSource = byIndex.get(edge.source);
+    const originalTarget = byIndex.get(edge.target);
+    if (!originalSource || !originalTarget) continue;
+    const from = representatives.get(originalSource.id);
+    const to = representatives.get(originalTarget.id);
+    const source = from ? byId.get(from) : undefined;
+    const target = to ? byId.get(to) : undefined;
+    if (source && target)
+      add(source, target, edge, provenanceOf(edge, byIndex));
+  }
+  if (filters.hierarchy) {
+    const parents = containment!.parents;
+    for (const node of visible) {
+      if (!isBlock(node)) continue;
+      let ancestor = parents.get(node.id);
+      const visited = new Set([node.id]);
+      const viaIds: string[] = [];
+      while (ancestor && !visited.has(ancestor)) {
+        visited.add(ancestor);
+        if (!candidates.has(ancestor)) break;
+        const parent = byId.get(ancestor);
+        if (!parent) break;
+        if (eligibleIds.has(ancestor)) {
+          const provenance: GraphProvenance = {
+            sourceId: ancestor,
+            targetId: node.id,
+            kind: "hierarchy",
+            weight: 1,
+            ...(viaIds.length ? { viaIds: [...viaIds].reverse() } : {}),
+          };
+          add(
+            parent,
+            node,
+            {
+              source: parent.index,
+              target: node.index,
+              kind: "hierarchy",
+              weight: 1,
+            },
+            [provenance],
+          );
+          break;
+        }
+        viaIds.push(ancestor);
+        ancestor = parents.get(ancestor);
+      }
+    }
+  }
+  const edges = [...grouped.values()];
+  const degrees = new Map<number, number>();
+  for (const edge of edges) {
+    degrees.set(edge.source, (degrees.get(edge.source) ?? 0) + 1);
+    degrees.set(edge.target, (degrees.get(edge.target) ?? 0) + 1);
+  }
+  return {
+    nodes: visible.map((node) => ({
+      ...node,
+      degree: degrees.get(node.index) ?? 0,
+    })),
+    edges,
+    representatives,
+    eligibleIds,
+    excludedIds,
+  };
+}
+
+const openTargetCache = new WeakMap<
+  CurrentGraph,
+  {
+    data: GraphDataset;
+    targets: Map<string, string>;
+  }
+>();
+
+function currentOpenTargets(
+  data: GraphDataset,
+  graph: CurrentGraph,
+): Map<string, string> {
+  const cached = openTargetCache.get(graph);
+  if (cached?.data === data) return cached.targets;
+  const targets = new Map<string, string>();
+  const nativeSources = new Set<string>();
+  const byIndex = new Map<number, GraphNode>();
+  for (const node of data.nodes) {
+    byIndex.set(node.index, node);
+    // Type-hidden source blocks remain available through their document
+    // representative. Notebook and content exclusions have no representative.
+    if (
+      isBlock(node) &&
+      graph.representatives.has(node.id) &&
+      !graph.excludedIds.has(node.id)
+    ) {
+      targets.set(node.id, node.id);
+      nativeSources.add(node.id);
+    }
+  }
+  const embeddings = new Map<string, string>();
+  for (const edge of data.edges) {
+    if (edge.kind !== "database-embedding") continue;
+    const carrier = byIndex.get(edge.source);
+    const database = byIndex.get(edge.target);
+    if (
+      !carrier ||
+      !database ||
+      !isBlock(carrier) ||
+      nodeType(carrier) !== "av" ||
+      database.entity !== "database" ||
+      !database.databaseId ||
+      !targets.has(carrier.id)
+    )
+      continue;
+    if (!embeddings.has(database.databaseId))
+      embeddings.set(database.databaseId, carrier.id);
+  }
+  for (const node of data.nodes) {
+    if (
+      isBlock(node) ||
+      !graph.representatives.has(node.id) ||
+      graph.excludedIds.has(node.id)
+    )
+      continue;
+    const bound =
+      node.boundBlockId && nativeSources.has(node.boundBlockId)
+        ? node.boundBlockId
+        : undefined;
+    const carrier = node.databaseId
+      ? embeddings.get(node.databaseId)
+      : undefined;
+    if (bound || carrier) targets.set(node.id, bound ?? carrier!);
+  }
+  // Source datasets and their projections are immutable after publication.
+  // Inspector cards reuse this index; obsolete graph revisions are collectible.
+  openTargetCache.set(graph, { data, targets });
+  return targets;
+}
+
+/** Resolve a native source context that still meets this graph's source filters. */
+export function resolveOpenBlock(
+  id: string,
+  data: GraphDataset,
+  currentGraph: CurrentGraph,
+): string | null {
+  return currentOpenTargets(data, currentGraph).get(id) ?? null;
+}
+
+export function scopeBackground(
+  data: GraphDataset,
+  graph: CurrentGraph,
+  scopeId: string,
+  includeChildDocuments: boolean,
+): Set<string> {
+  if (!scopeId) return new Set(graph.nodes.map((node) => node.id));
+  const result = new Set<string>();
+  for (const id of containedIds(data, scopeId, includeChildDocuments)) {
+    const representative = graph.representatives.get(id);
+    if (representative) result.add(representative);
+  }
+  return result;
+}
+
+/** B stays visible; only S contributes roots to the separately computed N hops. */
+export function scopeGraph(
+  graph: CurrentGraph,
+  backgroundIds: ReadonlySet<string>,
+  chosenIds: ReadonlySet<string>,
+  reachedIndices: ReadonlySet<number> | null,
+  hideIsolated: boolean,
+): GraphView {
+  if (!hideIsolated && backgroundIds.size === graph.nodes.length)
+    return { nodes: graph.nodes, edges: graph.edges };
+  let nodes = graph.nodes.filter(
+    (node) =>
+      backgroundIds.has(node.id) ||
+      chosenIds.has(node.id) ||
+      reachedIndices?.has(node.index),
+  );
+  const included = new Set(nodes.map((node) => node.index));
+  const edges = graph.edges.filter(
+    (edge) => included.has(edge.source) && included.has(edge.target),
+  );
+  if (hideIsolated) {
+    const connected = new Set<number>();
+    for (const edge of edges) {
+      connected.add(edge.source);
+      connected.add(edge.target);
+    }
+    nodes = nodes.filter(
+      (node) => connected.has(node.index) || chosenIds.has(node.id),
+    );
+  }
+  return {
+    nodes: nodes.map((node) => ({
+      ...node,
+      external: !backgroundIds.has(node.id),
+    })),
+    edges,
+  };
+}
+
+/** Engine indices describe this projection only, independent of source indices. */
+export function numericTopology(graph: GraphView) {
+  const sourceToDense = new Map(
+    graph.nodes.map((node, dense) => [node.index, dense]),
+  );
+  const endpoints = new Uint32Array(graph.edges.length * 2);
+  graph.edges.forEach((edge, index) => {
+    const source = sourceToDense.get(edge.source);
+    const target = sourceToDense.get(edge.target);
+    if (source === undefined || target === undefined)
+      throw new Error("当前图包含不可用的关系端点");
+    endpoints[index * 2] = source;
+    endpoints[index * 2 + 1] = target;
+  });
+  return {
+    endpoints,
+    denseToSource: graph.nodes.map((node) => node.index),
+    idToDense: new Map(graph.nodes.map((node, index) => [node.id, index])),
+  };
+}

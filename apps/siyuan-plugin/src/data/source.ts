@@ -1,3 +1,5 @@
+import { api } from "./api";
+import { addDatabaseGraph } from "./database-source";
 import {
   PALETTE,
   type GraphDataset,
@@ -5,19 +7,27 @@ import {
   type GraphEdge,
   type Notebook,
 } from "./types";
+export { api } from "./api";
 
-interface DocumentRow {
+/** Native SQL block identity; optional metadata also accepts legacy fixtures. */
+export interface BlockRow {
   id: string;
   box: string;
   path: string;
+  hpath?: string | null;
   content: string;
+  type?: string;
+  root_id?: string;
+  parent_id?: string;
+  ial?: string;
+  markdown?: string;
 }
 interface ReferenceRow {
   source: string;
   target: string;
   weight: number;
 }
-interface DocumentState {
+interface BlockState {
   total: number;
   last: string | null;
 }
@@ -30,51 +40,6 @@ interface ReferenceWindow extends ReferenceState {
 }
 type Progress = (message: string) => void;
 
-export async function api<T>(
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
-  signal?.throwIfAborted();
-  const controller = new AbortController();
-  const abort = () => controller.abort(signal?.reason);
-  signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(
-    () =>
-      controller.abort(
-        new DOMException("思源接口请求超时，请重试", "TimeoutError"),
-      ),
-    30_000,
-  );
-  try {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`思源接口返回 HTTP ${response.status}`);
-    const result: unknown = await response.json();
-    controller.signal.throwIfAborted();
-    if (
-      !result ||
-      typeof result !== "object" ||
-      !("code" in result) ||
-      typeof result.code !== "number"
-    ) {
-      throw new Error("思源接口返回了无效数据");
-    }
-    const envelope = result as { code: number; msg?: string; data: T };
-    if (envelope.code !== 0)
-      throw new Error(envelope.msg || "思源接口请求失败");
-    return envelope.data;
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", abort);
-  }
-}
-
 async function sql<T>(stmt: string, signal?: AbortSignal): Promise<T[]> {
   const rows = await api<T[]>(
     "/api/query/sql",
@@ -86,8 +51,7 @@ async function sql<T>(stmt: string, signal?: AbortSignal): Promise<T[]> {
 }
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const DOCUMENT_STATE_SQL =
-  "SELECT count(*) AS total, max(id) AS last FROM blocks WHERE type='d'";
+const BLOCK_STATE_SQL = "SELECT count(*) AS total, max(id) AS last FROM blocks";
 const REFERENCE_STATE_SQL =
   "SELECT count(*) AS total, CAST(max(rowid) AS TEXT) AS high FROM refs";
 const REFERENCE_BATCH_SIZE = 4096;
@@ -99,12 +63,12 @@ function checkedCount(value: unknown): number {
   return number;
 }
 
-async function documentState(signal: AbortSignal): Promise<DocumentState> {
-  const [state] = await sql<DocumentState>(DOCUMENT_STATE_SQL, signal);
-  if (!state) throw new Error("无法校验文档总量");
+async function blockState(signal: AbortSignal): Promise<BlockState> {
+  const [state] = await sql<BlockState>(BLOCK_STATE_SQL, signal);
+  if (!state) throw new Error("无法校验块总量");
   const total = checkedCount(state.total);
   if (total > 0 && (typeof state.last !== "string" || !state.last))
-    throw new Error("无法确定文档分页边界");
+    throw new Error("无法确定块分页边界");
   return { total, last: total === 0 ? null : state.last };
 }
 
@@ -133,10 +97,10 @@ function referenceWindowSql(cursor: string | null, high: string): string {
   // from dropping groups while advancing the raw cursor beyond them.
   return `SELECT json_group_array(json_array(source, target, weight)) AS groups,
     coalesce(sum(weight), 0) AS total, CAST(max(high) AS TEXT) AS high
-    FROM (SELECT root_id AS source, def_block_root_id AS target, count(*) AS weight, max(seq) AS high
-      FROM (SELECT rowid AS seq, root_id, def_block_root_id FROM refs
+    FROM (SELECT block_id AS source, def_block_id AS target, count(*) AS weight, max(seq) AS high
+      FROM (SELECT rowid AS seq, block_id, def_block_id FROM refs
         WHERE ${lower}rowid <= CAST(${quote(high)} AS INTEGER) ORDER BY rowid LIMIT ${REFERENCE_BATCH_SIZE})
-      GROUP BY root_id, def_block_root_id) AS pairs LIMIT 1`;
+      GROUP BY block_id, def_block_id) AS pairs LIMIT 1`;
 }
 
 function decodeReferenceWindow(window: ReferenceWindow): ReferenceRow[] {
@@ -168,7 +132,7 @@ function decodeReferenceWindow(window: ReferenceWindow): ReferenceRow[] {
 }
 
 export function normalizeGraph(
-  documents: DocumentRow[],
+  blocks: BlockRow[],
   references: ReferenceRow[],
   notebooks: Notebook[],
 ): Pick<
@@ -178,19 +142,52 @@ export function normalizeGraph(
   const notebookColors = new Map(
     notebooks.map((book) => [book.id, book.color]),
   );
-  const nodes: GraphNode[] = documents
+  const nodes: GraphNode[] = blocks
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((doc, index) => ({
-      id: doc.id,
-      label: doc.content || "未命名文档",
-      notebook: doc.box,
-      path: doc.path,
+    .map((block, index) => ({
+      id: block.id,
+      label: blockLabel(block),
+      notebook: block.box,
+      path: block.path,
+      humanPath:
+        typeof block.hpath === "string" && block.hpath
+          ? block.hpath
+          : undefined,
       index,
       degree: 0,
-      color: notebookColors.get(doc.box) ?? PALETTE[0],
+      color: notebookColors.get(block.box) ?? PALETTE[0],
+      entity: "block",
+      blockType: block.type || "d",
+      rootId: block.type && block.type !== "d" ? block.root_id : block.id,
+      parentId: block.parent_id || undefined,
+      content: block.content,
+      openBlockId: block.id,
     }));
   const byId = new Map(nodes.map((node) => [node.id, node.index]));
+  // Documents have their own root ID. Their parent document belongs to the
+  // file tree, whereas non-document parent IDs come from SiYuan's block index.
+  for (const node of nodes) {
+    if (node.blockType === "d") {
+      const segments = node.path.split("/").filter(Boolean);
+      const parentId = segments.length > 1 ? segments.at(-2) : undefined;
+      const parent = parentId === undefined ? undefined : byId.get(parentId);
+      node.parentId =
+        parent !== undefined &&
+        nodes[parent].blockType === "d" &&
+        nodes[parent].notebook === node.notebook
+          ? parentId
+          : undefined;
+    }
+    const documentIndex = node.rootId ? byId.get(node.rootId) : undefined;
+    const document =
+      documentIndex === undefined ? undefined : nodes[documentIndex];
+    node.documentLabel =
+      document?.blockType === "d"
+        ? document.content || document.label
+        : undefined;
+  }
+  assignHeadingContext(nodes, byId);
   const edges: GraphEdge[] = [];
   let referenceCount = 0;
   let skippedReferences = 0;
@@ -199,22 +196,43 @@ export function normalizeGraph(
     const target = byId.get(reference.target);
     const weight = Math.max(1, Number(reference.weight) || 1);
     referenceCount += weight;
-    if (source === undefined || target === undefined || source === target) {
+    if (source === undefined || target === undefined) {
       skippedReferences += weight;
       continue;
     }
-    edges.push({ source, target, kind: "reference", weight });
+    edges.push({
+      source,
+      target,
+      kind: "reference",
+      weight,
+      // The native reference index may deduplicate repeated inline references;
+      // weight counts indexed block-reference rows, not character occurrences.
+      provenance: [
+        {
+          sourceId: reference.source,
+          targetId: reference.target,
+          kind: "reference",
+          weight,
+        },
+      ],
+    });
   }
   for (const node of nodes) {
-    const segments = node.path.split("/").filter(Boolean);
-    const parent =
-      segments.length > 1 ? byId.get(segments[segments.length - 2]) : undefined;
+    const parent = node.parentId ? byId.get(node.parentId) : undefined;
     if (parent !== undefined && parent !== node.index)
       edges.push({
         source: parent,
         target: node.index,
         kind: "hierarchy",
         weight: 1,
+        provenance: [
+          {
+            sourceId: nodes[parent].id,
+            targetId: node.id,
+            kind: "hierarchy",
+            weight: 1,
+          },
+        ],
       });
   }
   for (const edge of edges) {
@@ -222,6 +240,59 @@ export function normalizeGraph(
     nodes[edge.target].degree++;
   }
   return { nodes, edges, referenceCount, skippedReferences };
+}
+
+function blockLabel(block: BlockRow): string {
+  const text = (block.content || "").replace(/\s+/g, " ").trim();
+  if (!text)
+    return !block.type || block.type === "d" ? "未命名文档" : `块 ${block.id}`;
+  return text.length > 100 ? `${text.slice(0, 100)}…` : text;
+}
+
+function assignHeadingContext(
+  nodes: GraphNode[],
+  byId: Map<string, number>,
+): void {
+  // null marks an invalid cyclic ancestry; undefined is a valid path containing
+  // no headings. Descendants reuse the complete already-resolved parent path.
+  const headingPaths = new Map<string, string | undefined | null>();
+  for (const node of nodes) {
+    if (node.blockType === "d") continue;
+    const trail: GraphNode[] = [];
+    const visited = new Set<string>();
+    let current: GraphNode | undefined = node;
+    let heading: string | undefined | null;
+    while (
+      current &&
+      current.rootId === node.rootId &&
+      current.blockType !== "d"
+    ) {
+      if (headingPaths.has(current.id)) {
+        heading = headingPaths.get(current.id);
+        break;
+      }
+      if (visited.has(current.id)) {
+        heading = null;
+        break;
+      }
+      visited.add(current.id);
+      trail.push(current);
+      const parent: number | undefined = current.parentId
+        ? byId.get(current.parentId)
+        : undefined;
+      current = parent === undefined ? undefined : nodes[parent];
+    }
+    for (let index = trail.length - 1; index >= 0; index--) {
+      const member = trail[index];
+      if (heading !== null && member.blockType === "h") {
+        const title = member.content || member.label;
+        heading = heading ? `${heading} › ${title}` : title;
+      }
+      headingPaths.set(member.id, heading);
+      member.heading = heading ?? undefined;
+    }
+    node.heading = heading ?? undefined;
+  }
 }
 
 export async function loadSiYuanGraph(
@@ -247,16 +318,15 @@ async function loadSnapshot(
 ): Promise<GraphDataset> {
   const started = performance.now();
   progress("正在读取思源笔记本…");
-  const [notebookResult, initialDocuments, initialReferences] =
-    await Promise.all([
-      api<{ notebooks: { id: string; name: string; closed?: boolean }[] }>(
-        "/api/notebook/lsNotebooks",
-        {},
-        signal,
-      ),
-      documentState(signal),
-      referenceState(signal),
-    ]);
+  const [notebookResult, initialBlocks, initialReferences] = await Promise.all([
+    api<{ notebooks: { id: string; name: string; closed?: boolean }[] }>(
+      "/api/notebook/lsNotebooks",
+      {},
+      signal,
+    ),
+    blockState(signal),
+    referenceState(signal),
+  ]);
   const notebooks = (notebookResult.notebooks ?? [])
     .filter((book) => !book.closed)
     .map((book, index) => ({
@@ -264,12 +334,12 @@ async function loadSnapshot(
       name: book.name,
       color: PALETTE[index % PALETTE.length],
     }));
-  const documents: DocumentRow[] = [];
+  const blocks: BlockRow[] = [];
   const pageSize = 1000;
   let cursor = "";
-  while (initialDocuments.last !== null && cursor < initialDocuments.last) {
-    const page = await sql<DocumentRow>(
-      `SELECT id, box, path, content FROM blocks WHERE type='d' AND id > ${quote(cursor)} AND id <= ${quote(initialDocuments.last)} ORDER BY id LIMIT ${pageSize}`,
+  while (initialBlocks.last !== null && cursor < initialBlocks.last) {
+    const page = await sql<BlockRow>(
+      `SELECT id, box, path, hpath, content, type, root_id, parent_id, ial, CASE WHEN type='av' THEN markdown ELSE '' END AS markdown FROM blocks WHERE id > ${quote(cursor)} AND id <= ${quote(initialBlocks.last)} ORDER BY id LIMIT ${pageSize}`,
       signal,
     );
     if (page.length === 0) break;
@@ -279,16 +349,16 @@ async function loadSnapshot(
       if (
         typeof row.id !== "string" ||
         row.id <= cursor ||
-        row.id > initialDocuments.last
+        row.id > initialBlocks.last
       )
-        throw new Error("文档分页未前进或越过读取边界，请刷新后重试");
+        throw new Error("块分页未前进或越过读取边界，请刷新后重试");
       cursor = row.id;
     }
-    documents.push(...page);
-    if (documents.length > initialDocuments.total)
-      throw new Error("读取期间文档超出初始分页范围，请刷新后重试");
+    blocks.push(...page);
+    if (blocks.length > initialBlocks.total)
+      throw new Error("读取期间块超出初始分页范围，请刷新后重试");
     progress(
-      `正在读取文档 · ${documents.length.toLocaleString()} / ${initialDocuments.total.toLocaleString()}`,
+      `正在读取块 · ${blocks.length.toLocaleString()} / ${initialBlocks.total.toLocaleString()}`,
     );
   }
   const referencePairs = new Map<string, ReferenceRow>();
@@ -330,39 +400,40 @@ async function loadSnapshot(
       `正在聚合引用 · ${rawReferences.toLocaleString()} / ${initialReferences.total.toLocaleString()} 条 · ${referencePairs.size.toLocaleString()} 组关系`,
     );
   }
-  const [finalDocuments, finalReferences] = await Promise.all([
-    documentState(signal),
+  const [finalBlocks, finalReferences] = await Promise.all([
+    blockState(signal),
     referenceState(signal),
   ]);
   signal.throwIfAborted();
   const warnings: string[] = [];
-  const documentsChanged =
-    initialDocuments.total !== finalDocuments.total ||
-    initialDocuments.last !== finalDocuments.last;
+  const blocksChanged =
+    initialBlocks.total !== finalBlocks.total ||
+    initialBlocks.last !== finalBlocks.last;
   // These separate statements detect count/high-watermark changes, but cannot
   // promise an atomic snapshot under same-count edits or rowid reuse/VACUUM.
   const referencesChanged =
     initialReferences.total !== finalReferences.total ||
     initialReferences.high !== finalReferences.high;
-  if (!documentsChanged && documents.length !== initialDocuments.total)
-    throw new Error("文档分页结果不完整，请刷新后重试");
+  if (!blocksChanged && blocks.length !== initialBlocks.total)
+    throw new Error("块分页结果不完整，请刷新后重试");
   if (!referencesChanged && rawReferences !== initialReferences.total)
     throw new Error("引用分页结果不完整，请刷新后重试");
-  if (documentsChanged || referencesChanged)
+  if (blocksChanged || referencesChanged)
     warnings.push(
-      "读取期间文档或引用发生变化，当前分页结果可能不完整，请刷新图谱获取最新数据。",
+      "读取期间块或引用发生变化，当前分页结果可能不完整，请刷新图谱获取最新数据。",
     );
-  const graph = normalizeGraph(
-    documents,
-    [...referencePairs.values()],
-    notebooks,
-  );
+  const graph = normalizeGraph(blocks, [...referencePairs.values()], notebooks);
   if (graph.skippedReferences > 0)
     warnings.push(
-      `已省略 ${graph.skippedReferences.toLocaleString()} 条同文档或端点不可用的引用。`,
+      `已省略 ${graph.skippedReferences.toLocaleString()} 条端点不可用的引用。`,
     );
+  const databaseGraph = await addDatabaseGraph(graph, blocks, signal, progress);
+  signal.throwIfAborted();
+  warnings.push(...databaseGraph.warnings);
   return {
     ...graph,
+    nodes: databaseGraph.nodes,
+    edges: databaseGraph.edges,
     notebooks,
     source: "siyuan",
     loadedAt: new Date().toISOString(),

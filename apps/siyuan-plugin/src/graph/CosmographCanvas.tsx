@@ -3,6 +3,7 @@ import type { CosmographConfig } from "@cosmograph/cosmograph";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -14,7 +15,12 @@ import type { PreparedGraph } from "./prepare-graph";
 import { GraphTableStore } from "./graph-tables";
 import { RendererSession } from "./renderer-session";
 import { DragLabelGuard } from "./drag-label-guard";
-import type { CosmographCanvasProps } from "./types";
+import { CanvasGestures } from "./canvas-gestures";
+import { ChosenLabels } from "./chosen-labels";
+import { beginGroupMotion } from "./position-adapter";
+import { nodeContext } from "./node-context";
+import { canvasClick } from "./canvas-click";
+import type { CanvasNode, CosmographCanvasProps } from "./types";
 import "./canvas.css";
 
 export type {
@@ -34,7 +40,8 @@ const BASE_CONFIG: CosmographConfig = {
   focusPointOnClick: false,
   focusPointOnLabelClick: false,
   resetSelectionOnEmptyCanvasClick: false,
-  preservePointPositionsOnDataUpdate: true,
+  // RendererSession restores stable-ID coordinates and the public 2D viewport.
+  preservePointPositionsOnDataUpdate: false,
   // The local text tooltip avoids upstream hover labels' untracked SQL/DOM continuations.
   showHoveredPointLabel: false,
   showDynamicLabels: true,
@@ -45,8 +52,9 @@ const BASE_CONFIG: CosmographConfig = {
   pointLabelColor: "#dce9f6",
   pointLabelFontSize: 12,
   pointLabelClassName: "ag-graph-label",
-  focusedPointRingColor: "#effaff",
-  outlinedPointRingColor: "#69d9eb",
+  // Only unchosen inspection receives this accent; chosen roots retain equal outlines.
+  focusedPointRingColor: "#f8cc84",
+  outlinedPointRingColor: "#effaff",
   renderHoveredPointRing: true,
   hoveredPointRingColor: "#9addf4",
   pointDefaultColor: "#8bd6e6",
@@ -89,7 +97,9 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     nodes,
     edges,
     selectedId,
+    chosenIds,
     highlightedIds,
+    spotlightIds,
     active: visible = true,
     colorBy = "branch",
     showLabels,
@@ -104,6 +114,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   const latestProps = useRef(props);
   const owner = useRef<RendererSession | null>(null);
   const dragLabels = useRef<DragLabelGuard | null>(null);
+  const chosenLabels = useRef<ChosenLabels | null>(null);
+  const gestures = useRef<CanvasGestures | null>(null);
+  const previousChosen = useRef<readonly string[]>([]);
+  const hoveredLink = useRef<number | undefined>(undefined);
   const interactiveConfig = useRef<CosmographConfig>({});
   const [session, setSession] = useState<RendererSession | null>(null);
   const diagnostics = useSyncExternalStore(
@@ -118,7 +132,12 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<CanvasNode | null>(null);
+  const context = hovered ? nodeContext(hovered, props.notebookNames) : null;
+  const hasExternal = useMemo(
+    () => nodes.some((node) => node.external),
+    [nodes],
+  );
   const [retry, setRetry] = useState(0);
   useLayoutEffect(() => {
     latestProps.current = props;
@@ -138,6 +157,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     const priorCleanup = previousCleanup;
     let database: LocalDuckDB | undefined;
     let owned: RendererSession | undefined;
+    let labels: ChosenLabels | undefined;
+    let interaction: CanvasGestures | undefined;
     let active = true;
     // eslint-disable-next-line react/set-state-in-effect -- Mirror the lifetime of an external GPU/worker resource.
     setSession(null);
@@ -148,6 +169,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     const labelGuard = element ? new DragLabelGuard(element) : null;
     dragLabels.current = labelGuard;
     const fail = (failure: unknown) => {
+      interaction?.cancel();
+      labels?.setActive(false);
       labelGuard?.end();
       if (active) {
         setError(errorMessage(failure));
@@ -157,6 +180,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     };
     const handleContextLost = (event: Event) => {
       event.preventDefault();
+      interaction?.cancel();
+      labels?.setActive(false);
       labelGuard?.end();
       owned?.suspend();
       if (active)
@@ -175,8 +200,12 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
         const choose = (id: string | null, event: MouseEvent) => {
           if (!active || !owned?.isInteractive) return;
           if (id !== null && !owned.displayed?.idToIndex.has(id)) return;
-          latestProps.current.onSelect(id);
-          if (id && event.detail === 2) latestProps.current.onOpen(id);
+          // The capture listener owns Shift-double-click exit, and link clicks own edge inspection.
+          if (id === null && hoveredLink.current !== undefined) return;
+          const action = canvasClick(id, event);
+          if (action.kind === "open") latestProps.current.onOpen(action.id);
+          else if (action.kind === "inspect")
+            latestProps.current.onSelect(action.id, action.event);
         };
         const base: CosmographConfig = {
           ...BASE_CONFIG,
@@ -189,9 +218,21 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             ),
           // Use the returned stable ID; an old asynchronous label click must not remap its index.
           onLabelClick: (_index, id, event) => choose(id, event),
+          onLinkClick: (index) => {
+            const edge = owned?.displayed?.indexToEdge[index];
+            if (edge && active && owned?.isInteractive)
+              latestProps.current.onInspectEdge(edge);
+          },
+          onLinkMouseOver: (index) => {
+            hoveredLink.current = index;
+          },
+          onLinkMouseOut: () => {
+            hoveredLink.current = undefined;
+          },
           onPointMouseOver: (index) => {
+            hoveredLink.current = undefined;
             if (active && owned?.isInteractive)
-              setHovered(owned.displayed?.indexToLabel[index] ?? null);
+              setHovered(owned.displayed?.indexToNode[index] ?? null);
           },
           onPointMouseOut: () => {
             if (active) setHovered(null);
@@ -201,7 +242,20 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labelGuard?.begin();
             setHovered(null);
           },
-          onDragEnd: () => labelGuard?.end(),
+          onDrag: () => labels?.refresh(),
+          onDragEnd: () => {
+            labelGuard?.end();
+            labels?.refresh();
+          },
+          onSimulationTick: () => labels?.refresh(),
+          onZoom: () => labels?.refresh(),
+          onResize: () => labels?.refresh(),
+          pointLabelClassName: (_text, _index, id) =>
+            id &&
+            (latestProps.current.chosenIds.includes(id) ||
+              latestProps.current.spotlightIds?.includes(id))
+              ? "ag-graph-label ag-graph-label--chosen"
+              : "ag-graph-label",
           onGraphRebuildError: fail,
         };
         interactiveConfig.current = base;
@@ -213,6 +267,93 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           database.dispose,
           fail,
         );
+        labels = new ChosenLabels(element, graph, choose, setHovered);
+        chosenLabels.current = labels;
+        const localPosition = (event: MouseEvent): [number, number] => {
+          const bounds = (graph.getCanvas() ?? element).getBoundingClientRect();
+          return [event.clientX - bounds.left, event.clientY - bounds.top];
+        };
+        const nodeAt = (event: MouseEvent) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const label = target?.closest<HTMLElement>("[data-graph-node-id]");
+          const labelId = label?.dataset.graphNodeId;
+          if (labelId && owned?.displayed?.idToIndex.has(labelId))
+            return labelId;
+          if (target?.closest(".css-label--label")) return null;
+          const screen = localPosition(event);
+          const cornerA = graph.screenToSpacePosition([
+            screen[0] - 36,
+            screen[1] - 36,
+          ]);
+          const cornerB = graph.screenToSpacePosition([
+            screen[0] + 36,
+            screen[1] + 36,
+          ]);
+          if (!cornerA || !cornerB) return null;
+          const candidates =
+            graph.findPointsInRect([
+              [
+                Math.min(cornerA[0], cornerB[0]),
+                Math.min(cornerA[1], cornerB[1]),
+              ],
+              [
+                Math.max(cornerA[0], cornerB[0]),
+                Math.max(cornerA[1], cornerB[1]),
+              ],
+            ]) ?? [];
+          let closest: string | null = null;
+          let distance = Infinity;
+          for (const index of candidates) {
+            const position = graph.getPointPositionByIndex(index);
+            const point = position && graph.spaceToScreenPosition(position);
+            if (!point) continue;
+            const delta = Math.hypot(
+              screen[0] - point[0],
+              screen[1] - point[1],
+            );
+            if (
+              delta <=
+                Math.max(3, graph.getPointScreenRadiusByIndex(index)) + 2 &&
+              delta < distance
+            ) {
+              closest = owned?.displayed?.indexToId[index] ?? null;
+              distance = delta;
+            }
+          }
+          return closest;
+        };
+        interaction = new CanvasGestures(element, {
+          active: () => active && Boolean(owned?.isInteractive),
+          chosenIds: () => latestProps.current.chosenIds,
+          nodeAt,
+          overRelationship: (event) =>
+            hoveredLink.current !== undefined ||
+            (event.target instanceof Element &&
+              Boolean(event.target.closest(".css-label--label"))),
+          spacePosition: (event) =>
+            graph.screenToSpacePosition(localPosition(event)),
+          begin: (ids, origin) => {
+            const displayed = owned?.displayed;
+            if (!displayed) throw new Error("图谱尚未就绪。");
+            const indices = ids.map((id) => displayed.idToIndex.get(id));
+            if (indices.some((index) => index === undefined))
+              throw new Error("选中节点已变化，请重新开始拖动。");
+            return beginGroupMotion(graph, indices as number[], origin);
+          },
+          onStart: () => {
+            labelGuard?.begin();
+            setHovered(null);
+          },
+          onMove: () => labels?.refresh(),
+          onEnd: (moved) => {
+            labelGuard?.end();
+            labels?.refresh();
+            owned?.groupDragFinished(moved);
+          },
+          onClearChosen: () => latestProps.current.onClearChosen(),
+          onError: fail,
+        });
+        gestures.current = interaction;
         owner.current = owned;
         owned.setActive(latestProps.current.active ?? true);
         await owned.initialize(base);
@@ -227,6 +368,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     const initializing = initialize();
     return () => {
       active = false;
+      interaction?.dispose();
+      labels?.dispose();
+      if (gestures.current === interaction) gestures.current = null;
+      if (chosenLabels.current === labels) chosenLabels.current = null;
       labelGuard?.dispose();
       if (dragLabels.current === labelGuard) dragLabels.current = null;
       controller.abort();
@@ -245,6 +390,9 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   useEffect(() => {
     const controller = new AbortController();
     dragLabels.current?.end();
+    gestures.current?.cancel();
+    chosenLabels.current?.setActive(false);
+    hoveredLink.current = undefined;
     owner.current?.suspend();
     // eslint-disable-next-line react/set-state-in-effect -- Publish the external renderer's preparation state.
     setIsPreparing(true);
@@ -271,6 +419,9 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     if (!session || !prepared) return;
     let active = true;
     dragLabels.current?.end();
+    gestures.current?.cancel();
+    chosenLabels.current?.setActive(false);
+    hoveredLink.current = undefined;
     // eslint-disable-next-line react/set-state-in-effect -- Controls stay disabled while the external GPU configuration is changing.
     setIsRendering(true);
     setHovered(null);
@@ -278,6 +429,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       latestProps.current.selectedId,
       latestProps.current.paused,
       latestProps.current.highlightedIds,
+      latestProps.current.chosenIds,
+      latestProps.current.spotlightIds,
     );
     void session
       .update(prepared, {
@@ -299,6 +452,12 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
         setCounts({ nodes: stats.pointsCount, links: stats.linksCount });
         setIsRendering(false);
         setError(null);
+        chosenLabels.current?.update(
+          session.displayed,
+          latestProps.current.chosenIds,
+          latestProps.current.spotlightIds,
+        );
+        chosenLabels.current?.setActive(latestProps.current.active !== false);
         latestProps.current.onReady?.(stats);
       })
       .catch((failure: unknown) => {
@@ -315,13 +474,35 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   }, [session, prepared, showLabels, showLinks, pointSize, colorBy]);
 
   useLayoutEffect(() => {
-    if (!visible) dragLabels.current?.end();
+    if (!visible) {
+      dragLabels.current?.end();
+      gestures.current?.cancel();
+    }
     session?.setActive(visible);
+    chosenLabels.current?.setActive(visible && Boolean(session?.isInteractive));
   }, [session, visible]);
 
   useEffect(() => {
-    session?.controls(selectedId, paused, highlightedIds);
-  }, [session, selectedId, paused, highlightedIds]);
+    const previous = new Set(previousChosen.current);
+    if (
+      previous.size !== new Set(chosenIds).size ||
+      chosenIds.some((id) => !previous.has(id))
+    )
+      gestures.current?.cancel();
+    previousChosen.current = chosenIds;
+    session?.controls(
+      selectedId,
+      paused,
+      highlightedIds,
+      chosenIds,
+      spotlightIds,
+    );
+    chosenLabels.current?.update(
+      session?.displayed ?? null,
+      chosenIds,
+      spotlightIds,
+    );
+  }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
   useEffect(() => {
     session?.fit();
   }, [session, fitRequest]);
@@ -344,7 +525,17 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-requested-highlighted-count={
         diagnostics?.requestedHighlightCount ?? 0
       }
-      data-selected-root={diagnostics?.selectedRootId ?? ""}
+      data-inspected-id={diagnostics?.inspectedId ?? ""}
+      data-chosen-count={diagnostics?.chosenIds.length ?? 0}
+      data-chosen-ids={JSON.stringify(diagnostics?.chosenIds ?? [])}
+      data-pinned-count={diagnostics?.pinnedCount ?? 0}
+      data-position-restores={diagnostics?.positionRestorations ?? 0}
+      data-restored-points={diagnostics?.restoredPointCount ?? 0}
+      data-position-world-error={diagnostics?.positionWorldError ?? ""}
+      data-position-screen-error={diagnostics?.positionScreenError ?? ""}
+      data-position-samples={JSON.stringify(diagnostics?.positionSamples ?? [])}
+      data-zoom-before={diagnostics?.zoomBefore ?? ""}
+      data-zoom-after={diagnostics?.zoomAfter ?? ""}
       data-drag-count={diagnostics?.dragCount ?? 0}
       onPointerMove={(event) => {
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -363,10 +554,16 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           pointerEvents: loading || visibleError || !visible ? "none" : "auto",
         }}
       />
-      {hovered && visible && !loading && !visibleError && (
+      {context && visible && !loading && !visibleError && (
         <div ref={tooltip} className="ag-canvas__tooltip" role="tooltip">
-          {hovered}
+          <strong>{context.title}</strong>
+          {context.lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         </div>
+      )}
+      {hasExternal && visible && !loading && !visibleError && (
+        <span className="ag-canvas__external-key">范围外补充节点</span>
       )}
       {visibleError ? (
         <div className="ag-canvas__state ag-canvas__state--error" role="alert">

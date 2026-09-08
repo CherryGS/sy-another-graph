@@ -124,4 +124,60 @@ describe("prepareGraph", () => {
     );
     expect(result.config.pointColorBy).toBe("branchColor");
   });
+
+  it("keeps an exact edge-index map for filtered, projected, database and self-loop edges", async () => {
+    const selfLoop = {
+      source: 3,
+      target: 3,
+      kind: "reference" as const,
+      weight: 2,
+      provenance: [
+        {
+          sourceId: "hidden-a",
+          targetId: "hidden-b",
+          kind: "reference" as const,
+          weight: 2,
+        },
+      ],
+    };
+    const database = {
+      source: 3,
+      target: 18,
+      kind: "database-relation" as const,
+      weight: 1,
+    };
+    const result = await prepareGraph(
+      [node("doc", 3), node("item", 18)],
+      [
+        { source: 99, target: 3, kind: "hierarchy", weight: 1 },
+        selfLoop,
+        database,
+      ],
+      new AbortController().signal,
+    );
+    expect(result.indexToEdge).toHaveLength(2);
+    expect(result.indexToEdge[0]).toBe(selfLoop);
+    expect(result.indexToEdge[1]).toBe(database);
+    expect(result.indexToNode[1].id).toBe("item");
+    expect(
+      Array.from((result.config.links as Table).getChild("sourceIndex")!),
+    ).toEqual([0, 0]);
+    expect(
+      Array.from((result.config.links as Table).getChild("targetIndex")!),
+    ).toEqual([0, 1]);
+    expect(result.linksCount).toBe(2);
+  });
+
+  it("distinguishes external additions in every color mode without changing their source identity", async () => {
+    const input = { ...node("external", 3), external: true };
+    const result = await prepareGraph(
+      [input],
+      [],
+      new AbortController().signal,
+    );
+    const points = result.config.points as Table;
+    for (const column of ["color", "branchColor", "degreeColor"])
+      expect(points.getChild(column)!.get(0)).toBe("#c58be6");
+    expect(result.indexToNode[0]).toBe(input);
+  });
 });

@@ -4,6 +4,14 @@ import type { CanvasEdge, CanvasNode } from "./types";
 import { nodeColor } from "./node-colors";
 
 const CHUNK_SIZE = 8192;
+const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
+  reference: "#91b7df",
+  hierarchy: "#60728d",
+  "database-embedding": "#8a82ba",
+  "database-membership": "#6cbaae",
+  "database-binding": "#c3a476",
+  "database-relation": "#c797d9",
+};
 const HTML_ENTITIES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -22,6 +30,8 @@ export interface PreparedGraph {
   config: CosmographConfig;
   indexToId: string[];
   indexToLabel: string[];
+  indexToNode: readonly CanvasNode[];
+  indexToEdge: readonly CanvasEdge[];
   idToIndex: Map<string, number>;
   pointsCount: number;
   linksCount: number;
@@ -75,7 +85,7 @@ export async function prepareGraph(
         (character) => HTML_ENTITIES[character],
       );
       notebook[position] = node.notebook;
-      color[position] = node.color;
+      color[position] = nodeColor(node, "notebook");
       branchColor[position] = nodeColor(node, "branch");
       degreeColor[position] = nodeColor(node, "degree");
       index[position] = position;
@@ -95,6 +105,7 @@ export async function prepareGraph(
   const weight = new Float32Array(edges.length);
   const width = new Float32Array(edges.length);
   const style = new Uint8Array(edges.length);
+  const indexToEdge: CanvasEdge[] = [];
   let linkCount = 0;
   for (let offset = 0; offset < edges.length; offset += CHUNK_SIZE) {
     await yieldToBrowser(signal);
@@ -113,7 +124,8 @@ export async function prepareGraph(
       sourceIndex[linkCount] = from;
       targetIndex[linkCount] = to;
       const reference = edge.kind === "reference";
-      linkColor.push(reference ? "#91b7df" : "#60728d");
+      const hierarchy = edge.kind === "hierarchy";
+      linkColor.push(EDGE_COLORS[edge.kind]);
       weight[linkCount] = Number.isFinite(edge.weight)
         ? Math.max(1, edge.weight)
         : 1;
@@ -121,7 +133,9 @@ export async function prepareGraph(
       width[linkCount] = reference
         ? 1.55 + emphasis * 0.8
         : 0.95 + emphasis * 0.35;
-      style[linkCount] = reference ? 0 : 1;
+      style[linkCount] = hierarchy ? 1 : 0;
+      // Preserve the exact source edge, including self-loops and original provenance.
+      indexToEdge.push(edge);
       linkCount++;
     }
   }
@@ -175,6 +189,8 @@ export async function prepareGraph(
     },
     indexToId: id,
     indexToLabel,
+    indexToNode: [...nodes],
+    indexToEdge,
     idToIndex,
     pointsCount: nodes.length,
     linksCount: linkCount,

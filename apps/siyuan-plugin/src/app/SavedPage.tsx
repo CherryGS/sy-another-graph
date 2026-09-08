@@ -87,7 +87,7 @@ export function SavedPage() {
         <div className="page-empty saved-empty">
           <Bookmark size={28} />
           <h3>暂无保存的视图</h3>
-          <p>在图谱工具栏中保存筛选条件与选中文档。</p>
+          <p>在图谱工具栏中保存筛选条件与当前查看节点。</p>
           <button
             className="primary-button"
             onClick={() => void navigate({ to: "/" })}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-/** Visibility is a host lifecycle signal, never a request to reload the graph. */
+/** Visibility alone is a host lifecycle signal, never a request to reload the graph. */
 export function subscribeHostVisibility(
   target: Window,
   publish: (active: boolean) => void,

@@ -1,5 +1,7 @@
 import { DEFAULT_FILTERS, type GraphDataset, type GraphFilters } from "./types";
 
+const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
+
 export interface SavedView {
   id: string;
   name: string;
@@ -24,7 +26,11 @@ export function filterGraph(
     (edge) =>
       indices.has(edge.source) &&
       indices.has(edge.target) &&
-      (edge.kind === "reference" ? filters.references : filters.hierarchy),
+      (edge.kind === "reference"
+        ? filters.references
+        : edge.kind === "hierarchy"
+          ? filters.hierarchy
+          : filters.databases),
   );
   if (filters.hideIsolated) {
     const connected = new Set<number>();
@@ -58,6 +64,25 @@ export function readSavedViews(
           typeof item.filters?.references === "boolean" &&
           typeof item.filters?.hierarchy === "boolean" &&
           typeof item.filters?.hideIsolated === "boolean" &&
+          (item.filters.scopeId === undefined ||
+            item.filters.scopeId === "" ||
+            (typeof item.filters.scopeId === "string" &&
+              NATIVE_ID.test(item.filters.scopeId))) &&
+          (item.filters.includeChildDocuments === undefined ||
+            typeof item.filters.includeChildDocuments === "boolean") &&
+          (item.filters.databases === undefined ||
+            typeof item.filters.databases === "boolean") &&
+          (item.filters.excludeIds === undefined ||
+            (Array.isArray(item.filters.excludeIds) &&
+              item.filters.excludeIds.every(
+                (id: unknown) => typeof id === "string" && NATIVE_ID.test(id),
+              ))) &&
+          (item.filters.hiddenTypes === undefined ||
+            (Array.isArray(item.filters.hiddenTypes) &&
+              item.filters.hiddenTypes.every(
+                (type: unknown) =>
+                  typeof type === "string" && type.trim().length > 0,
+              ))) &&
           (item.selectedId === null || typeof item.selectedId === "string") &&
           // The old schema carried a dataset key. Migrate only genuine SiYuan
           // views; never relabel a legacy generated dataset as workspace data.
@@ -69,11 +94,19 @@ export function readSavedViews(
         name: item.name,
         createdAt: item.createdAt,
         filters: {
+          ...DEFAULT_FILTERS,
           query: item.filters.query,
           notebook: item.filters.notebook,
           references: item.filters.references,
           hierarchy: item.filters.hierarchy,
           hideIsolated: item.filters.hideIsolated,
+          scopeId: item.filters.scopeId ?? "",
+          includeChildDocuments:
+            item.filters.includeChildDocuments ??
+            DEFAULT_FILTERS.includeChildDocuments,
+          databases: item.filters.databases ?? true,
+          excludeIds: [...(item.filters.excludeIds ?? [])],
+          hiddenTypes: [...(item.filters.hiddenTypes ?? [])],
         },
         selectedId: item.selectedId,
         source: "siyuan",
@@ -92,7 +125,12 @@ export function newSavedView(
     id: crypto.randomUUID(),
     name: name.trim().slice(0, 80) || "未命名视图",
     createdAt: new Date().toISOString(),
-    filters: { ...DEFAULT_FILTERS, ...filters },
+    filters: {
+      ...DEFAULT_FILTERS,
+      ...filters,
+      excludeIds: [...filters.excludeIds],
+      hiddenTypes: [...filters.hiddenTypes],
+    },
     selectedId,
     source: "siyuan",
   };

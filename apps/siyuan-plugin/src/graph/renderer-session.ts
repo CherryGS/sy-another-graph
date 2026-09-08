@@ -2,6 +2,19 @@ import type { Cosmograph, CosmographConfig } from "@cosmograph/cosmograph";
 import type { GraphTableStore, UploadedGraph } from "./graph-tables";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasStats } from "./types";
+import {
+  captureNodePositions,
+  captureViewport,
+  measurePositionRestore,
+  positionProbes,
+  restoreNodePositions,
+  restoreViewport,
+  type NodePositions,
+  type PositionProbe,
+  type PositionRestore,
+  type ViewportSnapshot,
+  type ViewportApi,
+} from "./position-adapter";
 
 type Renderer = Pick<
   Cosmograph,
@@ -13,10 +26,11 @@ type Renderer = Pick<
   | "unpause"
   | "selectPoints"
   | "setFocusedPoint"
+  | "setPinnedPoints"
   | "fitView"
   | "getZoomLevel"
   | "setZoomLevel"
->;
+> & ViewportApi;
 type Tables = Pick<
   GraphTableStore,
   "stage" | "commit" | "discard" | "clear" | "active"
@@ -34,9 +48,18 @@ export interface RendererDiagnostics {
   highlightedCount: number;
   outlinedCount: number;
   requestedHighlightCount: number;
-  selectedRootId: string | null;
+  inspectedId: string | null;
+  chosenIds: readonly string[];
+  pinnedCount: number;
   dragCount: number;
   active: boolean;
+  positionRestorations: number;
+  restoredPointCount: number;
+  positionWorldError: number | null;
+  positionScreenError: number | null;
+  positionSamples: PositionRestore["samples"];
+  zoomBefore: number | null;
+  zoomAfter: number | null;
 }
 const browserScheduler: FrameScheduler = {
   delay: (callback, milliseconds) => window.setTimeout(callback, milliseconds),
@@ -44,6 +67,13 @@ const browserScheduler: FrameScheduler = {
   frame: (callback) => window.requestAnimationFrame(callback),
   cancelFrame: (id) => window.cancelAnimationFrame(id),
 };
+
+function sameIds(left: readonly string[], right: readonly string[]) {
+  const members = new Set(left);
+  return (
+    members.size === new Set(right).size && right.every((id) => members.has(id))
+  );
+}
 
 /** One queue owns source tables, GPU rebuilds, interactions, and final destruction. */
 export class RendererSession {
@@ -63,16 +93,22 @@ export class RendererSession {
   private desiredOutlines: readonly number[] = [];
   private outlineRevision = 0;
   private selectedId: string | null = null;
+  private chosenIds: readonly string[] = [];
+  private spotlightIds: readonly string[] = [];
   private highlightedIds: readonly string[] = [];
   private selectionDirty = true;
+  private pinsDirty = true;
   private active = true;
   private visibilityRevision = 0;
   private paused = false;
-  private needsFit = false;
+  // Keep the first fit pending through empty or hidden initial views. Later data
+  // replacements retain the camera unless the user explicitly calls fit().
+  private needsFit = true;
   private fitRevision = 0;
   private fitDelay: number | undefined;
   private fitFrame: number | undefined;
   private refreshFrame: number | undefined;
+  private lastViewport: ViewportSnapshot | null = null;
   private readonly diagnosticListeners = new Set<() => void>();
   private diagnosticState: RendererDiagnostics = {
     sessionId: `renderer-${crypto.randomUUID()}`,
@@ -81,9 +117,18 @@ export class RendererSession {
     highlightedCount: 0,
     outlinedCount: 0,
     requestedHighlightCount: 0,
-    selectedRootId: null,
+    inspectedId: null,
+    chosenIds: [],
+    pinnedCount: 0,
     dragCount: 0,
     active: true,
+    positionRestorations: 0,
+    restoredPointCount: 0,
+    positionWorldError: null,
+    positionScreenError: null,
+    positionSamples: [],
+    zoomBefore: null,
+    zoomAfter: null,
   };
 
   constructor(
@@ -161,10 +206,27 @@ export class RendererSession {
       let configurationStarted = false;
       let appliedConfig: CosmographConfig | null = null;
       let outlinedIndices: number[] = [];
+      let positionsBefore: NodePositions | null = null;
+      let probes: PositionProbe[] = [];
+      let continuity: PositionRestore | null = null;
+      let viewportBefore: ViewportSnapshot | null = null;
       try {
         // Label/crossfilter reads have their own queues inside Cosmograph.
         await this.drain();
         if (!this.isCurrent(revision)) return null;
+        // The active tables identify the actual GPU topology, including a completed
+        // configuration that was superseded before it could be published to React.
+        const previousData = this.tables.active?.prepared;
+        const replacesPoints = previousData !== data;
+        if (replacesPoints && previousData && previousData.pointsCount > 0) {
+          this.graph.pause();
+          positionsBefore = captureNodePositions(this.graph, previousData.indexToId);
+          const chosenProbes = this.chosenIds.filter((id) => positionsBefore!.has(id));
+          probes = positionProbes(this.graph, positionsBefore, chosenProbes.length ? chosenProbes : previousData.indexToId);
+          viewportBefore = captureViewport(this.graph);
+          if (viewportBefore) this.lastViewport = viewportBefore;
+        }
+        const viewportToRestore = replacesPoints ? this.lastViewport : null;
         if (data.pointsCount === 0) {
           await this.graph.reset(false);
           await this.drain();
@@ -173,7 +235,9 @@ export class RendererSession {
             highlightedCount: 0,
             outlinedCount: 0,
             requestedHighlightCount: 0,
-            selectedRootId: null,
+            inspectedId: null,
+            chosenIds: [],
+            pinnedCount: 0,
           });
         } else {
           uploaded = await this.tables.stage(data);
@@ -184,13 +248,16 @@ export class RendererSession {
           let rebuildError: Error | undefined;
           let dragMoved = false;
           configurationStarted = true;
-          outlinedIndices = this.neighborIndices(data);
+          outlinedIndices = this.chosenIndices(data);
           appliedConfig = {
             ...data.config,
             ...config,
             points: uploaded.points,
             links: uploaded.links,
             fitViewOnInit: false,
+            // Native preservation copies coordinates before rebuilding Cosmos but
+            // cannot preserve its 2D camera and may rescale copied coordinates.
+            preservePointPositionsOnDataUpdate: false,
             outlinedPointIndices: outlinedIndices,
             onGraphRebuildError: (error) => {
               rebuildError = error;
@@ -203,6 +270,18 @@ export class RendererSession {
               if (this.isCurrent(revision) && this.isInteractive)
                 config.onLabelClick?.(...args);
             },
+            onLinkClick: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onLinkClick?.(...args);
+            },
+            onLinkMouseOver: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onLinkMouseOver?.(...args);
+            },
+            onLinkMouseOut: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onLinkMouseOut?.(...args);
+            },
             onPointMouseOver: (...args) => {
               if (this.isCurrent(revision) && this.isInteractive)
                 config.onPointMouseOver?.(...args);
@@ -210,6 +289,18 @@ export class RendererSession {
             onPointMouseOut: (...args) => {
               if (this.isCurrent(revision) && this.isInteractive)
                 config.onPointMouseOut?.(...args);
+            },
+            onSimulationTick: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onSimulationTick?.(...args);
+            },
+            onZoom: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onZoom?.(...args);
+            },
+            onResize: (...args) => {
+              if (this.isCurrent(revision) && this.isInteractive)
+                config.onResize?.(...args);
             },
             onDragStart: (...args) => {
               dragMoved = false;
@@ -252,6 +343,22 @@ export class RendererSession {
           // The completed config references these tables, even when superseded meanwhile.
           await this.tables.commit(uploaded);
           if (rebuildError) throw rebuildError;
+          if (!this.closed && replacesPoints && (positionsBefore || viewportToRestore)) {
+            // Finish continuity for this actual table revision even when another
+            // update is queued. The next job must read matching IDs and coordinates.
+            this.graph.pause();
+            this.graph.setPinnedPoints(this.chosenIndices(data));
+            if (positionsBefore)
+              restoreNodePositions(this.graph, data.indexToId, positionsBefore);
+            if (viewportToRestore) restoreViewport(this.graph, viewportToRestore);
+            // Programmatic zoom may enable simulation; applyControls later restores
+            // the current user/visibility state after the readback is complete.
+            this.graph.pause();
+            if (positionsBefore) {
+              const after = captureNodePositions(this.graph, data.indexToId);
+              continuity = measurePositionRestore(this.graph, positionsBefore, after, probes);
+            }
+          }
           this.publishDiagnostics({
             configurations: this.diagnosticState.configurations + 1,
           });
@@ -269,15 +376,24 @@ export class RendererSession {
         this.currentData = data;
         this.currentConfig = appliedConfig;
         this.desiredOutlines = outlinedIndices;
-        this.publishDiagnostics({ outlinedCount: outlinedIndices.length });
+        this.publishDiagnostics({
+          outlinedCount: outlinedIndices.length,
+          positionRestorations: this.diagnosticState.positionRestorations + (continuity ? 1 : 0),
+          restoredPointCount: continuity?.restored ?? 0,
+          positionWorldError: continuity?.maximumWorldError ?? null,
+          positionScreenError: continuity?.maximumScreenError ?? null,
+          positionSamples: continuity?.samples ?? [],
+          zoomBefore: viewportBefore?.zoom ?? viewportToRestore?.zoom ?? null,
+          zoomAfter: this.graph.getZoomLevel() ?? null,
+        });
         this.ready = true;
         if (dataChanged)
           this.publishDiagnostics({
             dataRevisions: this.diagnosticState.dataRevisions + 1,
           });
         this.selectionDirty = true;
+        this.pinsDirty = true;
         this.applyControls();
-        this.needsFit ||= dataChanged;
         this.scheduleFit(dataChanged ? 180 : 0);
         return {
           pointsCount: stats.pointsCount,
@@ -302,18 +418,35 @@ export class RendererSession {
     selectedId: string | null,
     paused: boolean,
     highlightedIds: readonly string[] = [],
+    chosenIds: readonly string[] = [],
+    spotlightIds: readonly string[] = [],
   ) {
     if (this.closed) return;
+    const chosenChanged = !sameIds(this.chosenIds, chosenIds);
     const selectionChanged =
       this.selectedId !== selectedId ||
-      this.highlightedIds.length !== highlightedIds.length ||
-      this.highlightedIds.some((id, index) => id !== highlightedIds[index]);
+      !sameIds(this.highlightedIds, highlightedIds) ||
+      !sameIds(this.spotlightIds, spotlightIds) ||
+      chosenChanged;
     const changed = selectionChanged || this.paused !== paused;
     this.selectionDirty ||= selectionChanged;
+    this.pinsDirty ||= chosenChanged;
     this.selectedId = selectedId;
     this.highlightedIds = [...highlightedIds];
+    this.chosenIds = [...new Set(chosenIds)];
+    this.spotlightIds = [...spotlightIds];
     this.paused = paused;
     if (changed && this.hasData) this.runControl(() => this.applyControls());
+  }
+
+  /** The custom Shift drag shares diagnostics and pause restoration with native dragging. */
+  groupDragFinished(moved: boolean) {
+    if (!this.hasData) return;
+    if (moved && this.active)
+      this.publishDiagnostics({
+        dragCount: this.diagnosticState.dragCount + 1,
+      });
+    if (this.paused || !this.active) this.runControl(() => this.graph.pause());
   }
 
   /** Visibility never invalidates data, rebuilds the graph, or resets the camera. */
@@ -383,6 +516,7 @@ export class RendererSession {
       }
       this.currentData = null;
       this.currentConfig = null;
+      this.lastViewport = null;
       this.diagnosticListeners.clear();
       if (failures.length)
         throw new AggregateError(failures, "图谱资源清理失败。");
@@ -412,24 +546,37 @@ export class RendererSession {
           : this.currentData.idToIndex.get(this.selectedId);
       const selected = new Set<number>();
       if (index !== undefined) selected.add(index);
-      for (const id of this.highlightedIds) {
+      for (const id of [
+        ...this.chosenIds,
+        ...this.spotlightIds,
+        ...this.highlightedIds,
+      ]) {
         const highlighted = this.currentData.idToIndex.get(id);
         if (highlighted !== undefined) selected.add(highlighted);
       }
-      // This selects internal links too; unlike selectPoint(), it does not expand the nodes.
+      // Cosmograph selection is only a visual mask. It never defines our chosen/fixed set.
       this.graph.selectPoints(
         selected.size ? [...selected] : null,
         false,
         true,
       );
-      this.graph.setFocusedPoint(index);
-      this.scheduleOutlines(this.neighborIndices(this.currentData));
+      this.graph.setFocusedPoint(this.inspectionFocusIndex());
+      this.scheduleOutlines(this.chosenIndices(this.currentData));
       this.publishDiagnostics({
         requestedHighlightCount: selected.size,
-        selectedRootId:
+        inspectedId:
           index === undefined ? null : this.currentData.indexToId[index],
       });
       this.selectionDirty = false;
+    }
+    if (this.active && this.pinsDirty) {
+      const indices = this.chosenIndices(this.currentData);
+      this.graph.setPinnedPoints(indices);
+      this.publishDiagnostics({
+        chosenIds: indices.map((index) => this.currentData!.indexToId[index]),
+        pinnedCount: indices.length,
+      });
+      this.pinsDirty = false;
     }
     if (this.paused || !this.active) this.graph.pause();
     else this.graph.unpause();
@@ -445,13 +592,21 @@ export class RendererSession {
     }
   }
 
-  private neighborIndices(data: PreparedGraph) {
+  private chosenIndices(data: PreparedGraph) {
     const indices = new Set<number>();
-    for (const id of this.highlightedIds) {
+    for (const id of this.chosenIds) {
       const index = data.idToIndex.get(id);
-      if (id !== this.selectedId && index !== undefined) indices.add(index);
+      if (index !== undefined) indices.add(index);
     }
-    return [...indices];
+    return [...indices].sort((left, right) => left - right);
+  }
+
+  private inspectionFocusIndex() {
+    // Inspecting one chosen member must not replace its common chosen outline
+    // with the visually stronger native focus ring.
+    if (this.selectedId === null || this.chosenIds.includes(this.selectedId))
+      return undefined;
+    return this.currentData?.idToIndex.get(this.selectedId);
   }
 
   private scheduleOutlines(indices: number[]) {
@@ -481,11 +636,7 @@ export class RendererSession {
       });
       if (!this.isCurrent(revision)) return;
       this.currentConfig = config;
-      this.graph.setFocusedPoint(
-        this.selectedId === null
-          ? undefined
-          : this.currentData?.idToIndex.get(this.selectedId),
-      );
+      this.graph.setFocusedPoint(this.inspectionFocusIndex());
       this.publishDiagnostics({ outlinedCount: indices.length });
     }).catch((error: unknown) => {
       if (this.isCurrent(revision)) {

@@ -3,6 +3,8 @@ import {
   PersistentWorkbench,
   WORKBENCH_CHANNEL,
 } from "./host/persistent-workbench";
+import { isNativeBlockId, registerScopeMenus } from "./host/scope-menu";
+import { registerSourceChanges } from "./host/source-events";
 
 const TAB_TYPE = "atlas";
 
@@ -10,6 +12,8 @@ export default class SiYuanGraphPlugin extends Plugin {
   private workbench: PersistentWorkbench | null = null;
   private opening: ReturnType<typeof openTab> | null = null;
   private unloaded = false;
+  private removeScopeMenus: (() => void) | null = null;
+  private removeSourceChanges: (() => void) | null = null;
 
   onload() {
     this.unloaded = false;
@@ -56,6 +60,14 @@ export default class SiYuanGraphPlugin extends Plugin {
     });
     window.addEventListener("message", this.onMessage);
     this.eventBus.on("switch-protyle", this.onHostSwitch);
+    this.removeScopeMenus = registerScopeMenus(this.eventBus, (id) => {
+      if (this.unloaded) return;
+      workbench.requestScope(id);
+      void this.openGraph();
+    });
+    this.removeSourceChanges = registerSourceChanges(this.eventBus, () => {
+      if (!this.unloaded) workbench.markSourceChanged();
+    });
   }
 
   private openGraph() {
@@ -118,9 +130,16 @@ export default class SiYuanGraphPlugin extends Plugin {
     }
     if (
       data?.channel === WORKBENCH_CHANNEL &&
+      data.type === "scope-applied" &&
+      isNativeBlockId(data.id)
+    ) {
+      this.workbench.acknowledgeScope(data.id);
+      return;
+    }
+    if (
+      data?.channel === WORKBENCH_CHANNEL &&
       data.type === "open-block" &&
-      typeof data.id === "string" &&
-      /^\d{14}-[a-z0-9]{7}$/.test(data.id)
+      isNativeBlockId(data.id)
     ) {
       void openTab({ app: this.app, doc: { id: data.id } });
     }
@@ -134,6 +153,10 @@ export default class SiYuanGraphPlugin extends Plugin {
     this.unloaded = true;
     window.removeEventListener("message", this.onMessage);
     this.eventBus.off("switch-protyle", this.onHostSwitch);
+    this.removeScopeMenus?.();
+    this.removeScopeMenus = null;
+    this.removeSourceChanges?.();
+    this.removeSourceChanges = null;
     this.workbench?.dispose();
     this.workbench = null;
   }

@@ -5,7 +5,10 @@ interface ColorNode {
   path: string;
   degree: number;
   color: string;
+  external?: boolean;
 }
+
+export const EXTERNAL_NODE_COLOR = "#c58be6";
 
 const BRANCH_COLORS = [
   "#7eb8da",
@@ -28,6 +31,7 @@ const DEGREE_COLORS = [
 
 /** Shared by the canvas and document accents; colors do not change when filtering. */
 export function nodeColor(node: ColorNode, mode: GraphColorMode): string {
+  if (node.external) return EXTERNAL_NODE_COLOR;
   if (mode === "notebook") return node.color;
   if (mode === "degree") {
     const degree = Number.isFinite(node.degree) ? Math.max(0, node.degree) : 0;
