@@ -5,6 +5,7 @@ import { DEFAULT_FILTERS } from "../data/types";
 import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import type { GraphColorMode } from "../graph/node-colors";
+import type { GraphDirection } from "../engine/types";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
@@ -45,6 +46,47 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
           <X size={13} />
         </button>
       </div>
+      <div
+        className="neighborhood-settings"
+        role="group"
+        aria-label="邻域扩展设置"
+      >
+        <div>
+          <label className="field-label" htmlFor="graph-depth">
+            邻域深度 · 跳
+          </label>
+          <input
+            id="graph-depth"
+            className="text-input"
+            aria-label="邻域深度"
+            type="number"
+            min="0"
+            max="100"
+            value={state.depth}
+            onChange={(event) => state.setDepth(Number(event.target.value))}
+          />
+        </div>
+        <div>
+          <label className="field-label" htmlFor="graph-direction">
+            遍历方向
+          </label>
+          <select
+            id="graph-direction"
+            aria-label="遍历方向"
+            value={state.direction}
+            onChange={(event) =>
+              state.setDirection(event.target.value as GraphDirection)
+            }
+          >
+            <option value="both">双向</option>
+            <option value="out">沿箭头 →</option>
+            <option value="in">逆箭头 ←</option>
+          </select>
+        </div>
+      </div>
+      <p className="input-note">
+        从所选节点向外扩展；修改后自动生效，初始范围保留。
+      </p>
       <label className="field-label" htmlFor="graph-scope">
         初始范围 · 文档或块 ID
       </label>

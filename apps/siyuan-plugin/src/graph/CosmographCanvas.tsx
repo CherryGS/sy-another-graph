@@ -20,6 +20,7 @@ import { ChosenLabels } from "./chosen-labels";
 import { beginGroupMotion } from "./position-adapter";
 import { nodeContext } from "./node-context";
 import { canvasClick } from "./canvas-click";
+import { hitTestPoint } from "./point-hit-test";
 import type { CanvasNode, CosmographCanvasProps } from "./types";
 import "./canvas.css";
 
@@ -280,47 +281,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           if (labelId && owned?.displayed?.idToIndex.has(labelId))
             return labelId;
           if (target?.closest(".css-label--label")) return null;
-          const screen = localPosition(event);
-          const cornerA = graph.screenToSpacePosition([
-            screen[0] - 36,
-            screen[1] - 36,
-          ]);
-          const cornerB = graph.screenToSpacePosition([
-            screen[0] + 36,
-            screen[1] + 36,
-          ]);
-          if (!cornerA || !cornerB) return null;
-          const candidates =
-            graph.findPointsInRect([
-              [
-                Math.min(cornerA[0], cornerB[0]),
-                Math.min(cornerA[1], cornerB[1]),
-              ],
-              [
-                Math.max(cornerA[0], cornerB[0]),
-                Math.max(cornerA[1], cornerB[1]),
-              ],
-            ]) ?? [];
-          let closest: string | null = null;
-          let distance = Infinity;
-          for (const index of candidates) {
-            const position = graph.getPointPositionByIndex(index);
-            const point = position && graph.spaceToScreenPosition(position);
-            if (!point) continue;
-            const delta = Math.hypot(
-              screen[0] - point[0],
-              screen[1] - point[1],
-            );
-            if (
-              delta <=
-                Math.max(3, graph.getPointScreenRadiusByIndex(index)) + 2 &&
-              delta < distance
-            ) {
-              closest = owned?.displayed?.indexToId[index] ?? null;
-              distance = delta;
-            }
-          }
-          return closest;
+          const index = hitTestPoint(graph, localPosition(event));
+          return index === undefined ? null : (owned?.displayed?.indexToId[index] ?? null);
         };
         interaction = new CanvasGestures(element, {
           active: () => active && Boolean(owned?.isInteractive),
@@ -520,6 +482,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-renderer-id={diagnostics?.sessionId}
       data-configurations={diagnostics?.configurations ?? 0}
       data-data-revisions={diagnostics?.dataRevisions ?? 0}
+      data-last-data-update-ms={diagnostics?.lastDataUpdateMs ?? ""}
       data-highlighted-count={diagnostics?.highlightedCount ?? 0}
       data-outlined-count={diagnostics?.outlinedCount ?? 0}
       data-requested-highlighted-count={

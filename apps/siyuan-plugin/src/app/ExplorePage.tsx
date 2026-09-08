@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { CosmographCanvas } from "../graph/CosmographCanvas";
 import { DEFAULT_FILTERS } from "../data/types";
-import type { GraphDirection } from "../engine/types";
 import { useWorkbench } from "./state";
 import { GraphFiltersPanel } from "./GraphFiltersPanel";
 import { GraphSearch } from "./GraphSearch";
@@ -85,29 +84,7 @@ export function ExplorePage({ active }: { active: boolean }) {
                 ? `已选 ${state.chosenIds.length}`
                 : "选择节点以向外扩展"}
             </span>
-            <label className="hop-control">
-              向外
-              <input
-                aria-label="邻域深度"
-                type="number"
-                min="0"
-                max="100"
-                value={state.depth}
-                onChange={(event) => state.setDepth(Number(event.target.value))}
-              />
-              跳
-            </label>
-            <select
-              aria-label="遍历方向"
-              value={state.direction}
-              onChange={(event) =>
-                state.setDirection(event.target.value as GraphDirection)
-              }
-            >
-              <option value="both">双向</option>
-              <option value="out">沿箭头 →</option>
-              <option value="in">逆箭头 ←</option>
-            </select>
+            <span>{state.depth} 跳</span>
             {state.busy && <LoaderCircle size={13} className="spin" />}
             {state.chosenIds.length > 0 && (
               <button

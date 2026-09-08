@@ -35,6 +35,7 @@ export class CanvasGestures {
     y: number;
     origin?: [number, number];
     ids?: readonly string[];
+    shift: boolean;
     moved: boolean;
   };
   private motion?: GroupMotion;
@@ -83,7 +84,11 @@ export class CanvasGestures {
     if (this.disposed || !this.options.active() || event.button !== 0) return;
     this.cancel();
     this.suppressClick = false;
-    const id = this.options.nodeAt(event);
+    // This host capture runs before d3's canvas mousedown listeners. Cosmos rejects
+    // Shift in its point-drag subject, then accepts it as zoom/pan. Reserve every
+    // Shift press here, including nonmembers and blank canvas, before hit testing.
+    if (event.shiftKey) consume(event);
+    const id = event.shiftKey ? this.options.nodeAt(event) : null;
     const ids = this.options.chosenIds();
     const collective = event.shiftKey && id !== null && ids.includes(id);
     this.pending = {
@@ -91,10 +96,9 @@ export class CanvasGestures {
       y: event.clientY,
       origin: collective ? this.options.spacePosition(event) : undefined,
       ids: collective ? [...ids] : undefined,
+      shift: event.shiftKey,
       moved: false,
     };
-    // Cosmos reserves Shift for other navigation. Do not start its pan for a chosen node.
-    if (collective) consume(event);
   };
 
   private move = (raw: Event) => {
@@ -105,6 +109,7 @@ export class CanvasGestures {
       this.cancel();
       return;
     }
+    if (pending.shift) consume(event);
     if (
       Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 3 &&
       !pending.moved
@@ -114,7 +119,6 @@ export class CanvasGestures {
     this.suppressClick = true;
     this.suppressDoubleUntil = this.scheduler.now() + 500;
     if (!pending.ids || !pending.origin) return;
-    consume(event);
     try {
       if (!this.motion) {
         this.motion = this.options.begin(pending.ids, pending.origin);
@@ -145,8 +149,8 @@ export class CanvasGestures {
 
   private up = (raw: Event) => {
     if (!this.pending) return;
+    if (this.pending.shift) consume(raw);
     if (this.motion) {
-      consume(raw);
       this.flush();
     }
     this.finish();
@@ -159,8 +163,10 @@ export class CanvasGestures {
   private doubleClick = (raw: Event) => {
     const event = raw as MouseEvent;
     if (!event.shiftKey || this.disposed || !this.options.active()) return;
+    // No Shift-double-click may leak to d3's zoom-out action. Only blank canvas
+    // exits the set; nodes and relationships retain their current state.
+    consume(event);
     if (this.suppressClick || this.scheduler.now() < this.suppressDoubleUntil) {
-      consume(event);
       return;
     }
     if (
@@ -168,8 +174,6 @@ export class CanvasGestures {
       this.options.overRelationship(event)
     )
       return;
-    // Capture precedes d3-zoom's Shift-double-click zoom-out handler.
-    consume(event);
     this.options.onClearChosen();
   };
 

@@ -113,17 +113,60 @@ describe("canvas gestures", () => {
     h.gesture.dispose();
   });
 
-  it("does not move the set or accidentally select a nonmember after a Shift drag", () => {
+  it.each(["neighbor", null])("reserves Shift dragging from %s without native pan or selection", (nodeId) => {
+    const h = harness();
+    h.options.nodeAt.mockReturnValue(nodeId);
+    const nativeDown = vi.fn();
+    const nativeMove = vi.fn();
+    const nativeUp = vi.fn();
+    const clicked = vi.fn();
+    h.host.addEventListener("mousedown", nativeDown);
+    h.targetWindow.addEventListener("mousemove", nativeMove);
+    h.targetWindow.addEventListener("mouseup", nativeUp);
+    h.host.addEventListener("click", clicked);
+    h.host.dispatchEvent(mouse("mousedown"));
+    // Releasing Shift halfway through a drag must not hand it over to the camera.
+    h.targetWindow.dispatchEvent(mouse("mousemove", 12, 0, false));
+    h.targetWindow.dispatchEvent(mouse("mouseup", 12, 0, false));
+    h.host.dispatchEvent(mouse("click", 12, 0));
+    expect(nativeDown).not.toHaveBeenCalled();
+    expect(nativeMove).not.toHaveBeenCalled();
+    expect(nativeUp).not.toHaveBeenCalled();
+    expect(h.options.begin).not.toHaveBeenCalled();
+    expect(clicked).not.toHaveBeenCalled();
+    h.gesture.dispose();
+  });
+
+  it("preserves a nonmember Shift click below the drag threshold", () => {
     const h = harness();
     h.options.nodeAt.mockReturnValue("neighbor");
     const clicked = vi.fn();
     h.host.addEventListener("click", clicked);
     h.host.dispatchEvent(mouse("mousedown"));
-    h.targetWindow.dispatchEvent(mouse("mousemove", 12, 0));
-    h.targetWindow.dispatchEvent(mouse("mouseup", 12, 0));
-    h.host.dispatchEvent(mouse("click", 12, 0));
+    h.targetWindow.dispatchEvent(mouse("mousemove", 1, 1));
+    h.targetWindow.dispatchEvent(mouse("mouseup", 1, 1));
+    h.host.dispatchEvent(mouse("click", 1, 1));
+    expect(clicked).toHaveBeenCalledTimes(1);
     expect(h.options.begin).not.toHaveBeenCalled();
-    expect(clicked).not.toHaveBeenCalled();
+    h.gesture.dispose();
+  });
+
+  it("leaves ordinary blank-canvas panning native without querying point positions", () => {
+    const h = harness();
+    const nativeDown = vi.fn();
+    const nativeMove = vi.fn();
+    const nativeUp = vi.fn();
+    h.host.addEventListener("mousedown", nativeDown);
+    h.targetWindow.addEventListener("mousemove", nativeMove);
+    h.targetWindow.addEventListener("mouseup", nativeUp);
+    h.host.dispatchEvent(mouse("mousedown", 0, 0, false));
+    h.targetWindow.dispatchEvent(mouse("mousemove", 12, 0, false));
+    h.targetWindow.dispatchEvent(mouse("mouseup", 12, 0, false));
+    expect(nativeDown).toHaveBeenCalledTimes(1);
+    expect(nativeMove).toHaveBeenCalledTimes(1);
+    expect(nativeUp).toHaveBeenCalledTimes(1);
+    expect(h.options.nodeAt).not.toHaveBeenCalled();
+    expect(h.options.begin).not.toHaveBeenCalled();
     h.gesture.dispose();
   });
 
@@ -138,7 +181,13 @@ describe("canvas gestures", () => {
     h.options.overRelationship.mockReturnValue(true);
     h.host.dispatchEvent(mouse("dblclick", 0, 0, true, 2));
     expect(h.options.onClearChosen).toHaveBeenCalledTimes(1);
+    expect(zoom).not.toHaveBeenCalled();
     h.options.overRelationship.mockReturnValue(false);
+    h.options.nodeAt.mockReturnValue("a");
+    h.host.dispatchEvent(mouse("dblclick", 0, 0, true, 2));
+    expect(h.options.onClearChosen).toHaveBeenCalledTimes(1);
+    expect(zoom).not.toHaveBeenCalled();
+    h.options.nodeAt.mockReturnValue(null);
     h.host.dispatchEvent(mouse("mousedown"));
     h.targetWindow.dispatchEvent(mouse("mousemove", 20, 0));
     h.targetWindow.dispatchEvent(mouse("mouseup", 20, 0));

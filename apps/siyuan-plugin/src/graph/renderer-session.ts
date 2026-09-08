@@ -45,6 +45,7 @@ export interface RendererDiagnostics {
   sessionId: string;
   configurations: number;
   dataRevisions: number;
+  lastDataUpdateMs: number | null;
   highlightedCount: number;
   outlinedCount: number;
   requestedHighlightCount: number;
@@ -114,6 +115,7 @@ export class RendererSession {
     sessionId: `renderer-${crypto.randomUUID()}`,
     configurations: 0,
     dataRevisions: 0,
+    lastDataUpdateMs: null,
     highlightedCount: 0,
     outlinedCount: 0,
     requestedHighlightCount: 0,
@@ -395,11 +397,13 @@ export class RendererSession {
         this.pinsDirty = true;
         this.applyControls();
         this.scheduleFit(dataChanged ? 180 : 0);
+        const renderingMs = performance.now() - started;
+        if (dataChanged) this.publishDiagnostics({ lastDataUpdateMs: renderingMs });
         return {
           pointsCount: stats.pointsCount,
           linksCount: stats.linksCount,
           preparationMs: data.preparationMs,
-          renderingMs: performance.now() - started,
+          renderingMs,
         };
       } catch (error) {
         // Keep a failed config's source alive until the next config or destruction has drained it.
