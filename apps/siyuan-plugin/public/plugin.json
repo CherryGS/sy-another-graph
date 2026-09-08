@@ -2,15 +2,17 @@
   "name": "sy-another-graph",
   "author": "",
   "url": "",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "minAppVersion": "3.8.3",
   "backends": ["windows", "linux", "darwin"],
-  "frontends": ["desktop", "desktop-window"],
+  "frontends": ["desktop", "desktop-window", "browser-desktop"],
   "displayName": {
-    "default": "sy-another-graph"
+    "default": "Atlas Graph",
+    "zh-CN": "Atlas 思源图谱"
   },
   "description": {
-    "default": "Development scaffold for a Cosmograph-based SiYuan graph plugin."
+    "default": "Explore SiYuan knowledge graphs with Cosmograph, a Rust WASM engine, and a React workbench.",
+    "zh-CN": "基于 Cosmograph、Rust WASM 与 React 的思源知识图谱工作台。"
   },
   "readme": {
     "default": "README.md"

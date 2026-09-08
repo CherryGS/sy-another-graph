@@ -1,15 +1,15 @@
-# SiYuan frontend plugin scaffold
+# SiYuan graph workbench
 
-`src/index.ts` re-exports the empty plugin class in `src/plugin.ts`. Vite builds
-the entry as `dist/index.js`, with the `siyuan` API supplied by the host.
-Files in `public/` are copied into `dist/` alongside the entry.
+The CommonJS entry re-exports the host adapter from `src/plugin.ts`. It registers
+an Atlas tab and mounts `ui/index.html` from the plugin's local assets.
 
-Run the repository commands from the workspace root:
+The ESM workbench lives in `src/app/`; data acquisition and normalization are in
+`src/data/`, the Rust Worker adapter is in `src/engine/`, and the Cosmograph
+resource lifecycle is in `src/graph/`.
 
-```sh
-pnpm check
-pnpm dev
-```
+Run `pnpm check`, `pnpm build`, and `pnpm deploy:test <workspace>` from the
+repository root. `pnpm dev` watches the host adapter; `pnpm dev:ui` watches the
+workbench. Normal builds do not write into SiYuan workspaces.
 
-The scaffold includes TypeScript, React, Oxlint, and Vitest. Graph behavior and
-Cosmograph integration will be developed after the design handoff.
+The generated `wasm/` directory is produced by the root WASM build and is
+untracked. All runtime WASM/worker assets are included in `dist/ui/assets/`.

@@ -8,12 +8,17 @@
   },
   "scripts": {
     "dev": "pnpm --dir apps/siyuan-plugin dev",
+    "dev:ui": "pnpm --dir apps/siyuan-plugin dev:ui",
+    "deploy:test": "node scripts/deploy-test.mjs",
     "check:deps": "pnpm install --frozen-lockfile --strict-peer-dependencies",
     "lint": "pnpm --dir apps/siyuan-plugin lint",
     "typecheck": "pnpm --dir apps/siyuan-plugin typecheck",
+    "build:wasm": "wasm-pack build crates/graph-core --mode no-install --target web --out-dir ../../apps/siyuan-plugin/wasm --out-name graph_core --release",
+    "test:rust": "cargo test --workspace --locked",
+    "lint:rust": "cargo clippy --workspace --all-targets --locked -- -D warnings",
     "test": "pnpm --dir apps/siyuan-plugin test",
-    "build": "pnpm --dir apps/siyuan-plugin build",
+    "build": "pnpm build:wasm && pnpm --dir apps/siyuan-plugin build",
     "check:plugin": "pnpm --dir apps/siyuan-plugin check:plugin",
-    "check": "pnpm check:deps && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:plugin"
+    "check": "pnpm check:deps && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
   }
 }

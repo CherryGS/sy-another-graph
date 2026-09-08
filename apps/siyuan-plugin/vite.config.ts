@@ -1,18 +1,19 @@
-import { resolve } from 'node:path'
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   build: {
+    emptyOutDir: mode !== "development",
     lib: {
-      entry: resolve(import.meta.dirname, 'src/index.ts'),
-      formats: ['cjs'],
-      fileName: () => 'index.js',
+      entry: resolve(import.meta.dirname, "src/index.ts"),
+      formats: ["cjs"],
+      fileName: () => "index.js",
     },
     rolldownOptions: {
-      external: ['siyuan'],
-      output: { exports: 'default' },
+      external: ["siyuan"],
+      output: { exports: "default" },
     },
   },
-})
+}));

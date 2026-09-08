@@ -14,3 +14,4 @@ target
 *.local
 *.log
 .DS_Store
+/apps/siyuan-plugin/wasm
