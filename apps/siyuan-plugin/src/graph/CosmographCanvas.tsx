@@ -1,6 +1,12 @@
 import { Cosmograph } from "@cosmograph/cosmograph";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createLocalDuckDB } from "./local-duckdb";
 import type { LocalDuckDB } from "./local-duckdb";
 import { prepareGraph } from "./prepare-graph";
@@ -20,6 +26,7 @@ export type {
 const BASE_CONFIG: CosmographConfig = {
   backgroundColor: "#11121a",
   enableSimulation: true,
+  enableDrag: true,
   selectPointOnClick: false,
   selectPointOnLabelClick: false,
   selectLinkOnClick: false,
@@ -41,8 +48,15 @@ const BASE_CONFIG: CosmographConfig = {
   pointDefaultColor: "#8bd6e6",
   pointGreyoutOpacity: 0.15,
   linkGreyoutOpacity: 0.05,
-  linkOpacity: 0.5,
-  linkDefaultWidth: 0.8,
+  linkOpacity: 0.88,
+  linkDefaultWidth: 1.55,
+  linkDefaultArrows: true,
+  linkArrowsSizeScale: 2.6,
+  linkDashLength: 7,
+  linkDashGap: 5,
+  // Cosmos otherwise fades links longer than 150px to 25%, including their arrowheads.
+  linkVisibilityDistanceRange: [200, 700],
+  linkVisibilityMinTransparency: 0.8,
   curvedLinks: false,
   simulationRepulsion: 0.8,
   simulationLinkDistance: 12,
@@ -62,12 +76,17 @@ const errorMessage = (error: unknown) =>
     : "无法绘制图谱，请重试。";
 const reportCleanupError = (error: unknown) =>
   console.error("Graph resource cleanup failed", error);
+const subscribeNothing = () => () => {};
+const noDiagnostics = () => null;
 
 export function CosmographCanvas(props: CosmographCanvasProps) {
   const {
     nodes,
     edges,
     selectedId,
+    highlightedIds,
+    active: visible = true,
+    colorBy = "branch",
     showLabels,
     showLinks,
     pointSize,
@@ -81,6 +100,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   const owner = useRef<RendererSession | null>(null);
   const interactiveConfig = useRef<CosmographConfig>({});
   const [session, setSession] = useState<RendererSession | null>(null);
+  const diagnostics = useSyncExternalStore(
+    session?.subscribe ?? subscribeNothing,
+    session?.getDiagnostics ?? noDiagnostics,
+  );
   const [prepared, setPrepared] = useState<PreparedGraph | null>(null);
   const [counts, setCounts] = useState({ nodes: 0, links: 0 });
   const [isPreparing, setIsPreparing] = useState(true);
@@ -175,6 +198,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           fail,
         );
         owner.current = owned;
+        owned.setActive(latestProps.current.active ?? true);
         await owned.initialize(base);
         if (active) setSession(owned);
       } catch (failure) {
@@ -233,13 +257,21 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     session.controls(
       latestProps.current.selectedId,
       latestProps.current.paused,
+      latestProps.current.highlightedIds,
     );
     void session
       .update(prepared, {
         ...interactiveConfig.current,
+        pointColorBy: colorBy === "notebook" ? "color" : `${colorBy}Color`,
         showLabels,
         renderLinks: showLinks,
-        linkOpacity: prepared.pointsCount > 20_000 ? 0.2 : 0.65,
+        linkOpacity: prepared.pointsCount > 20_000 ? 0.2 : 0.88,
+        linkWidthScale: prepared.pointsCount > 20_000 ? 0.7 : 1,
+        linkArrowsSizeScale: prepared.pointsCount > 20_000 ? 1.6 : 2.6,
+        linkVisibilityDistanceRange:
+          prepared.pointsCount > 20_000 ? [50, 150] : [200, 700],
+        linkVisibilityMinTransparency:
+          prepared.pointsCount > 20_000 ? 0.25 : 0.8,
         pointSizeRange: [Math.max(1, pointSize), Math.max(2, pointSize * 2.8)],
       })
       .then((stats) => {
@@ -260,11 +292,15 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       active = false;
       session.suspend();
     };
-  }, [session, prepared, showLabels, showLinks, pointSize]);
+  }, [session, prepared, showLabels, showLinks, pointSize, colorBy]);
+
+  useLayoutEffect(() => {
+    session?.setActive(visible);
+  }, [session, visible]);
 
   useEffect(() => {
-    session?.controls(selectedId, paused);
-  }, [session, selectedId, paused]);
+    session?.controls(selectedId, paused, highlightedIds);
+  }, [session, selectedId, paused, highlightedIds]);
   useEffect(() => {
     session?.fit();
   }, [session, fitRequest]);
@@ -278,6 +314,16 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       aria-busy={loading && !visibleError}
       data-rendered-nodes={counts.nodes}
       data-rendered-links={counts.links}
+      data-active={diagnostics?.active ?? visible}
+      data-renderer-id={diagnostics?.sessionId}
+      data-configurations={diagnostics?.configurations ?? 0}
+      data-data-revisions={diagnostics?.dataRevisions ?? 0}
+      data-highlighted-count={diagnostics?.highlightedCount ?? 0}
+      data-requested-highlighted-count={
+        diagnostics?.requestedHighlightCount ?? 0
+      }
+      data-selected-root={diagnostics?.selectedRootId ?? ""}
+      data-drag-count={diagnostics?.dragCount ?? 0}
       onPointerMove={(event) => {
         const bounds = event.currentTarget.getBoundingClientRect();
         pointer.current = {
@@ -291,9 +337,11 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       <div
         ref={container}
         className="ag-canvas__renderer"
-        style={{ pointerEvents: loading || visibleError ? "none" : "auto" }}
+        style={{
+          pointerEvents: loading || visibleError || !visible ? "none" : "auto",
+        }}
       />
-      {hovered && !loading && !visibleError && (
+      {hovered && visible && !loading && !visibleError && (
         <div ref={tooltip} className="ag-canvas__tooltip" role="tooltip">
           {hovered}
         </div>

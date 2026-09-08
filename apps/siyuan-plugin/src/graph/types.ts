@@ -1,3 +1,5 @@
+import type { GraphColorMode } from "./node-colors";
+
 export interface CanvasNode {
   id: string;
   label: string;
@@ -26,6 +28,9 @@ export interface CosmographCanvasProps {
   nodes: readonly CanvasNode[];
   edges: readonly CanvasEdge[];
   selectedId: string | null;
+  highlightedIds?: readonly string[];
+  active?: boolean;
+  colorBy?: GraphColorMode;
   onSelect: (id: string | null) => void;
   onOpen: (id: string) => void;
   showLabels: boolean;

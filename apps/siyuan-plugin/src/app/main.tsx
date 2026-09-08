@@ -6,7 +6,6 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { ExplorePage } from "./ExplorePage";
 import { InsightsPage } from "./InsightsPage";
 import { Layout } from "./Layout";
 import { SavedPage } from "./SavedPage";
@@ -17,7 +16,7 @@ const rootRoute = createRootRoute({ component: Layout });
 const graphRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: ExplorePage,
+  component: () => null,
 });
 const insightsRoute = createRoute({
   getParentRoute: () => rootRoute,

@@ -12,9 +12,7 @@ export function SavedPage() {
     <div className="scroll-page">
       <div className="page-title">
         <div>
-          <span className="eyebrow">SAVED PERSPECTIVES</span>
-          <h2>保留值得回访的视角</h2>
-          <p>保存筛选条件与选中文档，随时继续探索。视图存于当前浏览器。</p>
+          <h2>保存的视图</h2>
         </div>
         <span className="source-chip">{state.savedViews.length} 个视图</span>
       </div>
@@ -37,7 +35,7 @@ export function SavedPage() {
           {state.savedViews.map((saved) => (
             <article className="saved-card" key={saved.id}>
               <div className="saved-card-art">
-                <Bookmark size={22} />
+                <Bookmark size={14} />
                 <span>
                   {saved.source === "siyuan" ? "思源图谱" : "合成图谱"}
                 </span>
@@ -89,9 +87,9 @@ export function SavedPage() {
         </div>
       ) : (
         <div className="page-empty saved-empty">
-          <Bookmark size={44} />
-          <h3>为下一次灵感留个书签</h3>
-          <p>在图谱中找到一个有意思的视角，点击右上角「保存视图」。</p>
+          <Bookmark size={28} />
+          <h3>暂无保存的视图</h3>
+          <p>在图谱工具栏中保存筛选条件与选中文档。</p>
           <button
             className="primary-button"
             onClick={() => void navigate({ to: "/" })}

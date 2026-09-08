@@ -15,6 +15,8 @@ import {
 } from "../engine/client";
 import { createDemoGraph, loadSiYuanGraph } from "../data/source";
 import { prepareGraphExport, type ExportFile } from "../data/export";
+import type { GraphColorMode } from "../graph/node-colors";
+import type { GraphDirection } from "../engine/types";
 import {
   DEFAULT_FILTERS,
   type GraphDataset,
@@ -50,6 +52,9 @@ function useWorkbenchState() {
   const [showLabels, setShowLabels] = useState(true);
   const [showLinks, setShowLinks] = useState(true);
   const [pointSize, setPointSize] = useState(4);
+  const [colorBy, setColorBy] = useState<GraphColorMode>("branch");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [direction, setDirection] = useState<GraphDirection>("both");
   const [paused, setPaused] = useState(false);
   const [fitRequest, setFitRequest] = useState(0);
   const [savedViews, setSavedViews] = useState(readSavedViews);
@@ -177,7 +182,7 @@ function useWorkbenchState() {
     try {
       const result = await engine.current.neighborhood(
         [selected.index],
-        "both",
+        direction,
         depth,
         10000,
       );
@@ -191,7 +196,7 @@ function useWorkbenchState() {
       }));
       setFocus(new Set(result.indices));
       setFocusLabel(
-        `全图 ${depth} 跳邻域${result.truncated ? " · 已达 10,000 节点预算" : ""}`,
+        `${depth} 跳 · ${direction === "out" ? "沿箭头" : direction === "in" ? "逆箭头" : "双向"}${result.truncated ? " · 已达 10,000 节点预算" : ""}`,
       );
       setFitRequest((value) => value + 1);
     } catch (failure) {
@@ -214,7 +219,7 @@ function useWorkbenchState() {
       const path = await engine.current.shortestPath(
         selected.index,
         target.index,
-        "both",
+        direction,
       );
       if (current !== revision.current) return;
       if (!path.length) {
@@ -229,7 +234,9 @@ function useWorkbenchState() {
         hideIsolated: false,
       }));
       setFocus(new Set(path));
-      setFocusLabel(`全图最短路径 · ${Math.max(0, path.length - 1)} 步`);
+      setFocusLabel(
+        `最短路径 · ${Math.max(0, path.length - 1)} 步 · ${direction === "out" ? "沿箭头" : direction === "in" ? "逆箭头" : "双向"}`,
+      );
       setFitRequest((value) => value + 1);
     } catch (failure) {
       if (current === revision.current) setToast(String(failure));
@@ -352,6 +359,12 @@ function useWorkbenchState() {
     setShowLinks,
     pointSize,
     setPointSize,
+    colorBy,
+    setColorBy,
+    filtersOpen,
+    setFiltersOpen,
+    direction,
+    setDirection,
     paused,
     setPaused,
     fitRequest,
@@ -367,6 +380,7 @@ function useWorkbenchState() {
     exportGraph,
     exporting,
     exportFile,
+    dismissExport: () => setExportFile(null),
   };
 }
 

@@ -155,6 +155,8 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     "targetIndex",
     "color",
     "weight",
+    "width",
+    "style",
   ]);
   await store.commit(zero);
   await store.clear();

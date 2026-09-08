@@ -75,6 +75,8 @@ function harness() {
     selectPoints: vi.fn(),
     setFocusedPoint: vi.fn(),
     fitView: vi.fn(),
+    getZoomLevel: vi.fn(() => 2.5),
+    setZoomLevel: vi.fn(),
   };
   const tables = {
     active: null as UploadedGraph | null,
@@ -261,5 +263,217 @@ describe("renderer lifetime", () => {
     ).toBe(true);
     expect(h.session.counts).toEqual({ nodes: 2, links: 2 });
     await h.session.dispose();
+  });
+
+  it("resumes a settled paused graph at its existing zoom without touching data, configuration, or selection", async () => {
+    const h = harness();
+    h.session.controls("a", true, ["a", "b"]);
+    const prepared = data();
+    await h.session.update(prepared, {});
+    h.timers.values().next().value!();
+    h.frames.values().next().value!();
+    h.graph.fitView.mockClear();
+    h.graph.setConfig.mockClear();
+    h.tables.stage.mockClear();
+    h.graph.selectPoints.mockClear();
+    h.frames.clear();
+    const diagnostics = h.session.getDiagnostics();
+
+    h.session.setActive(false);
+    expect(h.session.isInteractive).toBe(false);
+    expect(h.session.displayed).toBe(prepared);
+    h.session.setActive(true);
+    expect(h.session.isInteractive).toBe(true);
+    h.frames.values().next().value!();
+    expect(h.graph.setZoomLevel).toHaveBeenCalledExactlyOnceWith(2.5, 0);
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.graph.selectPoints).not.toHaveBeenCalled();
+    expect(h.graph.setConfig).not.toHaveBeenCalled();
+    expect(h.tables.stage).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics()).toEqual(diagnostics);
+    await h.session.dispose();
+  });
+
+  it("defers hidden controls and initial fitting, then discards stale visibility frames", async () => {
+    const h = harness();
+    h.session.setActive(false);
+    await h.session.update(data(), {});
+    h.session.controls("b", false, ["a", "b"]);
+    expect(h.graph.pause).toHaveBeenCalled();
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    expect(h.graph.selectPoints).not.toHaveBeenCalled();
+    expect(h.timers.size).toBe(0);
+    h.session.setActive(true);
+    expect(h.graph.selectPoints).toHaveBeenCalledExactlyOnceWith(
+      [1, 0],
+      false,
+      true,
+    );
+    expect(h.graph.setFocusedPoint).toHaveBeenCalledExactlyOnceWith(1);
+    expect(h.graph.unpause).toHaveBeenCalledTimes(1);
+    const staleRefresh = h.frames.values().next().value!;
+    h.session.setActive(false);
+    expect(h.frames.size).toBe(0);
+    h.session.setActive(true);
+    staleRefresh();
+    expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
+    const refresh = h.frames.values().next().value!;
+    refresh();
+    expect(h.graph.setZoomLevel).toHaveBeenCalledTimes(1);
+    expect(h.timers.size).toBe(1);
+    await h.session.dispose();
+    refresh();
+    expect(h.graph.setZoomLevel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not execute a fit frame dequeued before a hide/show cycle", async () => {
+    const h = harness();
+    await h.session.update(data(), {});
+    h.timers.values().next().value!();
+    const staleFit = h.frames.values().next().value!;
+    h.session.setActive(false);
+    h.session.setActive(true);
+    staleFit();
+    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.frames.size).toBe(1);
+    await h.session.dispose();
+    expect(h.frames.size).toBe(0);
+  });
+
+  it("maps a whole requested neighborhood to current dense indices and distinguishes its root", async () => {
+    const h = harness();
+    const prepared = data();
+    prepared.idToIndex.set("c", 2);
+    prepared.indexToId.push("c");
+    prepared.indexToLabel.push("c");
+    prepared.pointsCount = 3;
+    h.session.controls("b", false, ["a", "b", "c", "outside", "c"]);
+    await h.session.update(prepared, {});
+    expect(h.graph.selectPoints).toHaveBeenLastCalledWith(
+      [1, 0, 2],
+      false,
+      true,
+    );
+    expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(1);
+    const calls = h.graph.selectPoints.mock.calls.length;
+    h.session.controls("b", false, ["a", "b", "c", "outside", "c"]);
+    h.session.controls("b", true, ["a", "b", "c", "outside", "c"]);
+    expect(h.graph.selectPoints).toHaveBeenCalledTimes(calls);
+    h.session.controls(null, true, []);
+    expect(h.graph.selectPoints).toHaveBeenLastCalledWith(null, false, true);
+    expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(undefined);
+    await h.session.dispose();
+  });
+
+  it("lets visual configuration choose a prepared color column without replacing the prepared graph", async () => {
+    const h = harness();
+    const prepared = data();
+    prepared.config.pointColorBy = "branchColor";
+    await h.session.update(prepared, { pointColorBy: "degreeColor" });
+    const uploaded = h.tables.active;
+    await h.session.update(prepared, { pointColorBy: "color" });
+    expect(h.tables.active).toBe(uploaded);
+    expect(h.configurations.map((config) => config.pointColorBy)).toEqual([
+      "degreeColor",
+      "color",
+    ]);
+    await h.session.dispose();
+  });
+
+  it("reports actual configuration completions and resolved highlights independently of requested controls", async () => {
+    const h = harness();
+    const notified = vi.fn();
+    const unsubscribe = h.session.subscribe(notified);
+    const identity = h.session.getDiagnostics().sessionId;
+    expect(harness().session.getDiagnostics().sessionId).not.toBe(identity);
+    await h.session.initialize({});
+    const prepared = data();
+    h.session.controls("b", false, ["a", "b", "outside"]);
+    await h.session.update(prepared, {});
+    expect(h.session.getDiagnostics()).toMatchObject({
+      sessionId: identity,
+      configurations: 2,
+      dataRevisions: 1,
+      requestedHighlightCount: 2,
+      highlightedCount: 0,
+      selectedRootId: "b",
+    });
+    h.configurations.at(-1)!.onPointsFiltered?.({} as never, [0, 1], [0]);
+    expect(h.session.getDiagnostics().highlightedCount).toBe(2);
+    expect(notified).toHaveBeenCalled();
+    unsubscribe();
+    notified.mockClear();
+    await h.session.update(prepared, { pointColorBy: "color" });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      configurations: 3,
+      dataRevisions: 1,
+    });
+    expect(notified).not.toHaveBeenCalled();
+    const failure = new Error("failed configuration");
+    h.graph.setConfig.mockRejectedValueOnce(failure);
+    await expect(h.session.update(data("next"), {})).rejects.toBe(failure);
+    expect(h.session.getDiagnostics()).toMatchObject({
+      configurations: 3,
+      dataRevisions: 1,
+    });
+    await h.session.dispose();
+  });
+
+  it("counts completed point drags with movement but ignores clicks and obsolete callbacks", async () => {
+    const h = harness();
+    await h.session.update(data(), {});
+    const config = h.configurations[0];
+    const event = { dx: 12, dy: -4 } as Parameters<
+      NonNullable<CosmographConfig["onDrag"]>
+    >[0];
+    config.onDragStart?.(event);
+    config.onDragEnd?.(event);
+    expect(h.session.getDiagnostics().dragCount).toBe(0);
+    config.onDragStart?.(event);
+    config.onDrag?.(event);
+    config.onDragEnd?.(event);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
+    h.session.setActive(false);
+    config.onDragStart?.(event);
+    config.onDrag?.(event);
+    config.onDragEnd?.(event);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
+    await h.session.dispose();
+    config.onDragStart?.(event);
+    config.onDrag?.(event);
+    config.onDragEnd?.(event);
+    expect(h.session.getDiagnostics().dragCount).toBe(1);
+  });
+
+  it("restores the requested paused state after native dragging, including a view hidden during the drag", async () => {
+    const h = harness();
+    const order: string[] = [];
+    h.session.controls(null, true);
+    await h.session.update(data(), {
+      onDragEnd: () => {
+        order.push("callback");
+      },
+    });
+    h.graph.pause.mockImplementation(() => {
+      order.push("pause");
+    });
+    const config = h.configurations[0];
+    const event = { dx: 4, dy: 2 } as Parameters<
+      NonNullable<CosmographConfig["onDrag"]>
+    >[0];
+    config.onDragStart?.(event);
+    config.onDrag?.(event);
+    config.onDragEnd?.(event);
+    expect(order).toEqual(["callback", "pause"]);
+    h.session.controls(null, false);
+    h.session.setActive(false);
+    order.length = 0;
+    config.onDragEnd?.(event);
+    expect(order).toEqual(["pause"]);
+    await h.session.dispose();
+    order.length = 0;
+    config.onDragEnd?.(event);
+    expect(order).toEqual([]);
   });
 });

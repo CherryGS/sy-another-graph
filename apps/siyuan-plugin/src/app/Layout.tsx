@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import {
   Activity,
   Bookmark,
   Check,
-  CheckCircle2,
   Download,
   LoaderCircle,
   Network,
@@ -12,48 +11,62 @@ import {
   Save,
   X,
 } from "lucide-react";
+import { ExplorePage } from "./ExplorePage";
+import { useHostVisibility } from "./host-visibility";
 import { useWorkbench } from "./state";
 
 export function Layout() {
   const state = useWorkbench();
   const [saving, setSaving] = useState(false);
   const [viewName, setViewName] = useState("");
+  const isExplore = useLocation({
+    select: (location) => location.pathname === "/",
+  });
+  const hostActive = useHostVisibility();
   return (
-    <div className="workbench">
-      <header className="app-header">
-        <div className="brand">
-          <div className="brand-mark">
-            <Network size={23} strokeWidth={1.7} />
-          </div>
-          <div>
-            <h1>
-              Atlas<span>思源图谱</span>
-            </h1>
-            <p>连接知识，发现新的可能</p>
-          </div>
-        </div>
+    <div className="workbench" data-host-active={hostActive} data-snapshot={state.data?.loadedAt}>
+      <header className="app-toolbar">
         <nav className="main-nav" aria-label="图谱导航">
           <Link
             to="/"
             activeProps={{ className: "active" }}
             activeOptions={{ exact: true }}
           >
-            <Network size={16} />
-            探索
+            <Network size={15} />
+            图谱
           </Link>
           <Link to="/insights" activeProps={{ className: "active" }}>
-            <Activity size={16} />
+            <Activity size={15} />
             洞察
           </Link>
           <Link to="/saved" activeProps={{ className: "active" }}>
-            <Bookmark size={16} />
+            <Bookmark size={15} />
             已保存
             {state.savedViews.length > 0 && (
               <span className="nav-count">{state.savedViews.length}</span>
             )}
           </Link>
         </nav>
+        <select
+          aria-label="数据来源"
+          id="source-picker"
+          className="source-picker"
+          value={state.source}
+          onChange={(event) => void state.load(event.target.value)}
+        >
+          <option value="siyuan">当前工作空间</option>
+          <option value="10000">测试 · 10,000 节点</option>
+          <option value="100000">测试 · 100,000 节点</option>
+        </select>
         <div className="header-actions">
+          <button
+            className="icon-button"
+            aria-label="刷新图谱"
+            title="重新读取工作空间"
+            onClick={() => void state.load(state.source)}
+          >
+            <RefreshCw size={15} className={state.loading ? "spin" : ""} />
+          </button>
           <button
             className="icon-button"
             title="导出当前图谱 JSON"
@@ -62,81 +75,42 @@ export function Layout() {
             onClick={() => void state.exportGraph()}
           >
             {state.exporting ? (
-              <LoaderCircle size={17} className="spin" />
+              <LoaderCircle size={15} className="spin" />
             ) : (
-              <Download size={17} />
+              <Download size={15} />
             )}
           </button>
           <button
-            className="save-button"
+            className="icon-button"
+            aria-label="保存视图"
+            title="保存视图"
             disabled={!state.data || !!state.loading}
             onClick={() => {
-              setViewName(`探索视图 ${state.savedViews.length + 1}`);
+              setViewName(`视图 ${state.savedViews.length + 1}`);
               setSaving(true);
             }}
           >
             <Save size={15} />
-            保存视图
           </button>
         </div>
       </header>
-      <div className="workspace-toolbar">
-        <div className="workspace-picker">
-          <span className="workspace-icon">
-            <Network size={15} />
-          </span>
-          <label htmlFor="source-picker">数据来源</label>
-          <select
-            id="source-picker"
-            value={state.source}
-            onChange={(event) => void state.load(event.target.value)}
-          >
-            <option value="siyuan">当前思源工作空间</option>
-            <option value="10000">规模测试 · 10,000 节点</option>
-            <option value="100000">规模测试 · 100,000 节点</option>
-          </select>
-        </div>
-        <div className="toolbar-summary">
-          {state.loading ? (
-            <>
-              <LoaderCircle size={13} className="spin" />
-              <span>正在更新</span>
-            </>
-          ) : state.data ? (
-            <>
-              <span>
-                {state.data.nodes.length.toLocaleString()}
-                <small>文档</small>
-              </span>
-              <span>
-                {state.data.edges.length.toLocaleString()}
-                <small>关系</small>
-              </span>
-            </>
-          ) : (
-            <span>等待数据</span>
-          )}
-          <button
-            className="icon-button"
-            aria-label="刷新图谱"
-            title="刷新图谱"
-            onClick={() => void state.load(state.source)}
-          >
-            <RefreshCw size={15} className={state.loading ? "spin" : ""} />
-          </button>
-        </div>
-      </div>
       {state.exportFile && (
         <div className="export-banner" role="status">
-          <CheckCircle2 size={15} />
           <span>
-            JSON 快照已生成 · {state.exportFile.nodesCount.toLocaleString()}{" "}
-            节点 · {state.exportFile.edgesCount.toLocaleString()} 关系
+            JSON · {state.exportFile.nodesCount.toLocaleString()} 节点 ·{" "}
+            {state.exportFile.edgesCount.toLocaleString()} 关系
           </span>
           <a href={state.exportFile.url} download={state.exportFile.name}>
-            <Download size={14} />
+            <Download size={13} />
             下载 JSON
           </a>
+          <button
+            className="icon-button"
+            aria-label="关闭下载提示"
+            onClick={state.dismissExport}
+          >
+            <X size={13} />
+          </button>
         </div>
       )}
       {state.data?.warnings.map((warning) => (
@@ -145,29 +119,22 @@ export function Layout() {
         </div>
       ))}
       <main className="main-content">
-        <Outlet />
+        <div
+          className="route-layer graph-route"
+          data-route-active={isExplore}
+          aria-hidden={!isExplore}
+          inert={!isExplore}
+        >
+          <ExplorePage active={isExplore && hostActive} />
+        </div>
+        {!isExplore && (
+          <div className="route-layer auxiliary-route">
+            <Outlet />
+          </div>
+        )}
       </main>
-      <footer className="status-bar">
-        <span>
-          <i className={`live-dot ${state.error ? "failed" : ""}`} />
-          {state.error
-            ? "数据连接异常"
-            : state.loading
-              ? state.loading
-              : state.stats
-                ? `${state.stats.backend} · ${state.stats.transport === "shared" ? "共享缓冲区" : "Transferable"}`
-                : "准备就绪"}
-        </span>
-        <span>
-          本地计算<span className="status-dot">·</span>
-          <a href="https://cosmograph.app/" target="_blank" rel="noreferrer">
-            Powered by Cosmograph
-          </a>
-        </span>
-      </footer>
       {state.toast && (
         <div className="toast" role="status">
-          <CheckCircle2 size={17} />
           <span>{state.toast}</span>
           <button
             className="icon-button"
@@ -192,12 +159,9 @@ export function Layout() {
               setSaving(false);
             }}
           >
-            <div className="dialog-icon">
-              <Bookmark size={23} />
-            </div>
-            <h2 id="save-title">保存这个探索视角</h2>
-            <p>保留笔记本、关系筛选和当前选中文档。</p>
-            <label htmlFor="view-name">视图名称</label>
+            <h2 id="save-title">保存视图</h2>
+            <p>保留筛选条件与选中文档，存于当前浏览器。</p>
+            <label htmlFor="view-name">名称</label>
             <input
               autoFocus
               id="view-name"
@@ -214,8 +178,8 @@ export function Layout() {
                 取消
               </button>
               <button className="primary-button" type="submit">
-                <Check size={15} />
-                保存视图
+                <Check size={14} />
+                保存
               </button>
             </div>
           </form>

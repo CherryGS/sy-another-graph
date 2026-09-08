@@ -1,36 +1,41 @@
 import { Plugin, openTab, type Custom } from "siyuan";
+import {
+  PersistentWorkbench,
+  WORKBENCH_CHANNEL,
+} from "./host/persistent-workbench";
 
 const TAB_TYPE = "atlas";
-const CHANNEL = "sy-another-graph";
 
 export default class SiYuanGraphPlugin extends Plugin {
-  private frames = new Set<HTMLIFrameElement>();
+  private workbench: PersistentWorkbench | null = null;
   private opening: ReturnType<typeof openTab> | null = null;
+  private unloaded = false;
 
   onload() {
-    const frames = this.frames;
-    const pluginName = this.name;
+    this.unloaded = false;
+    const workbench = new PersistentWorkbench(this.name);
+    this.workbench = workbench;
     this.addIcons(
       '<symbol id="iconAtlasGraph" viewBox="0 0 24 24"><path d="m7 7 10 2M7 7l4 11m6-9-6 9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="6" r="3" fill="currentColor"/><circle cx="18" cy="9" r="3" fill="currentColor"/><circle cx="11" cy="19" r="3" fill="currentColor"/></symbol>',
     );
     this.addTab({
       type: TAB_TYPE,
       init(this: Custom) {
-        const frame = document.createElement("iframe");
-        frame.src = `/plugins/${pluginName}/ui/index.html?v=${Date.now()}`;
-        frame.title = "Atlas 思源图谱";
-        frame.style.cssText =
-          "width:100%;height:100%;border:0;display:block;background:#11121a;";
         (this.element as HTMLElement).style.cssText =
-          "height:100%;overflow:hidden;";
-        this.element.appendChild(frame);
-        frames.add(frame);
+          "height:100%;width:100%;min-width:0;min-height:0;overflow:hidden;";
+        workbench.attach(this.element as HTMLElement);
+      },
+      resize() {
+        workbench.refresh();
+      },
+      update() {
+        workbench.refresh();
+      },
+      beforeDestroy(this: Custom) {
+        workbench.detach(this.element as HTMLElement);
       },
       destroy(this: Custom) {
-        this.element.querySelectorAll("iframe").forEach((frame) => {
-          frames.delete(frame);
-          frame.remove();
-        });
+        workbench.detach(this.element as HTMLElement);
       },
     });
     this.addTopBar({
@@ -50,14 +55,17 @@ export default class SiYuanGraphPlugin extends Plugin {
       },
     });
     window.addEventListener("message", this.onMessage);
+    this.eventBus.on("switch-protyle", this.onHostSwitch);
   }
 
   private openGraph() {
+    if (this.unloaded) return Promise.resolve();
     const existing = Object.values(this.getOpenedTab())
       .flat()
       .find((custom) => custom.tab?.headElement.isConnected);
     if (existing) {
       existing.tab.parent.switchTab(existing.tab.headElement);
+      this.workbench?.refresh();
       return Promise.resolve(existing.tab);
     }
     // getOpenedTab excludes restored tabs until SiYuan initializes their models.
@@ -77,6 +85,7 @@ export default class SiYuanGraphPlugin extends Plugin {
         restored.customModelType === this.name + TAB_TYPE
       ) {
         header.click();
+        this.workbench?.refresh();
         return Promise.resolve();
       }
     }
@@ -94,20 +103,21 @@ export default class SiYuanGraphPlugin extends Plugin {
   }
 
   private onMessage = (event: MessageEvent) => {
-    if (
-      event.origin !== window.location.origin ||
-      !Array.from(this.frames).some(
-        (frame) => frame.contentWindow === event.source,
-      )
-    )
-      return;
+    if (!this.workbench?.ownsMessage(event)) return;
     const data = event.data as {
       channel?: string;
       type?: string;
       id?: unknown;
     };
     if (
-      data?.channel === CHANNEL &&
+      data?.channel === WORKBENCH_CHANNEL &&
+      data.type === "workbench-ready"
+    ) {
+      this.workbench.announceVisibility();
+      return;
+    }
+    if (
+      data?.channel === WORKBENCH_CHANNEL &&
       data.type === "open-block" &&
       typeof data.id === "string" &&
       /^\d{14}-[a-z0-9]{7}$/.test(data.id)
@@ -116,9 +126,15 @@ export default class SiYuanGraphPlugin extends Plugin {
     }
   };
 
+  private onHostSwitch = () => {
+    this.workbench?.refresh();
+  };
+
   onunload() {
+    this.unloaded = true;
     window.removeEventListener("message", this.onMessage);
-    for (const frame of this.frames) frame.remove();
-    this.frames.clear();
+    this.eventBus.off("switch-protyle", this.onHostSwitch);
+    this.workbench?.dispose();
+    this.workbench = null;
   }
 }

@@ -5,7 +5,6 @@ import {
   CircleDot,
   GitBranch,
   Link2,
-  Network,
   ShieldCheck,
   Zap,
 } from "lucide-react";
@@ -66,9 +65,7 @@ export function InsightsPage() {
     <div className="scroll-page">
       <div className="page-title">
         <div>
-          <span className="eyebrow">GRAPH INSIGHTS</span>
-          <h2>看见知识网络的结构</h2>
-          <p>连接密度、关键文档和运行状态，一目了然。</p>
+          <h2>洞察</h2>
         </div>
         <span className="source-chip">
           {data.source === "demo" ? "合成测试数据" : "思源工作空间"}
@@ -154,14 +151,11 @@ export function InsightsPage() {
           </div>
         </section>
       </div>
-      <section className="content-card runtime-card">
-        <div className="card-heading">
-          <h3>
-            <Zap size={17} />
-            运行与性能
-          </h3>
-          <span>来自本次真实运行</span>
-        </div>
+      <details className="content-card runtime-card">
+        <summary>
+          <Zap size={17} />
+          运行信息
+        </summary>
         <div className="runtime-grid">
           <div>
             <span>图计算核心</span>
@@ -195,11 +189,7 @@ export function InsightsPage() {
           {data.skippedReferences > 0 &&
             ` 已略过 ${data.skippedReferences.toLocaleString()} 次文档内引用或不可解析引用。`}
         </p>
-      </section>
-      <div className="privacy-footnote">
-        <Network size={15} />
-        数据与图计算留在当前设备。渲染与数据库资源随插件本地加载。
-      </div>
+      </details>
     </div>
   );
 }

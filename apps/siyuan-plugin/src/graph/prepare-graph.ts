@@ -1,6 +1,7 @@
 import { Table, tableFromArrays, vectorFromArray, Utf8 } from "apache-arrow";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { CanvasEdge, CanvasNode } from "./types";
+import { nodeColor } from "./node-colors";
 
 const CHUNK_SIZE = 8192;
 const HTML_ENTITIES: Record<string, string> = {
@@ -40,6 +41,8 @@ export async function prepareGraph(
   const indexToLabel = new Array<string>(nodes.length);
   const notebook = new Array<string>(nodes.length);
   const color = new Array<string>(nodes.length);
+  const branchColor = new Array<string>(nodes.length);
+  const degreeColor = new Array<string>(nodes.length);
   const index = new Uint32Array(nodes.length);
   const degree = new Float32Array(nodes.length);
   const originalToDense = new Map<number, number>();
@@ -73,6 +76,8 @@ export async function prepareGraph(
       );
       notebook[position] = node.notebook;
       color[position] = node.color;
+      branchColor[position] = nodeColor(node, "branch");
+      degreeColor[position] = nodeColor(node, "degree");
       index[position] = position;
       degree[position] = Number.isFinite(node.degree)
         ? Math.max(0, node.degree)
@@ -88,6 +93,8 @@ export async function prepareGraph(
   const targetIndex = new Uint32Array(edges.length);
   const linkColor: string[] = [];
   const weight = new Float32Array(edges.length);
+  const width = new Float32Array(edges.length);
+  const style = new Uint8Array(edges.length);
   let linkCount = 0;
   for (let offset = 0; offset < edges.length; offset += CHUNK_SIZE) {
     await yieldToBrowser(signal);
@@ -105,16 +112,31 @@ export async function prepareGraph(
       target.push(id[to]);
       sourceIndex[linkCount] = from;
       targetIndex[linkCount] = to;
-      linkColor.push(edge.kind === "reference" ? "#678db2" : "#37495e");
+      const reference = edge.kind === "reference";
+      linkColor.push(reference ? "#91b7df" : "#60728d");
       weight[linkCount] = Number.isFinite(edge.weight)
         ? Math.max(1, edge.weight)
         : 1;
+      const emphasis = Math.min(1, Math.log2(weight[linkCount]) / 4);
+      width[linkCount] = reference
+        ? 1.55 + emphasis * 0.8
+        : 0.95 + emphasis * 0.35;
+      style[linkCount] = reference ? 0 : 1;
       linkCount++;
     }
   }
 
   signal.throwIfAborted();
-  const points = tableFromArrays({ id, label, notebook, color, index, degree });
+  const points = tableFromArrays({
+    id,
+    label,
+    notebook,
+    color,
+    branchColor,
+    degreeColor,
+    index,
+    degree,
+  });
   // Keep a typed source even with no edges: Cosmograph's zero-link transition still queries it.
   const links = new Table({
     source: vectorFromArray(source, new Utf8()),
@@ -123,6 +145,8 @@ export async function prepareGraph(
     targetIndex: vectorFromArray(targetIndex.subarray(0, linkCount)),
     color: vectorFromArray(linkColor, new Utf8()),
     weight: vectorFromArray(weight.subarray(0, linkCount)),
+    width: vectorFromArray(width.subarray(0, linkCount)),
+    style: vectorFromArray(style.subarray(0, linkCount)),
   });
   return {
     config: {
@@ -132,19 +156,22 @@ export async function prepareGraph(
       pointIndexBy: "index",
       pointLabelBy: "label",
       pointLabelWeightBy: "degree",
-      pointColorBy: "color",
+      pointColorBy: "branchColor",
       pointColorStrategy: "direct",
       pointSizeBy: "degree",
       pointSizeStrategy: "auto",
-      pointIncludeColumns: ["notebook"],
+      pointIncludeColumns: ["notebook", "color", "branchColor", "degreeColor"],
       linkSourceBy: "source",
       linkTargetBy: "target",
       linkSourceIndexBy: "sourceIndex",
       linkTargetIndexBy: "targetIndex",
       linkColorBy: "color",
       linkColorStrategy: "direct",
-      linkWidthBy: "weight",
-      linkWidthRange: [0.9, 2],
+      linkWidthBy: "width",
+      linkWidthStrategy: "direct",
+      // A width accessor prevents per-view rescaling from making single-weight arrows tiny.
+      linkWidthByFn: (value: number) => value,
+      linkStyleBy: "style",
     },
     indexToId: id,
     indexToLabel,
