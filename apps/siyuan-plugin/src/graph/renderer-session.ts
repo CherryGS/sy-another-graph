@@ -32,6 +32,7 @@ type Renderer = Pick<
   | "setPinnedPoints"
   | "fitViewByCoordinates"
   | "getPointPositions"
+  | "getSimulationSpaceInfo"
   | "isSimulationRunning"
   | "getZoomLevel"
   | "setZoomLevel"
@@ -72,6 +73,7 @@ export interface RendererDiagnostics {
   layoutSample: number;
   layoutSampledAt: number | null;
   layoutSimulationRunning: boolean | null;
+  layoutSpaceInfo: NonNullable<ReturnType<Cosmograph["getSimulationSpaceInfo"]>> | null;
   layoutDataRevision: number | null;
   zoomBefore: number | null;
   zoomAfter: number | null;
@@ -154,6 +156,7 @@ export class RendererSession {
     layoutSample: 0,
     layoutSampledAt: null,
     layoutSimulationRunning: null,
+    layoutSpaceInfo: null,
     layoutDataRevision: null,
     zoomBefore: null,
     zoomAfter: null,
@@ -744,12 +747,14 @@ export class RendererSession {
           const positions = this.graph.getPointPositions({ dimensions });
           if (!positions?.length) return;
           const layoutSampledAt = performance.now();
+          const spaceInfo = this.graph.getSimulationSpaceInfo();
+          const layoutSpaceInfo = spaceInfo ? { ...spaceInfo } : null;
           const layoutSnapshot = sampleLayoutBuffer(positions, dimensions);
           if (dimensions === 3) this.graph.fitViewByCoordinates(Array.from(positions), 0, 0.15);
           else this.graph.setZoomTransformByPointPositions(positions, 0, undefined, 0.15);
           // Also preserve a naturally settled layout, independent of the user's pause toggle.
           if (wasRunning === false && Boolean(this.graph.isSimulationRunning)) this.graph.pause();
-          this.publishDiagnostics({ layoutSnapshot, layoutSample: this.diagnosticState.layoutSample + 1, layoutSampledAt, layoutSimulationRunning: wasRunning ?? null, layoutDataRevision: this.diagnosticState.dataRevisions });
+          this.publishDiagnostics({ layoutSnapshot, layoutSpaceInfo, layoutSample: this.diagnosticState.layoutSample + 1, layoutSampledAt, layoutSimulationRunning: wasRunning ?? null, layoutDataRevision: this.diagnosticState.dataRevisions });
         });
       });
     }, delay);

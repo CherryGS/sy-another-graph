@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@cosmograph/cosmograph@2.5.1': f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c
-  '@cosmograph/cosmos@2.5.1': 6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f
+  '@cosmograph/cosmograph@2.5.1': 811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a
+  '@cosmograph/cosmos@2.5.1': 149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4
 
 importers:
 
@@ -16,7 +16,7 @@ importers:
     dependencies:
       '@cosmograph/cosmograph':
         specifier: 2.5.1
-        version: 2.5.1(patch_hash=f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c)(csstype@3.2.3)
+        version: 2.5.1(patch_hash=811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a)(csstype@3.2.3)
       '@duckdb/duckdb-wasm':
         specifier: 1.32.0
         version: 1.32.0
@@ -3524,9 +3524,9 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@cosmograph/cosmograph@2.5.1(patch_hash=f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c)(csstype@3.2.3)':
+  '@cosmograph/cosmograph@2.5.1(patch_hash=811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a)(csstype@3.2.3)':
     dependencies:
-      '@cosmograph/cosmos': 2.5.1(patch_hash=6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f)
+      '@cosmograph/cosmos': 2.5.1(patch_hash=149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4)
       '@cosmograph/ui': 2.5.1(csstype@3.2.3)
       '@duckdb/duckdb-wasm': 1.32.0
       '@interacta/css-labels': 0.6.0
@@ -3547,7 +3547,7 @@ snapshots:
       - '@opentelemetry/api'
       - csstype
 
-  '@cosmograph/cosmos@2.5.1(patch_hash=6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f)':
+  '@cosmograph/cosmos@2.5.1(patch_hash=149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4)':
     dependencies:
       '@luma.gl/core': 9.3.6
       '@luma.gl/engine': 9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6))

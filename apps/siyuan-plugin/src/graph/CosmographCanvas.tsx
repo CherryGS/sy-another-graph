@@ -78,6 +78,8 @@ const BASE_CONFIG: CosmographConfig = {
   simulationLinkDistance: 12,
   simulationGravity: 0.12,
   simulationFriction: 0.85,
+  // Keep the world extent fixed for this renderer across every later configuration.
+  spaceSize: 8192,
   fitViewOnInit: false,
   fitViewPadding: 0.15,
   statusIndicatorMode: false,
@@ -502,6 +504,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-layout-sample={diagnostics?.layoutSample ?? 0}
       data-layout-sampled-at={diagnostics?.layoutSampledAt ?? ""}
       data-layout-simulation-running={diagnostics?.layoutSimulationRunning ?? ""}
+      data-layout-space-info={JSON.stringify(diagnostics?.layoutSpaceInfo ?? null)}
       data-layout-data-revision={diagnostics?.layoutDataRevision ?? ""}
       data-zoom-before={diagnostics?.zoomBefore ?? ""}
       data-zoom-after={diagnostics?.zoomAfter ?? ""}

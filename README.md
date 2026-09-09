@@ -135,6 +135,13 @@ while retaining other settings and later explicit custom values. Simulation
 cooling is measured in steps, not milliseconds, so elapsed settling time depends
 on the rate at which the renderer advances the simulation.
 
+Each renderer requests an 8,192-unit simulation space and retains that extent
+through later data and appearance updates. This is independent of the canvas's
+pixel size. Initial and newly generated positions use the effective extent
+supported by the device; Fit diagnostics report both requested and effective
+sizes. The existing center-gravity control attracts unpinned nodes toward the
+world center without moving chosen pins or resetting the camera.
+
 Lookup caches and stable view arrays avoid repeated whole-graph scans and
 renderer uploads for unchanged views. Filters, the legend, and Insights share
 cached summaries of immutable graph arrays; the top-eight hub summary avoids

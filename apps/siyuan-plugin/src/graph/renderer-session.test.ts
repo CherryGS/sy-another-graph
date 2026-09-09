@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CosmographConfig } from "@cosmograph/cosmograph";
+import type { Cosmograph, CosmographConfig } from "@cosmograph/cosmograph";
 import type { PreparedGraph } from "./prepare-graph";
 import type { UploadedGraph } from "./graph-tables";
 import { RendererSession, type FrameScheduler } from "./renderer-session";
@@ -63,6 +63,7 @@ function harness() {
   let sequence = 0;
   const fits = vi.fn();
   let simulationRunning = false;
+  let requestedSpaceSize = 4096;
   let positions: Float32Array = new Float32Array();
   let positionDimensions: Dimensions = 2;
   let is3D = false;
@@ -94,9 +95,15 @@ function harness() {
   const graph = {
     get is3D() { return is3D; },
     get isSimulationRunning() { return simulationRunning; },
+    getSimulationSpaceInfo: vi.fn((): ReturnType<Cosmograph["getSimulationSpaceInfo"]> => ({
+      requestedSize: requestedSpaceSize,
+      effectiveSize: requestedSpaceSize,
+      deviceLimit: 16384,
+    })),
     stats: { pointsCount: 0, linksCount: 0 },
     setConfig: vi.fn(async (config: CosmographConfig) => {
       configurations.push(config);
+      requestedSpaceSize = config.spaceSize ?? 4096;
       const prepared = records.get(String(config.points));
       is3D = config.spaceDimensions === 3;
       if (prepared && config.points !== pointTable) {
@@ -248,20 +255,25 @@ describe("renderer lifetime", () => {
   it.each([2, 3] as const)("samples each explicit %sD fit once without rebuilding, reheating or changing pause", async (dimensions) => {
     const h = harness();
     h.session.controls(null, true, [], ["a"]);
-    await h.session.update(data(), { spaceDimensions: dimensions });
+    await h.session.update(data(), { spaceDimensions: dimensions, spaceSize: 8192 });
     flushScheduledFrames(h);
     const previousSample = h.session.getDiagnostics().layoutSample;
     h.graph.getPointPositions.mockClear();
+    h.graph.getSimulationSpaceInfo.mockClear();
     h.graph.setConfig.mockClear();
     h.graph.setPointPositions.mockClear();
     h.graph.start.mockClear();
     h.graph.pause.mockClear();
     h.graph.unpause.mockClear();
+    h.graph.setPinnedPoints.mockClear();
+    h.graph.setCameraState.mockClear();
+    h.graph.setZoomLevel.mockClear();
     h.graph.setZoomTransformByPointPositions.mockClear();
     h.graph.fitViewByCoordinates.mockClear();
     h.session.fit();
     flushScheduledFrames(h);
     expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions });
+    expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledExactlyOnceWith();
     if (dimensions === 2)
       expect(h.graph.setZoomTransformByPointPositions).toHaveBeenCalledExactlyOnceWith(h.graph.getPointPositions.mock.results[0].value, 0, undefined, 0.15);
     else expect(h.graph.fitViewByCoordinates).toHaveBeenCalledExactlyOnceWith([100, 110, 120, 130, 140, 150], 0, 0.15);
@@ -270,8 +282,11 @@ describe("renderer lifetime", () => {
     expect(h.graph.unpause).not.toHaveBeenCalled();
     expect(h.graph.setConfig).not.toHaveBeenCalled();
     expect(h.graph.setPointPositions).not.toHaveBeenCalled();
+    expect(h.graph.setPinnedPoints).not.toHaveBeenCalled();
+    expect(h.graph.setCameraState).not.toHaveBeenCalled();
+    expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
     expect(h.graph.isSimulationRunning).toBe(false);
-    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, layoutSample: previousSample + 1, layoutSnapshot: { count: 2, dimensions }, layoutSimulationRunning: false });
+    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, layoutSample: previousSample + 1, layoutSnapshot: { count: 2, dimensions }, layoutSimulationRunning: false, layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 }, chosenIds: ["a"], pinnedCount: 1 });
     expect(h.session.getDiagnostics().layoutSampledAt).toEqual(expect.any(Number));
     h.session.fit();
     flushScheduledFrames(h);
@@ -304,6 +319,7 @@ describe("renderer lifetime", () => {
   it("keeps a retained sample's data revision until Fit samples the replacement graph", async () => {
     const h = harness();
     expect(h.session.getDiagnostics().layoutDataRevision).toBeNull();
+    expect(h.session.getDiagnostics().layoutSpaceInfo).toBeNull();
     await h.session.update(dataWithIds(["a", "b"]), {});
     flushScheduledFrames(h);
     const first = h.session.getDiagnostics();
@@ -321,6 +337,8 @@ describe("renderer lifetime", () => {
     expect(replaced.layoutSnapshot).toBe(first.layoutSnapshot);
     expect(replaced.layoutSampledAt).toBe(first.layoutSampledAt);
     expect(replaced.layoutSample).toBe(first.layoutSample);
+    expect(replaced.layoutSpaceInfo).toBe(first.layoutSpaceInfo);
+    expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledTimes(1);
 
     h.session.fit();
     flushScheduledFrames(h);
@@ -330,6 +348,64 @@ describe("renderer lifetime", () => {
       layoutSample: first.layoutSample + 1,
       layoutSnapshot: { count: 3 },
     });
+    expect(h.session.getDiagnostics().layoutSpaceInfo).not.toBe(first.layoutSpaceInfo);
+    expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledTimes(2);
+    await h.session.dispose();
+  });
+
+  it("records effective device-limited bounds from the public getter with the owning Fit sample", async () => {
+    const h = harness();
+    const reported = { requestedSize: 8192, effectiveSize: 4096, deviceLimit: 8192 };
+    h.graph.getSimulationSpaceInfo.mockReturnValue(reported);
+    h.session.controls("a", true, [], ["a"]);
+    await h.session.update(data(), { spaceSize: 8192 });
+    flushScheduledFrames(h);
+    const first = h.session.getDiagnostics();
+    expect(first).toMatchObject({ layoutDataRevision: 1, layoutSpaceInfo: reported, layoutSimulationRunning: false });
+    expect(first.layoutSpaceInfo).not.toBe(reported);
+    h.graph.getPointPositions.mockClear();
+    h.graph.getSimulationSpaceInfo.mockClear();
+    h.graph.getSimulationSpaceInfo.mockReturnValueOnce(undefined);
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions: 2 });
+    expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledExactlyOnceWith();
+    expect(h.session.getDiagnostics()).toMatchObject({ layoutSample: first.layoutSample + 1, layoutDataRevision: 1, layoutSpaceInfo: null, layoutSimulationRunning: false, chosenIds: ["a"], pinnedCount: 1 });
+    await h.session.dispose();
+  });
+
+  it("retains the construction world extent through appearance, outline, and table updates without resetting manual positions", async () => {
+    const h = harness();
+    const base = { spaceSize: 8192, simulationGravity: 0.12, simulationLinkSpring: 0.4 };
+    await h.session.initialize(base);
+    h.session.controls("a", true, [], ["a", "b"]);
+    const prepared = dataWithIds(["a", "b"]);
+    await h.session.update(prepared, base);
+    flushScheduledFrames(h);
+    h.graph.setPointPositions(new Float32Array([1000, 1100, 2000, 2100]));
+    h.graph.setZoomLevel(4);
+    const beforeA = h.graph.spaceToScreenPosition([1000, 1100]);
+    const beforeB = h.graph.spaceToScreenPosition([2000, 2100]);
+    h.fits.mockClear();
+    h.graph.setPointPositions.mockClear();
+    await h.session.update(prepared, { ...base, pointSizeScale: 6 });
+    expect(h.graph.setPointPositions).not.toHaveBeenCalled();
+    h.session.controls("b", true, ["b"], ["a"]);
+    await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(1));
+    await h.session.update(dataWithIds(["b", "new", "a"]), { ...base, pointSizeScale: 6 });
+    expect([...h.graph.getPointPositions()]).toEqual([2000, 2100, 120, 130, 1000, 1100]);
+    expect(h.graph.spaceToScreenPosition([1000, 1100])).toEqual(beforeA);
+    expect(h.graph.spaceToScreenPosition([2000, 2100])).toEqual(beforeB);
+    expect(h.graph.getZoomLevel()).toBe(4);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([2]);
+    expect(h.graph.isSimulationRunning).toBe(false);
+    expect(h.graph.start).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
+    expect(h.configurations.length).toBeGreaterThanOrEqual(5);
+    for (const config of h.configurations) expect(config).toMatchObject(base);
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.session.getDiagnostics()).toMatchObject({ layoutDataRevision: 2, layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 }, chosenIds: ["a"], pinnedCount: 1 });
     await h.session.dispose();
   });
 

@@ -1,18 +1,32 @@
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index d1232d5454995e5bc20bc939cdb7cf797f7c679a..6105035eea852937e0f44f924b4d549d296897b2 100644
+index d1232d5454995e5bc20bc939cdb7cf797f7c679a..272422143d45d818b188315dabede73d0270f6ce 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -457,6 +457,8 @@ export declare class Graph {
+@@ -5,6 +5,11 @@ import { Camera3dState } from './modules/Camera';
+ export interface PositionDimensionsOptions {
+     dimensions?: 2 | 3;
+ }
++export interface SimulationSpaceInfo {
++    readonly requestedSize: number;
++    readonly effectiveSize: number;
++    readonly deviceLimit: number | null;
++}
+ export declare class Graph {
+     /** Current graph configuration. Always fully populated with default values for any unset properties. */
+     config: GraphConfigInterface;
+@@ -457,6 +462,10 @@ export declare class Graph {
       * detectable from the read-back and keeps absent points out of `fitView`.
       */
      getPointPositions(options?: PositionDimensionsOptions): Float32Array;
++    /** Current CPU-side extent and device limit; never reads or mutates positions or the camera. */
++    getSimulationSpaceInfo(): SimulationSpaceInfo;
 +    /** Nonblocking PBO/fence snapshot. Rejects AbortError when its source is superseded or cancelled. */
 +    getPointPositionsAsync(options?: PositionDimensionsOptions & { signal?: AbortSignal }): Promise<Float32Array>;
      /**
       * Get current cluster coordinates.
       * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
 diff --git a/dist/index.js b/dist/index.js
-index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15ff3d58d8 100644
+index c882ce202541233f37eb2513738d0eb758fde784..67490ad6601581e2955f47642bf042793536dda9 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -10270,7 +10270,7 @@ class hn {
@@ -33,7 +47,23 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
      const h = (f = this.points) == null ? void 0 : f.currentPositionTexture;
      this.transition.isPending && (!h || h.destroyed) && this.transition.abort(), this.transition.start(), this._shouldForceHoverDetection = !0, this.requestRender(), this._isFirstRenderAfterInit = !1;
    }
-@@ -10396,6 +10396,133 @@ class hn {
+@@ -10372,6 +10372,15 @@ class hn {
+   getZoomLevel() {
+     return this._isDestroyed || this.warnIf3D("getZoomLevel") ? 0 : this.zoomInstance.eventTransform.k;
+   }
++  /** Current simulation-space metadata; reads no GPU data and changes no state. */
++  getSimulationSpaceInfo() {
++    const deviceLimit = this.device?.limits.maxTextureDimension2D;
++    return {
++      requestedSize: this.config.spaceSize,
++      effectiveSize: this.store.adjustedSpaceSize,
++      deviceLimit: Number.isFinite(deviceLimit) && deviceLimit > 0 ? deviceLimit : null
++    };
++  }
+   /**
+    * Get current point coordinates.
+    * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
+@@ -10396,6 +10405,133 @@ class hn {
      }
      return n;
    }
@@ -167,7 +197,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
    /**
     * Get current cluster coordinates.
     * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
-@@ -10712,7 +10839,7 @@ class hn {
+@@ -10712,7 +10848,7 @@ class hn {
      var t, i;
      if (this._isDestroyed) return;
      const e = this.store.isSimulationRunning || this.store.alpha > 0 || this.store.simulationProgress > 0;
@@ -176,7 +206,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
    }
    /**
     * Pause the simulation. When paused, the simulation stops running
-@@ -10721,7 +10848,7 @@ class hn {
+@@ -10721,7 +10857,7 @@ class hn {
     */
    pause() {
      var e, t;
@@ -185,7 +215,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
    }
    /**
     * Unpause the simulation. This method resumes a paused
-@@ -10742,6 +10869,7 @@ class hn {
+@@ -10742,6 +10878,7 @@ class hn {
     * Destroy this Cosmos instance.
     */
    destroy() {
@@ -193,7 +223,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
      var e, t, i, n, o, s, r, a, l, h, d, u, f, p;
      this._isDestroyed || (this._isDestroyed = !0, this.isReady = !1, this.transition.abort(), window.clearTimeout(this._fitViewOnInitTimeoutID), this.cancelLongPress(), this.stopFrames(), this.canvasD3Selection && this.canvasD3Selection.on(".cosmos", null).on(".drag", null).on(".zoom", null), _(document).on(`.${this.documentEventsNamespace}`, null), (e = this.zoomInstance) != null && e.behavior && this.zoomInstance.behavior.on("start.detect", null).on("zoom.detect", null).on("end.detect", null), (t = this.dragInstance) != null && t.behavior && this.dragInstance.behavior.on("start.detect", null).on("drag.detect", null).on("end.detect", null), (i = this.fpsMonitor) == null || i.destroy(), (n = this.points) == null || n.destroy(), (o = this.lines) == null || o.destroy(), (s = this.clusters) == null || s.destroy(), (r = this.forceGravity) == null || r.destroy(), (a = this.forceCenter) == null || a.destroy(), (l = this.forceManyBody) == null || l.destroy(), (h = this.forceLinkIncoming) == null || h.destroy(), (d = this.forceLinkOutgoing) == null || d.destroy(), (u = this.forceCollision) == null || u.destroy(), this.device && this.shouldDestroyDevice && (this.device.beginRenderPass({
        clearColor: this.store.backgroundColor,
-@@ -10814,10 +10942,11 @@ class hn {
+@@ -10814,10 +10951,11 @@ class hn {
        return;
      }
      const t = this.store.isSimulationRunning || this.store.alpha > 0 || this.store.simulationProgress > 0;
@@ -206,7 +236,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
      var t;
      this.isPointPositionsUpdateNeeded = !0;
      const e = (t = this.points) == null ? void 0 : t.currentPositionTexture;
-@@ -10831,6 +10960,7 @@ class hn {
+@@ -10831,6 +10969,7 @@ class hn {
    setSpaceDimensions(e) {
      var t;
      if (this.store.spaceDimensions !== e) {
@@ -214,7 +244,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..4d8b43305dbc19e6fe0878930433ee15
        if (this.store.spaceDimensions = e, this.isForceCollisionReady = !1, (t = this.forceManyBody) == null || t.create(), this.initPrograms(), e === 3) {
          const [i, n] = this.store.screenSize;
          i && n && this.camera.setViewport(i, n), this.handOffFramingTo3D() || this.maybeInitializeCamera();
-@@ -11091,7 +11221,7 @@ class hn {
+@@ -11091,7 +11230,7 @@ class hn {
     */
    end() {
      var e, t;
