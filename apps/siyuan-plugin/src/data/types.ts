@@ -20,8 +20,6 @@ export interface GraphNode {
   databaseId?: string;
   itemId?: string;
   boundBlockId?: string;
-  /** A view annotation; acquisition does not assign this flag. */
-  external?: boolean;
 }
 
 export type GraphEdgeKind =

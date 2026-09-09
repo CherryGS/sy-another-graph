@@ -88,23 +88,6 @@
   color: #ffe0af;
 }
 
-.ag-graph-label--external::after,
-.ag-canvas__chosen-label--external::after {
-  content: " ↗";
-  color: #c58be6;
-}
-
-.ag-graph-label--external {
-  padding-inline-end: 20px !important;
-}
-
-.ag-graph-label--external::after {
-  position: absolute;
-  inset-inline-end: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
 /* Cosmos loses its dragged-point hover when an interactive label intercepts the pointer. */
 .ag-canvas__renderer[data-point-dragging="true"]
   :is(.css-label--label, .ag-graph-label, .ag-canvas__chosen-label),

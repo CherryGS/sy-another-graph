@@ -10,11 +10,11 @@ const node = {
 };
 
 describe("node colors", () => {
-  it("assigns stable type colors across filtering, notebooks, and external membership", () => {
+  it("assigns stable type colors across filtering, notebooks, and degree changes", () => {
     expect(new Set(Object.values(NODE_TYPE_COLORS)).size).toBe(Object.keys(NODE_TYPE_COLORS).length);
     expect(nodeColor({ ...node, blockType: "p" }, "type")).toBe(NODE_TYPE_COLORS.p);
     expect(nodeColor({ ...node, blockType: "h" }, "type")).toBe(NODE_TYPE_COLORS.h);
-    expect(nodeColor({ ...node, blockType: "p", external: true, notebook: "other", degree: 2000 }, "type")).toBe(NODE_TYPE_COLORS.p);
+    expect(nodeColor({ ...node, blockType: "p", notebook: "other", degree: 2000 }, "type")).toBe(NODE_TYPE_COLORS.p);
     expect(nodeColor({ ...node, entity: "database", blockType: "p" }, "type")).toBe(NODE_TYPE_COLORS.database);
     expect(nodeColor({ ...node, entity: "database-item" }, "type")).toBe(NODE_TYPE_COLORS["database-item"]);
     expect(nodeTypeColor("future-type")).toMatch(/^#[\da-f]{6}$/);

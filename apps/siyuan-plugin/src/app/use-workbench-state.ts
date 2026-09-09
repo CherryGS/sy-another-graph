@@ -16,7 +16,6 @@ import {
   type GraphFilters,
 } from "../data/types";
 import {
-  containedIds,
   projectGraph,
   resolveOpenBlock,
   scopeBackground,
@@ -180,20 +179,6 @@ export function useWorkbenchState() {
     const previous = filtersRef.current;
     const next = typeof action === "function" ? action(previous) : action;
     filtersRef.current = next;
-    if (
-      dataRef.current &&
-      (previous.scopeId !== next.scopeId ||
-        previous.includeChildDocuments !== next.includeChildDocuments)
-    ) {
-      const scope = next.scopeId
-        ? containedIds(
-            dataRef.current,
-            next.scopeId,
-            next.includeChildDocuments,
-          )
-        : new Set(dataRef.current.nodes.map((node) => node.id));
-      setSelection((current) => retainSelection(current, scope));
-    }
     setFiltersState(next);
   }, []);
 
@@ -204,6 +189,8 @@ export function useWorkbenchState() {
     excludeIds,
     hiddenTypes,
     databases,
+    scopeId,
+    includeChildDocuments,
   } = filters;
   const currentGraph = useMemo(
     () =>
@@ -216,9 +203,21 @@ export function useWorkbenchState() {
             excludeIds,
             hiddenTypes,
             databases,
+            scopeId,
+            includeChildDocuments,
           })
         : null,
-    [data, notebook, references, hierarchy, excludeIds, hiddenTypes, databases],
+    [
+      data,
+      notebook,
+      references,
+      hierarchy,
+      excludeIds,
+      hiddenTypes,
+      databases,
+      scopeId,
+      includeChildDocuments,
+    ],
   );
   const {
     loaded,
@@ -238,7 +237,7 @@ export function useWorkbenchState() {
   const chosenSet = useMemo(() => new Set(chosenIds), [chosenIds]);
 
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- Source/type exclusion invalidates native selections and pins.
+    // eslint-disable-next-line react/set-state-in-effect -- Scope/source/type changes invalidate selections and pins against the same graph used for traversal.
     setSelection(availableSelection);
   }, [availableSelection]);
 

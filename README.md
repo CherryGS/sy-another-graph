@@ -15,8 +15,8 @@ WASM graph engine. The plugin is named `sy-another-graph`.
 - Equal chosen membership with persistent labels and fixed positions. Shift-click
   toggles membership; ordinary dragging moves one node and Shift-drag from a
   chosen node moves the chosen set together.
-- Automatic directional N-hop expansion from the chosen set over the current
-  projected graph, retaining the initial scope as background. A dedicated WASM
+- Automatic directional N-hop highlighting from the chosen set within the initial
+  scope, retaining that scope as background. A dedicated WASM
   Worker reports when the 10,000-node neighborhood budget truncates a result.
 - Node type, readable document path, heading ancestry, and source excerpts in
   hover/search/details. Edge inspection retains original source records and
@@ -90,23 +90,28 @@ The bridge accepts only its own iframe/parent and origin.
 
 Graph indices are revision-local integers. Native blocks retain their SiYuan
 IDs; database and item graph identities use `av:<avID>` and
-`av-item:<avID>:<itemID>`. The current graph Q applies notebook/content exclusions,
-type projection, and enabled relation kinds before traversal. Hidden block types
+`av-item:<avID>:<itemID>`. The current graph Q applies the initial document/block
+scope, notebook/content exclusions, type projection, and enabled relation kinds
+before traversal. Hidden block types
 do not hide their visible children. Hidden native endpoints use their owning
-documents; virtual containment connects the nearest visible ancestor and keeps
+documents without importing outside source facts; virtual containment connects
+the nearest visible ancestor within the source boundary and keeps
 the intervening source IDs.
 
 Only the explicit chosen set S supplies neighborhood origins. The contained
-scope B remains visible as background, while N controls outward hop depth in Q.
+scope B remains visible as background, while N controls hop highlighting within
+that scope. Out-of-scope nodes cannot appear or act as intermediate traversal
+steps, including paths that would leave the scope and re-enter it.
 N and traversal direction are directly editable in the wrapping graph toolbar
 and take effect automatically. Search and filter popovers anchor below the
 entire toolbar, including when its controls wrap onto additional rows.
-Changing N retracts or adds reached nodes without treating all of B as origins.
+Changing N changes the reached highlight without treating all of B as origins.
 All chosen members have equal status; inspecting a different node during
 multi-selection does not change S. Hidden or excluded choices lose membership
 and their fixed position. Optional isolation hiding retains eligible S members.
 The document-scope control includes descendant documents by default and can
-exclude them from B. Node and edge inspectors overlay the canvas.
+exclude them from both display and traversal. With no initial scope root, Q
+contains all otherwise eligible content. Node and edge inspectors overlay the canvas.
 
 Traversal follows arrows, reverses them, or uses both directions. Every enabled
 relation costs one hop; disabled relations do not participate. Reference arrows

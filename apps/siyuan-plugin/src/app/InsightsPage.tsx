@@ -298,7 +298,7 @@ export function InsightsPage() {
                   </AlertDescription>
                 </Alert>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  统计覆盖当前类型与关系设置下可参与扩展的内容，范围背景和跳数结果不会成为新的统计边界。
+                  统计覆盖初始范围内符合当前类型与关系设置的内容，跳数与高亮不改变统计范围。
                   {data.skippedReferences > 0 &&
                     ` 已略过 ${data.skippedReferences.toLocaleString()} 条端点不可用的源引用记录。`}
                 </p>

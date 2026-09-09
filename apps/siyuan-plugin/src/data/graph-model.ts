@@ -13,9 +13,9 @@ export interface GraphView {
 }
 
 export interface CurrentGraph extends GraphView {
-  /** Displayed representative of each eligible source identity. */
+  /** Source-to-display mapping, plus selectable document representatives. */
   representatives: Map<string, string>;
-  /** Visible source identities; hidden blocks cannot remain chosen. */
+  /** Visible identities; hidden source blocks cannot remain chosen. */
   eligibleIds: Set<string>;
   excludedIds: Set<string>;
 }
@@ -148,8 +148,8 @@ function provenanceOf(
 }
 
 /**
- * Apply source exclusions before replacing hidden reference endpoints. Every
- * returned edge belongs to the current graph and costs one traversal step.
+ * Bound source facts before replacing hidden endpoints. A document added only
+ * to represent an in-scope hidden block does not import its outside source edges.
  */
 export function projectGraph(
   data: GraphDataset,
@@ -157,9 +157,12 @@ export function projectGraph(
 ): CurrentGraph {
   const { byId, byIndex } = getGraphLookups(data);
   const containment =
-    filters.hierarchy || filters.excludeIds.length
+    filters.scopeId || filters.hierarchy || filters.excludeIds.length
       ? containmentIndex(data)
       : null;
+  const scopeIds = filters.scopeId
+    ? expandContainment(containment!, [filters.scopeId], filters.includeChildDocuments)
+    : null;
   // All roots share one index and traversal. Overlapping exclusions visit each
   // contained identity once instead of rebuilding the graph for every root.
   const excludedIds = containment
@@ -170,7 +173,7 @@ export function projectGraph(
   hidden.delete("d");
   const candidates = new Set<string>();
   for (const node of data.nodes) {
-    if (excludedIds.has(node.id)) continue;
+    if (excludedIds.has(node.id) || (scopeIds && !scopeIds.has(node.id))) continue;
     if (isBlock(node)) {
       if (!filters.notebook || node.notebook === filters.notebook)
         candidates.add(node.id);
@@ -221,15 +224,24 @@ export function projectGraph(
       if (!isBlock(node) && !reached.has(node.id)) candidates.delete(node.id);
   }
 
-  const visible = data.nodes.filter(
-    (node) => candidates.has(node.id) && !hidden.has(nodeType(node)),
-  );
-  const eligibleIds = new Set(visible.map((node) => node.id));
-  const representatives = new Map<string, string>();
+  const eligibleIds = new Set<string>();
   for (const node of data.nodes) {
     if (!candidates.has(node.id)) continue;
-    if (eligibleIds.has(node.id)) representatives.set(node.id, node.id);
-    else if (isBlock(node) && node.rootId && eligibleIds.has(node.rootId))
+    if (!hidden.has(nodeType(node))) eligibleIds.add(node.id);
+    else if (isBlock(node) && node.rootId) {
+      const document = byId.get(node.rootId);
+      if (
+        document && nodeType(document) === "d" &&
+        !excludedIds.has(document.id) &&
+        (!filters.notebook || document.notebook === filters.notebook)
+      ) eligibleIds.add(document.id);
+    }
+  }
+  const visible = data.nodes.filter((node) => eligibleIds.has(node.id));
+  const representatives = new Map(visible.map((node) => [node.id, node.id]));
+  for (const node of data.nodes) {
+    if (candidates.has(node.id) && !eligibleIds.has(node.id) &&
+        isBlock(node) && node.rootId && eligibleIds.has(node.rootId))
       representatives.set(node.id, node.rootId);
   }
   const grouped = new Map<string, GraphEdge>();
@@ -260,7 +272,8 @@ export function projectGraph(
       continue;
     const originalSource = byIndex.get(edge.source);
     const originalTarget = byIndex.get(edge.target);
-    if (!originalSource || !originalTarget) continue;
+    if (!originalSource || !originalTarget ||
+        !candidates.has(originalSource.id) || !candidates.has(originalTarget.id)) continue;
     const from = representatives.get(originalSource.id);
     const to = representatives.get(originalTarget.id);
     const source = from ? byId.get(from) : undefined;
@@ -271,7 +284,7 @@ export function projectGraph(
   if (filters.hierarchy) {
     const parents = containment!.parents;
     for (const node of visible) {
-      if (!isBlock(node)) continue;
+      if (!isBlock(node) || !candidates.has(node.id)) continue;
       let ancestor = parents.get(node.id);
       const visited = new Set([node.id]);
       const viaIds: string[] = [];
@@ -417,7 +430,7 @@ export function scopeBackground(
   return result;
 }
 
-/** B stays visible; only S contributes roots to the separately computed N hops. */
+/** B is the display boundary; separately computed N hops only affect highlighting. */
 export function scopeGraph(
   graph: CurrentGraph,
   backgroundIds: ReadonlySet<string>,
@@ -456,33 +469,13 @@ export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
   let edges = graph.edges;
   let connected: Set<number> | undefined;
   let previous: GraphView | undefined;
-  const represented = new WeakMap<
-    GraphNode,
-    { inside?: GraphNode; outside?: GraphNode }
-  >();
-
-  const represent = (node: GraphNode, external: boolean): GraphNode => {
-    let versions = represented.get(node);
-    if (!versions) {
-      versions = {};
-      represented.set(node, versions);
-    }
-    const key = external ? "outside" : "inside";
-    return versions[key] ??= { ...node, external };
-  };
-
   return {
-    project(backgroundIds, chosenIds, reachedIndices, hideIsolated) {
+    project(backgroundIds, chosenIds, _reachedIndices, hideIsolated) {
       // scopeBackground always returns B as a subset of this Q revision.
       const fullBackground = backgroundIds.size === graph.nodes.length;
       const nextCandidates = fullBackground
         ? graph.nodes
-        : graph.nodes.filter(
-            (node) =>
-              backgroundIds.has(node.id) ||
-              chosenIds.has(node.id) ||
-              reachedIndices?.has(node.index),
-          );
+        : graph.nodes.filter((node) => backgroundIds.has(node.id));
       if (!sameSequence(nextCandidates, candidates)) {
         candidates = nextCandidates;
         if (candidates.length === graph.nodes.length) edges = graph.edges;
@@ -508,21 +501,11 @@ export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
         );
       }
       const sameNodes =
-        previous !== undefined &&
-        previous.nodes.length === nodes.length &&
-        nodes.every(
-          (node, index) =>
-            previous!.nodes[index].index === node.index &&
-            Boolean(previous!.nodes[index].external) === !backgroundIds.has(node.id),
-        );
+        previous !== undefined && sameSequence(previous.nodes, nodes);
       const sameEdges = previous !== undefined && sameSequence(previous.edges, edges);
       if (sameNodes && sameEdges) return previous!;
       previous = {
-        nodes: sameNodes
-          ? previous!.nodes
-          : fullBackground && !hideIsolated
-            ? graph.nodes
-            : nodes.map((node) => represent(node, !backgroundIds.has(node.id))),
+        nodes: sameNodes ? previous!.nodes : nodes,
         edges: sameEdges ? previous!.edges : edges,
       };
       return previous;

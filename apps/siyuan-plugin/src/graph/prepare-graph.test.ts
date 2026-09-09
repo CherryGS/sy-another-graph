@@ -168,17 +168,4 @@ describe("prepareGraph", () => {
     ).toEqual([0, 1]);
     expect(result.linksCount).toBe(2);
   });
-
-  it("distinguishes external additions in every color mode without changing their source identity", async () => {
-    const input = { ...node("external", 3), external: true };
-    const result = await prepareGraph(
-      [input],
-      [],
-      new AbortController().signal,
-    );
-    const points = result.config.points as Table;
-    for (const column of ["color", "branchColor", "degreeColor"])
-      expect(points.getChild(column)!.get(0)).toBe("#c58be6");
-    expect(result.indexToNode[0]).toBe(input);
-  });
 });

@@ -91,7 +91,6 @@ export class ChosenLabels {
       label.className = chosen.has(id)
         ? "ag-canvas__chosen-label"
         : "ag-canvas__chosen-label ag-canvas__chosen-label--spotlight";
-      if (data!.indexToNode[index].external) label.className += " ag-canvas__chosen-label--external";
       label.textContent = data!.indexToLabel[index];
       label.setAttribute(
         "aria-label",

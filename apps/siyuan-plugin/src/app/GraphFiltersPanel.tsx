@@ -84,6 +84,9 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
                     setFilters((previous) => ({ ...previous, scopeId }));
                 }}
               />
+              <FieldDescription>
+                多跳仅在初始范围内查找，不展示范围外节点；范围内背景保持可见。
+              </FieldDescription>
               {!scopeValid && (
                 <FieldError>请输入完整块 ID；当前范围保持原值。</FieldError>
               )}

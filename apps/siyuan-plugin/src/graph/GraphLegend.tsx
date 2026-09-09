@@ -10,37 +10,30 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import {
-  EXTERNAL_NODE_COLOR,
   NODE_TYPE_COLORS,
   nodeTypeColor,
-  type GraphColorMode,
 } from "./node-colors";
 import type { CanvasNode } from "./types";
 
 export function GraphLegend({
   nodes,
-  colorBy,
   anchorRef,
 }: {
   nodes: readonly CanvasNode[];
-  colorBy: GraphColorMode;
   anchorRef: RefObject<HTMLElement | null>;
 }) {
   const titleId = useId();
-  const { types, external } = useMemo(() => {
+  const types = useMemo(() => {
     const counts = new Map<string, number>();
-    let external = 0;
     for (const node of nodes) {
       const type = nodeType(node);
       counts.set(type, (counts.get(type) ?? 0) + 1);
-      if (node.external) external += 1;
     }
     const order = Object.keys(NODE_TYPE_COLORS);
-    const types = [...counts].sort(([left], [right]) => {
+    return [...counts].sort(([left], [right]) => {
       const leftIndex = order.indexOf(left);
       const rightIndex = order.indexOf(right);
       return (
@@ -49,7 +42,6 @@ export function GraphLegend({
         left.localeCompare(right)
       );
     });
-    return { types, external };
   }, [nodes]);
 
   return (
@@ -101,29 +93,6 @@ export function GraphLegend({
             <p className="text-xs leading-relaxed text-muted-foreground">
               数量基于当前图谱节点；色点对应按类型着色。
             </p>
-            {external > 0 && (
-              <>
-                <Separator />
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2">
-                    {colorBy !== "type" && (
-                      <span
-                        aria-hidden="true"
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: EXTERNAL_NODE_COLOR }}
-                      />
-                    )}
-                    ↗ 范围外补充
-                  </span>
-                  <span className="shrink-0 text-right tabular-nums">
-                    {external.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  ↗ 标记补充显示的范围外节点，已计入各类型数量。
-                </p>
-              </>
-            )}
           </div>
         </ScrollArea>
       </PopoverContent>

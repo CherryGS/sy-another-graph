@@ -5,6 +5,7 @@ import {
   createViewProjector,
   numericTopology,
   projectGraph,
+  resolveOpenBlock,
   scopeBackground,
   scopeGraph,
   type GraphView,
@@ -141,36 +142,36 @@ describe("stable views within one current graph revision", () => {
     expect(edgeReads).toBe(reads);
   });
 
-  it("returns new membership when expansion grows or retracts while retaining B and S", () => {
+  it("keeps all of B and never admits outside choices or changing neighborhood results", () => {
     const graph = projectGraph(dataset([node("B", 0), node("S", 1), node("near", 2), node("far", 3)], [["S", "near"], ["near", "far"]]), filters());
     const projector = createViewProjector(graph);
-    const background = new Set(["B"]);
+    const background = new Set(["B", "S", "near"]);
     const chosen = new Set(["S"]);
     const one = projector.project(background, chosen, new Set([1, 2]), false);
     const two = projector.project(background, chosen, new Set([1, 2, 3]), false);
     const zero = projector.project(background, chosen, new Set([1]), false);
     expect(ids(one)).toEqual(["B", "S", "near"]);
-    expect(ids(two)).toEqual(["B", "S", "far", "near"]);
-    expect(ids(zero)).toEqual(["B", "S"]);
-    expect(two).not.toBe(one);
-    expect(zero).not.toBe(two);
-    expect(pairs(zero, "reference")).toEqual([]);
+    expect(two).toBe(one);
+    expect(zero).toBe(one);
+    expect(projector.project(background, new Set(["S", "far"]), new Set([3]), false)).toBe(one);
+    expect(pairs(zero, "reference")).toEqual(["S>near"]);
   });
 
-  it("updates external flags without replacing unchanged nodes or the same edge set", () => {
+  it("changes the display boundary while retaining node objects and an unchanged edge set", () => {
     const graph = projectGraph(dataset([node("A", 0), node("B", 1), node("unused", 2)], [["A", "B"]]), filters());
     const projector = createViewProjector(graph);
     const chosen = new Set(["A"]);
     const reached = new Set([0, 1]);
-    const external = projector.project(new Set(["A"]), chosen, reached, false);
-    const internal = projector.project(new Set(["A", "B"]), chosen, reached, false);
-    expect(internal).not.toBe(external);
-    expect(internal.nodes[0]).toBe(external.nodes[0]);
-    expect(internal.nodes[1].external).toBe(false);
-    expect(external.nodes[1].external).toBe(true);
-    expect(internal.edges).toBe(external.edges);
-    const externalAgain = projector.project(new Set(["A"]), chosen, reached, false);
-    expect(externalAgain.nodes[1]).toBe(external.nodes[1]);
+    const subset = projector.project(new Set(["A", "B"]), chosen, reached, false);
+    const full = projector.project(new Set(["A", "B", "unused"]), chosen, reached, false);
+    expect(full).not.toBe(subset);
+    expect(full.nodes[0]).toBe(subset.nodes[0]);
+    expect(full.nodes[1]).toBe(subset.nodes[1]);
+    expect(full.edges).toBe(subset.edges);
+    const narrowed = projector.project(new Set(["A"]), chosen, reached, false);
+    expect(ids(narrowed)).toEqual(["A"]);
+    expect(narrowed.nodes[0]).toBe(subset.nodes[0]);
+    expect(narrowed.edges).toEqual([]);
   });
 
   it("retains chosen isolates and reuses an unchanged isolated-node result", () => {
@@ -190,7 +191,7 @@ describe("stable views within one current graph revision", () => {
   it("does not reuse previous-revision labels, edge weights or provenance just because IDs match", () => {
     const before = projectGraph(dataset([node("a", 0, { label: "Before" }), node("b", 1)], [["a", "b", "reference", 1]]), filters());
     const after = projectGraph(dataset([node("a", 0, { label: "After" }), node("b", 1)], [["a", "b", "reference", 9]]), filters());
-    const background = new Set(["a"]);
+    const background = new Set(["a", "b"]);
     const chosen = new Set(["a"]);
     const focus = new Set([0, 1]);
     const oldView = createViewProjector(before).project(background, chosen, focus, false);
@@ -237,6 +238,42 @@ function reached(
     frontier = next;
   }
   return new Set([...found].map((dense) => topology.denseToSource[dense]));
+}
+
+// Independent shortest-path oracle over the exact dense topology sent to the Worker.
+function shortestPath(
+  graph: GraphView,
+  sourceId: string,
+  targetId: string,
+  direction: "out" | "in" | "both",
+): string[] | null {
+  const topology = numericTopology(graph);
+  const source = topology.idToDense.get(sourceId);
+  const target = topology.idToDense.get(targetId);
+  if (source === undefined || target === undefined) return null;
+  const previous = new Map<number, number | null>([[source, null]]);
+  const queue = [source];
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor];
+    if (current === target) {
+      const path: string[] = [];
+      for (let item: number | null = current; item !== null; item = previous.get(item)!)
+        path.push(graph.nodes[item].id);
+      return path.reverse();
+    }
+    const add = (next: number) => {
+      if (previous.has(next)) return;
+      previous.set(next, current);
+      queue.push(next);
+    };
+    for (let index = 0; index < topology.endpoints.length; index += 2) {
+      const from = topology.endpoints[index];
+      const to = topology.endpoints[index + 1];
+      if (direction !== "in" && from === current) add(to);
+      if (direction !== "out" && to === current) add(from);
+    }
+  }
+  return null;
 }
 
 describe("source exclusion and current endpoint projection", () => {
@@ -448,7 +485,7 @@ describe("optional virtual containment", () => {
 });
 
 describe("contained background and chosen exploration roots", () => {
-  it("retains B and S while increasing and retracting external hops, without expanding from B", () => {
+  it("retains the complete bounded background while depth changes only chosen-root highlights", () => {
     const data = dataset(
       [
         node("D", 0),
@@ -461,15 +498,16 @@ describe("contained background and chosen exploration roots", () => {
         node("decoy", 7),
       ],
       [
+        ["seed", "background"],
         ["seed", "near"],
         ["near", "far"],
         ["outside-choice", "other-near"],
         ["background", "decoy"],
       ],
     );
-    const graph = projectGraph(data, filters());
+    const graph = projectGraph(data, filters({ scopeId: "D" }));
     const background = scopeBackground(data, graph, "D", true);
-    const chosen = new Set(["seed", "outside-choice"]);
+    const chosen = new Set(["seed"]);
     expect(background).toEqual(new Set(["D", "seed", "background"]));
     const two = scopeGraph(
       graph,
@@ -478,15 +516,7 @@ describe("contained background and chosen exploration roots", () => {
       reached(graph, [...chosen], 2),
       false,
     );
-    expect(ids(two)).toEqual([
-      "D",
-      "background",
-      "far",
-      "near",
-      "other-near",
-      "outside-choice",
-      "seed",
-    ]);
+    expect(ids(two)).toEqual(["D", "background", "seed"]);
     const one = scopeGraph(
       graph,
       background,
@@ -494,18 +524,7 @@ describe("contained background and chosen exploration roots", () => {
       reached(graph, [...chosen], 1),
       false,
     );
-    expect(ids(one)).toEqual([
-      "D",
-      "background",
-      "near",
-      "other-near",
-      "outside-choice",
-      "seed",
-    ]);
-    expect(one.nodes.find((item) => item.id === "near")?.external).toBe(true);
-    expect(one.nodes.find((item) => item.id === "background")?.external).toBe(
-      false,
-    );
+    expect(ids(one)).toEqual(["D", "background", "seed"]);
     const zero = scopeGraph(
       graph,
       background,
@@ -513,10 +532,13 @@ describe("contained background and chosen exploration roots", () => {
       reached(graph, [...chosen], 0),
       false,
     );
-    expect(ids(zero)).toEqual(["D", "background", "outside-choice", "seed"]);
-    expect(chosen).toEqual(new Set(["seed", "outside-choice"]));
+    expect(ids(zero)).toEqual(["D", "background", "seed"]);
+    expect(chosen).toEqual(new Set(["seed"]));
+    expect(reached(graph, ["seed"], 0)).toEqual(new Set([1]));
+    expect(reached(graph, ["seed"], 1)).toEqual(new Set([1, 2]));
+    expect(reached(graph, ["seed"], 100)).toEqual(new Set([1, 2]));
     expect(ids(two)).not.toContain("decoy");
-    expect(pairs(zero, "reference")).toEqual([]);
+    expect(pairs(zero, "reference")).toEqual(["seed>background"]);
   });
 
   it("hides current isolates while retaining eligible chosen members", () => {
@@ -530,7 +552,7 @@ describe("contained background and chosen exploration roots", () => {
       [["u", "v"]],
     );
     const graph = projectGraph(data, filters());
-    const background = new Set(["background-isolate", "u", "v"]);
+    const background = new Set(["background-isolate", "chosen-isolate", "u", "v"]);
     const chosen = new Set(["chosen-isolate"]);
     expect(ids(scopeGraph(graph, background, chosen, null, false))).toEqual([
       "background-isolate",
@@ -564,7 +586,7 @@ describe("contained background and chosen exploration roots", () => {
       );
       const hidden = projectGraph(
         data,
-        filters({ hierarchy: false, hiddenTypes: ["p"] }),
+        filters({ scopeId: "A", includeChildDocuments, hierarchy: false, hiddenTypes: ["p"] }),
       );
       expect(scopeBackground(data, hidden, "A", includeChildDocuments)).toEqual(
         new Set(includeChildDocuments ? ["A", "B"] : ["A"]),
@@ -582,13 +604,129 @@ describe("contained background and chosen exploration roots", () => {
       ],
       [],
     );
-    const graph = projectGraph(data, filters({ hiddenTypes: ["p"] }));
+    const graph = projectGraph(data, filters({ scopeId: "scope", hiddenTypes: ["p"] }));
     const background = scopeBackground(data, graph, "scope", true);
     expect(background).toEqual(new Set(["scope", "D"]));
     expect(ids(scopeGraph(graph, background, new Set(), null, false))).toEqual([
       "D",
       "scope",
     ]);
+  });
+});
+
+describe("strict source scope before projection and traversal", () => {
+  it.each(["out", "in", "both"] as const)("does not leave and re-enter B during %s traversal or shortest paths", (direction) => {
+    const data = dataset([
+      node("D", 0), block("a", 10, "p", "D"), block("b", 20, "p", "D"),
+      node("child-doc", 30, { parentId: "D" }),
+      block("child-bridge", 40, "p", "child-doc"), node("outside", 90),
+    ], [
+      ["a", "child-bridge"], ["child-bridge", "b"],
+      ["a", "outside"], ["outside", "b"], ["b", "b"],
+    ]);
+    const source = direction === "in" ? "b" : "a";
+    const target = direction === "in" ? "a" : "b";
+    expect(shortestPath(projectGraph(data, filters()), source, target, direction)).not.toBeNull();
+    const bounded = projectGraph(data, filters({ scopeId: "D", includeChildDocuments: false }));
+    expect(ids(bounded)).toEqual(["D", "a", "b"]);
+    expect([...numericTopology(bounded).endpoints]).toEqual([2, 2]);
+    expect(shortestPath(bounded, source, target, direction)).toBeNull();
+    expect(reached(bounded, [source], 100, direction)).toEqual(new Set([source === "a" ? 10 : 20]));
+    const expandedScope = projectGraph(data, filters({ scopeId: "D", includeChildDocuments: true }));
+    expect(shortestPath(expandedScope, source, target, direction)).toEqual(
+      direction === "in" ? ["b", "child-bridge", "a"] : ["a", "child-bridge", "b"],
+    );
+    expect(ids(expandedScope)).not.toContain("outside");
+  });
+
+  it("keeps a document representative openable while rejecting its outside facts and hidden siblings", () => {
+    const data = dataset([
+      node("D", 0), block("scope", 1, "h", "D"),
+      block("a", 10, "p", "D", "scope"), block("b", 20, "p", "D", "scope"),
+      block("hidden-in", 30, "l", "D", "scope"),
+      block("hidden-out", 40, "l", "D"), node("outside", 50),
+    ], [
+      ["hidden-in", "b", "reference", 2],
+      ["a", "hidden-out", "reference", 3], ["hidden-out", "b", "reference", 4],
+      ["D", "a", "reference", 100], ["a", "D", "reference", 200],
+      ["a", "outside"], ["outside", "b"], ["D", "D", "reference", 300],
+    ]);
+    const scoped = filters({ scopeId: "scope", hiddenTypes: ["l"] });
+    const graph = projectGraph(data, scoped);
+    expect(ids(graph)).toEqual(["D", "a", "b", "scope"]);
+    expect(scopeBackground(data, graph, "scope", true)).toEqual(graph.eligibleIds);
+    expect(graph.representatives.get("hidden-in")).toBe("D");
+    expect(graph.representatives.has("hidden-out")).toBe(false);
+    expect(graph.eligibleIds.has("hidden-in")).toBe(false);
+    expect(retainSelection(selectNode(EMPTY_SELECTION, "D"), graph.eligibleIds).chosenIds).toEqual(["D"]);
+    expect(resolveOpenBlock("D", data, graph)).toBe("D");
+    expect(resolveOpenBlock("hidden-in", data, graph)).toBe("hidden-in");
+    expect(resolveOpenBlock("hidden-out", data, graph)).toBeNull();
+    expect(pairs(graph, "reference")).toEqual(["D>b"]);
+    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
+      { sourceId: "hidden-in", targetId: "b", kind: "reference", weight: 2 },
+    ] });
+    for (const direction of ["out", "in", "both"] as const)
+      expect(shortestPath(graph, direction === "in" ? "b" : "a", direction === "in" ? "a" : "b", direction)).toBeNull();
+
+    const insideReferences = dataset(data.nodes, [["a", "hidden-in"], ["hidden-in", "b"]]);
+    expect(shortestPath(projectGraph(insideReferences, scoped), "a", "b", "out")).toEqual(["a", "D", "b"]);
+    const withHierarchy = projectGraph(data, { ...scoped, hierarchy: true });
+    expect(pairs(withHierarchy, "hierarchy")).toEqual(["scope>a", "scope>b"]);
+    expect(withHierarchy.edges.filter((edge) => edge.kind === "hierarchy").every((edge) =>
+      edge.provenance?.every((origin) => origin.sourceId === "scope"),
+    )).toBe(true);
+    const excluded = projectGraph(data, { ...scoped, excludeIds: ["hidden-in"] });
+    expect(ids(excluded)).toEqual(["a", "b", "scope"]);
+    expect(excluded.edges).toEqual([]);
+    expect(projectGraph(data, { ...scoped, excludeIds: ["scope"] }).nodes).toEqual([]);
+    expect(projectGraph(data, { ...scoped, excludeIds: ["D"] }).nodes).toEqual([]);
+  });
+
+  it("preserves in-scope projected self references without importing an outside source with the same representative", () => {
+    const data = dataset([
+      node("D", 0), block("scope", 1, "h", "D"),
+      block("first", 2, "l", "D", "scope"), block("second", 3, "l", "D", "scope"),
+      block("sibling", 4, "l", "D"),
+    ], [["first", "second", "reference", 2], ["first", "sibling", "reference", 9]]);
+    const graph = projectGraph(data, filters({ scopeId: "scope", hiddenTypes: ["l"] }));
+    expect(pairs(graph, "reference")).toEqual(["D>D"]);
+    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
+      { sourceId: "first", targetId: "second", kind: "reference", weight: 2 },
+    ] });
+  });
+
+  it("does not invent database membership inside native scope and retains notebook-filtered databases without that scope", () => {
+    const data = dataset([
+      node("D", 0), block("carrier", 1, "av", "D"), block("inside", 2, "p", "D"),
+      node("other", 3, { notebook: "other-book" }),
+      node("av:db", 4, { entity: "database", rootId: undefined, databaseId: "db", notebook: "" }),
+      node("item:inside", 5, { entity: "database-item", rootId: undefined, databaseId: "db", boundBlockId: "inside", notebook: "" }),
+      node("item:detached", 6, { entity: "database-item", rootId: undefined, databaseId: "db", notebook: "" }),
+      node("item:other", 7, { entity: "database-item", rootId: undefined, databaseId: "db", boundBlockId: "other", notebook: "" }),
+    ], [
+      ["carrier", "av:db", "database-embedding"],
+      ["av:db", "item:inside", "database-membership"],
+      ["av:db", "item:detached", "database-membership"],
+      ["av:db", "item:other", "database-membership"],
+      ["item:inside", "inside", "database-binding"], ["item:other", "other", "database-binding"],
+      ["item:inside", "item:detached", "database-relation"],
+      ["item:detached", "item:other", "database-relation"], ["carrier", "inside"],
+    ]);
+    const scoped = projectGraph(data, filters({ scopeId: "D", notebook: "book", hierarchy: true }));
+    expect(ids(scoped)).toEqual(["D", "carrier", "inside"]);
+    expect(scopeBackground(data, scoped, "D", true)).toEqual(scoped.eligibleIds);
+    expect(scoped.edges.map((edge) => edge.kind).sort()).toEqual(["hierarchy", "hierarchy", "reference"]);
+    expect(pairs(scoped, "hierarchy")).toEqual(["D>carrier", "D>inside"]);
+    const notebook = projectGraph(data, filters({ notebook: "book" }));
+    expect(ids(notebook)).toEqual(["D", "av:db", "carrier", "inside", "item:detached", "item:inside"]);
+    for (const kind of ["database-embedding", "database-membership", "database-binding", "database-relation"] as const)
+      expect(pairs(notebook, kind).length).toBeGreaterThan(0);
+    expect(shortestPath(notebook, "carrier", "item:detached", "out")).toEqual(["carrier", "av:db", "item:detached"]);
+    expect(shortestPath(scoped, "carrier", "item:detached", "out")).toBeNull();
+    expect(projectGraph(data, filters({ scopeId: "D", notebook: "other-book" })).nodes).toEqual([]);
+    expect(projectGraph(data, filters({ scopeId: "missing" })).nodes).toEqual([]);
+    expect(projectGraph(data, filters({ scopeId: "av:db" })).nodes).toEqual([]);
   });
 });
 

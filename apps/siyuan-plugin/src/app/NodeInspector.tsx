@@ -44,7 +44,6 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
   if (!node) return null;
   const viewLookups = getGraphLookups(state.view);
   const incident = viewLookups.incidentEdges(node.index);
-  const external = viewLookups.byId.get(node.id)?.external;
   const byIndex = state.currentGraph
     ? getGraphLookups(state.currentGraph).byIndex
     : undefined;
@@ -84,11 +83,6 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
             <Badge variant="secondary">
               {NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node)}
             </Badge>
-            {external && (
-              <Badge variant="outline" className="ml-2">
-                ↗ 范围外补充
-              </Badge>
-            )}
             {node.notebook && (
               <span className="ml-2 break-words">
                 {notebook?.name ?? node.notebook}

@@ -80,7 +80,6 @@ export function ExplorePage({ active }: { active: boolean }) {
             </PopoverTrigger>
             <GraphLegend
               nodes={view.nodes}
-              colorBy={state.colorBy}
               anchorRef={toolbarRef}
             />
           </div>

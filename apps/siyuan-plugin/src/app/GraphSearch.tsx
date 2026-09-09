@@ -142,7 +142,6 @@ export function GraphSearch({
                     <span className="block truncate text-xs text-muted-foreground">
                       {[
                         NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node),
-                        node.external && "↗ 范围外补充",
                         node.humanPath || node.documentLabel,
                         node.heading,
                         notebooks.get(node.notebook),

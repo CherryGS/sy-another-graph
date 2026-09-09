@@ -21,7 +21,6 @@ import { DEFAULT_GRAPH_SETTINGS } from "./settings";
 import { displayConfig } from "./display-config";
 import { GraphCanvasState } from "./GraphCanvasState";
 import { nodeContext } from "./node-context";
-import { nodeLabelClass } from "./node-label-class";
 import { canvasClick } from "./canvas-click";
 import { hitTestPoint } from "./point-hit-test";
 import type { CanvasNode, CosmographCanvasProps } from "./types";
@@ -252,9 +251,11 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           onZoom: () => labels?.refresh("projection"),
           onResize: () => labels?.refresh("projection"),
           pointLabelClassName: (_text, _index, id) =>
-            nodeLabelClass(owned?.displayed, id, Boolean(id &&
+            id &&
               (latestProps.current.chosenIds.includes(id) ||
-                latestProps.current.spotlightIds?.includes(id)))),
+                latestProps.current.spotlightIds?.includes(id))
+              ? "ag-graph-label ag-graph-label--chosen"
+              : "ag-graph-label",
           onGraphRebuildError: fail,
         };
         interactiveConfig.current = base;
