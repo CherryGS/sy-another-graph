@@ -43,6 +43,14 @@ wasm-pack, and its matching wasm-bindgen helper. The tested tools were Node
 24.18.0, Rust 1.97.0, and wasm-pack 0.15.0. The build uses wasm-pack's
 `no-install` mode, so tool provisioning is separate from routine builds.
 
+Rust release builds use optimization level 3, Thin LTO, one codegen unit,
+aborting panics, and stripped output. Vite applies its production JavaScript
+and CSS minifiers and tree shaking. The measured release-profile comparison
+retained these settings: fat LTO produced identical WASM, while Binaryen O3 and
+SIMD compilation gave small, mixed runtime changes without improving the
+neighborhood workload. Routine builds therefore do not require Binaryen or
+additional WebAssembly target features.
+
 ```sh
 pnpm check
 pnpm build
