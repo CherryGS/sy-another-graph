@@ -207,6 +207,9 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           else if (action.kind === "inspect")
             latestProps.current.onSelect(action.id, action.event);
         };
+        const refreshStoppedLabels = () => {
+          if (active && owned?.isInteractive) labels?.refreshAfterSimulation();
+        };
         const base: CosmographConfig = {
           ...BASE_CONFIG,
           onClick: (index, _position, event) =>
@@ -248,6 +251,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labels?.refresh();
           },
           onSimulationTick: () => labels?.refresh("simulation"),
+          onSimulationPause: refreshStoppedLabels,
+          onSimulationEnd: refreshStoppedLabels,
           onZoom: () => labels?.refresh("projection"),
           onResize: () => labels?.refresh("projection"),
           pointLabelClassName: (_text, _index, id) =>
@@ -449,12 +454,14 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       chosenIds,
       spotlightIds,
     );
+  }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
+  useEffect(() => {
     chosenLabels.current?.update(
       session?.displayed ?? null,
       chosenIds,
       spotlightIds,
     );
-  }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
+  }, [session, chosenIds, spotlightIds]);
   useEffect(() => {
     session?.fit();
   }, [session, fitRequest]);

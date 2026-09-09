@@ -1,16 +1,47 @@
+diff --git a/cosmograph/index.d.ts b/cosmograph/index.d.ts
+index 95f0cd923670585fc6ac94f8ebab4c612ab1ef41..697b2c1533fcde0c6e279ae4e578d8a0f2ce7787 100644
+--- a/cosmograph/index.d.ts
++++ b/cosmograph/index.d.ts
+@@ -91,6 +91,8 @@ export declare class Cosmograph implements ICosmograph {
+     captureScreenshot(fileName?: string, scale?: number): void;
+     getCanvas(): HTMLCanvasElement | null;
+     getPointPositions(options?: PositionDimensionsOptions): Float32Array | undefined;
++    /** Nonblocking PBO/fence snapshot with independent cancellation for each consumer. */
++    getPointPositionsAsync(options?: PositionDimensionsOptions & { signal?: AbortSignal }): Promise<Float32Array>;
+     getClusterPositions(options?: PositionDimensionsOptions): number[] | undefined;
+     getPointColors(): Float32Array | undefined;
+     getPointSizes(): Float32Array | undefined;
+diff --git a/cosmograph/index.js b/cosmograph/index.js
+index a5b1334e77c7ad5634b56fe7a45a8d4c109b242c..abd9a7ed3b1fd7a9abb6e9b7dbb058cd767a5e7e 100644
+--- a/cosmograph/index.js
++++ b/cosmograph/index.js
+@@ -474,6 +474,12 @@ class Cosmograph {
+     var _a;
+     return (_a = this._cosmos) == null ? void 0 : _a.getPointPositions(options);
+   }
++  /** Nonblocking coordinate snapshot shared with the native label layer. */
++  getPointPositionsAsync(options) {
++    if (options?.signal?.aborted)
++      return Promise.reject(new DOMException("Position snapshot cancelled", "AbortError"));
++    return this._cosmos?.getPointPositionsAsync(options) ?? Promise.resolve(new Float32Array(0));
++  }
+   getClusterPositions(options) {
+     var _a;
+     const positions = (_a = this._cosmos) == null ? void 0 : _a.getClusterPositions(options);
 diff --git a/cosmograph/managers/event-manager.js b/cosmograph/managers/event-manager.js
-index ad8ad3e60eae9b2879dc71d5ccda80ecf65565b6..de328aac59d27d78b594ff1f7557dc17be05dab9 100644
+index ad8ad3e60eae9b2879dc71d5ccda80ecf65565b6..edd172e01a6a069800ee59b78cc017de7d2187a0 100644
 --- a/cosmograph/managers/event-manager.js
 +++ b/cosmograph/managers/event-manager.js
-@@ -7,6 +7,7 @@ class CosmographEventManager {
+@@ -7,6 +7,8 @@ class CosmographEventManager {
      __publicField(this, "_");
      __publicField(this, "_hoveredPointIndex");
      __publicField(this, "_isZooming", false);
 +    __publicField(this, "_nextLabelPositionUpdateTime", 0);
++    __publicField(this, "_labelPositionUpdatePending", null);
      this._ = _;
    }
    attachCosmosEvents(config = {}) {
-@@ -210,9 +211,17 @@ class CosmographEventManager {
+@@ -210,21 +212,38 @@ class CosmographEventManager {
      this._.dispatchEvent(new CustomEvent("onSimulationStart"));
    }
    onSimulationTick(...args) {
@@ -19,30 +50,251 @@ index ad8ad3e60eae9b2879dc71d5ccda80ecf65565b6..de328aac59d27d78b594ff1f7557dc17
      (_b = (_a = this._.config).onSimulationTick) == null ? void 0 : _b.call(_a, ...args);
 -    (_c = this._.labels) == null ? void 0 : _c.updatePositions();
 +    const labelUpdateStarted = performance.now();
-+    if (this._.labels && labelUpdateStarted >= this._nextLabelPositionUpdateTime) {
-+      this._.labels.updatePositions();
-+      const labelUpdateFinished = performance.now();
-+      // At most 20 simulation label updates/second; expensive readbacks receive
-+      // up to 250ms of cooldown after completion. Interaction updates stay immediate.
-+      const cooldown = Math.min(250, Math.max(50, (labelUpdateFinished - labelUpdateStarted) * 3));
-+      this._nextLabelPositionUpdateTime = labelUpdateFinished + cooldown;
++    if (this._.labels && !this._labelPositionUpdatePending && labelUpdateStarted >= this._nextLabelPositionUpdateTime) {
++      const completed = () => {
++        const labelUpdateFinished = performance.now();
++        // Include the asynchronous transfer and coordinate application in the
++        // existing 50–250ms adaptive budget. Interaction projections stay immediate.
++        const cooldown = Math.min(250, Math.max(50, (labelUpdateFinished - labelUpdateStarted) * 3));
++        this._nextLabelPositionUpdateTime = labelUpdateFinished + cooldown;
++        this._labelPositionUpdatePending = null;
++      };
++      const update = this._.labels.updatePositions();
++      if (update && typeof update.then === "function") {
++        this._labelPositionUpdatePending = update;
++        update.then(completed, completed);
++      } else completed();
 +    }
      (_d = this._.annotations) == null ? void 0 : _d.updatePositions();
      this._.dispatchEvent(new CustomEvent("onSimulationTick"));
    }
+   onSimulationEnd(...args) {
+     var _a, _b;
+     (_b = (_a = this._.config).onSimulationEnd) == null ? void 0 : _b.call(_a, ...args);
++    void this._.labels?.flushPositions();
+     this._.dispatchEvent(new CustomEvent("onSimulationEnd"));
+   }
+   onSimulationPause(...args) {
+     var _a, _b, _c, _d;
+     (_b = (_a = this._.config).onSimulationPause) == null ? void 0 : _b.call(_a, ...args);
+     void ((_c = this._.labels) == null ? void 0 : _c.render());
++    void this._.labels?.flushPositions();
+     void ((_d = this._.annotations) == null ? void 0 : _d.render());
+   }
+   onSimulationUnpause(...args) {
+diff --git a/cosmograph/modules/labels/index.d.ts b/cosmograph/modules/labels/index.d.ts
+index de665b7b9ef6390a96298b52906d09383be56446..39f95dbbd2e8e3d3b94f6a5f0a7ca1b39e892ccf 100644
+--- a/cosmograph/modules/labels/index.d.ts
++++ b/cosmograph/modules/labels/index.d.ts
+@@ -65,7 +65,8 @@ export declare class Labels {
+     private _scheduleUpdate;
+     private _runUpdates;
+     private _updateCurrentConfig;
+-    updatePositions(): void;
++    updatePositions(): Promise<void> | undefined;
++    flushPositions(): Promise<void> | undefined;
+     private _updateLabels;
+     private _updateSelectedPointLabels;
+     private _updateDynamicLabels;
 diff --git a/cosmograph/modules/labels/index.js b/cosmograph/modules/labels/index.js
-index 660385391da03c1af727c23233b8f3ecbac1f2e0..1486166b8b43fd606968f3d88019aee38c8b2507 100644
+index 660385391da03c1af727c23233b8f3ecbac1f2e0..5da8252965640661ecfc041a9c368e90cbd5137d 100644
 --- a/cosmograph/modules/labels/index.js
 +++ b/cosmograph/modules/labels/index.js
-@@ -223,6 +223,11 @@ class Labels {
+@@ -221,27 +221,109 @@ class Labels {
+       throw error;
+     }
    }
-   updatePositions() {
-     var _a, _b;
-+    // Hidden or empty label layers have no coordinates to read back from the GPU.
+-  updatePositions() {
+-    var _a, _b;
++  _cancelPositionSnapshot() {
++    this._finalPositionSnapshot = void 0;
++    this._positionSnapshotRequest?.controller.abort();
++    this._positionSnapshotRequest = void 0;
++    this._positionSnapshotOwner = void 0;
++    this._positionSnapshot = void 0;
++    this._positionSnapshotFailed = false;
++  }
++  _getPositionSnapshotOwner() {
++    const cosmos = this._.cosmos;
++    const version = this._.configManager?.configVersion;
+     const dimensions = this._.public.is3D ? 3 : 2;
+-    const pointPositions = (_a = this._.cosmos) == null ? void 0 : _a.getPointPositions({ dimensions });
+-    const rawClusterPositions = (_b = this._.cosmos) == null ? void 0 : _b.getClusterPositions({ dimensions });
+-    const clusterPositions = rawClusterPositions ? Array.from(rawClusterPositions) : void 0;
++    let owner = this._positionSnapshotOwner;
++    if (!owner || owner.cosmos !== cosmos || owner.version !== version || owner.dimensions !== dimensions) {
++      this._cancelPositionSnapshot();
++      owner = { cosmos, version, dimensions };
++      this._positionSnapshotOwner = owner;
++    }
++    return owner;
++  }
++  _applyPositionSnapshot(owner) {
++    const pointPositions = this._positionSnapshot;
++    const { dimensions } = owner;
++    // Cluster coordinates have a separate explicit API. Avoid even that read
++    // unless a cluster label is present (the normal point-label layer has none).
++    const hasClusters = Array.from(this._labelDataMap.keys()).some((key) => typeof key === "string" && key.startsWith("cluster-"));
++    const clusterPositions = hasClusters ? owner.cosmos?.getClusterPositions({ dimensions }) : void 0;
+     this._labelDataMap.forEach((labelData, key) => {
+-      var _a2;
+-      const isCluster = (_a2 = key.startsWith) == null ? void 0 : _a2.call(key, "cluster-");
++      const isCluster = typeof key === "string" && key.startsWith("cluster-");
+       const positions = isCluster ? clusterPositions : pointPositions;
+-      if (!positions || !isCluster && labelData.index < 0)
+-        return;
++      if (!positions || labelData.index < 0) return;
+       const x = positions[labelData.index * dimensions];
+       const y = positions[labelData.index * dimensions + 1];
+       const z = positions[labelData.index * dimensions + 2];
+-      if (x !== void 0 && y !== void 0) {
++      if (x !== void 0 && y !== void 0)
+         labelData.position = dimensions === 3 ? [x, y, z ?? 0] : [x, y];
+-      }
+     });
+     this._renderLabels();
+   }
++  updatePositions() {
++    if (this._positionSnapshotDestroyed) return;
++    // No label demand means no GPU snapshot. Keep the ordinary render contract
++    // so hiding the layer also clears its DOM immediately.
 +    if (!this._.config.showLabels || this._labelDataMap.size === 0) {
++      this._cancelPositionSnapshot();
 +      this._renderLabels();
 +      return;
 +    }
++    const owner = this._getPositionSnapshotOwner();
++    // World coordinates remain useful while a new capture is pending: rendering
++    // applies the current camera, so zooming does not wait for GPU readback.
++    this._applyPositionSnapshot(owner);
++    if (this._positionSnapshotRequest) return this._positionSnapshotRequest.promise;
++    if (!owner.cosmos || this._positionSnapshotFailed) return;
++    const request = { owner, controller: new AbortController(), promise: void 0 };
++    this._positionSnapshotRequest = request;
++    const isCurrent = () => !this._positionSnapshotDestroyed && this._positionSnapshotRequest === request &&
++      this._positionSnapshotOwner === owner && this._.cosmos === owner.cosmos &&
++      this._.configManager?.configVersion === owner.version && (this._.public.is3D ? 3 : 2) === owner.dimensions;
++    const failed = (error) => {
++      if (!isCurrent()) return;
++      this._positionSnapshotRequest = void 0;
++      if (error?.name === "AbortError") return;
++      this._positionSnapshotFailed = true;
++      // Never fall back to a blocking GPU read or retry it every animation tick.
++      cosmographLog(error, "Labels > asynchronous positions", "error");
++    };
++    try {
++      request.promise = owner.cosmos.getPointPositionsAsync({ dimensions: owner.dimensions, signal: request.controller.signal }).then((positions) => {
++        if (!isCurrent()) return;
++        this._positionSnapshotRequest = void 0;
++        if (!this._.config.showLabels || this._labelDataMap.size === 0) return;
++        this._positionSnapshot = positions;
++        this._applyPositionSnapshot(owner);
++      }, failed);
++      return request.promise;
++    } catch (error) { failed(error); }
++  }
++  flushPositions() {
++    if (this._positionSnapshotDestroyed || !this._.config.showLabels || !this._labelDataMap.size) return;
++    const owner = this._getPositionSnapshotOwner();
++    if (!owner.cosmos || this._positionSnapshotFailed) return;
++    if (this._finalPositionSnapshot?.owner === owner && this._finalPositionSnapshot.waiting)
++      return this._finalPositionSnapshot.promise;
++    const pending = this._positionSnapshotRequest?.promise;
++    const demand = { owner, promise: void 0, waiting: Boolean(pending) };
++    this._finalPositionSnapshot = demand;
++    const current = () => this._finalPositionSnapshot === demand && !this._positionSnapshotDestroyed &&
++      this._positionSnapshotOwner === owner && this._.cosmos === owner.cosmos &&
++      this._.configManager?.configVersion === owner.version && (this._.public.is3D ? 3 : 2) === owner.dimensions &&
++      this._.config.showLabels && this._labelDataMap.size > 0;
++    // Cosmos invalidates every pre-stop shared capture before pause/end callbacks.
++    // Wait for our cancelled request to settle, then retain one fresh final demand.
++    const readFinal = () => {
++      if (!current() || this._positionSnapshotFailed) return;
++      demand.waiting = false;
++      return this.updatePositions();
++    };
++    const clearFinal = () => { if (this._finalPositionSnapshot === demand) this._finalPositionSnapshot = void 0; };
++    const finalRead = pending ? pending.then(readFinal) : readFinal();
++    demand.promise = Promise.resolve(finalRead).then(clearFinal, clearFinal);
++    return demand.promise;
++  }
+   async _updateLabels() {
+     var _a, _b, _c;
+     const { config, cosmosInitialized, dbCoordinator, public: { pointsTableName, focusedPointIndex } } = this._;
+@@ -436,6 +518,7 @@ class Labels {
+   }
+   _populateLabelDataMap(useDebounce = false) {
+     const { showLabels, staticLabelWeight, dynamicLabelWeight, showDynamicLabels, showTopLabels, showLabelsFor, showSelectedLabels, pointLabelBy, showClusterLabels, showUnselectedPointLabels } = this._.config;
++    if (!showLabels) this._cancelPositionSnapshot();
+     if (!useDebounce || !showLabels)
+       this._labelDataMap.clear();
+     const isFilteringActive = this._.crossfilter.isHighlightActive;
+@@ -467,6 +550,12 @@ class Labels {
+   }
+   _getTrackedPositions(useDebounce) {
+     var _a, _b;
++    const owner = this._getPositionSnapshotOwner();
++    if (this._positionSnapshot) {
++      const indices = new Set([...this._staticLabelsMap.keys(), ...this._selectedLabelsMap.keys()]);
++      if (this._focusedLabel) indices.add(this._focusedLabel[0]);
++      return this._positionsForIndices(indices, owner.dimensions);
++    }
+     const currentTime = Date.now();
      const dimensions = this._.public.is3D ? 3 : 2;
-     const pointPositions = (_a = this._.cosmos) == null ? void 0 : _a.getPointPositions({ dimensions });
-     const rawClusterPositions = (_b = this._.cosmos) == null ? void 0 : _b.getClusterPositions({ dimensions });
+     const isSimulationRunning = Boolean(this._.public.isSimulationRunning);
+@@ -481,6 +570,9 @@ class Labels {
+     return trackedPointsPositions;
+   }
+   _getSampledPositions(maxAgeMs = 50) {
++    const owner = this._getPositionSnapshotOwner();
++    if (this._isZooming && this._positionSnapshot && this._cachedSampledPointsPositions)
++      return this._positionsForIndices(this._cachedSampledPointsPositions.keys(), owner.dimensions);
+     const currentTime = Date.now();
+     const dimensions = this._.public.is3D ? 3 : 2;
+     if (this._cachedSampledPointsPositions && this._cachedSampledPointsDimensions === dimensions && currentTime - this._lastSampledPointsQueryTime < maxAgeMs) {
+@@ -494,6 +586,16 @@ class Labels {
+     }
+     return sampledPointsPositions;
+   }
++  _positionsForIndices(indices, dimensions) {
++    const positions = new Map();
++    for (const index of indices) {
++      const offset = index * dimensions;
++      const x = this._positionSnapshot[offset], y = this._positionSnapshot[offset + 1];
++      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
++      positions.set(index, dimensions === 3 ? [x, y, this._positionSnapshot[offset + 2]] : [x, y]);
++    }
++    return positions;
++  }
+   _hashIndices(indices) {
+     let hash = 0;
+     for (const index of indices) {
+@@ -858,6 +960,7 @@ class Labels {
+    * Destroys the labels module, removing event listeners and destroying internal components.
+    */
+   destroy() {
++    this._positionSnapshotDestroyed = true;
+     var _a, _b, _c, _d;
+     this.clear();
+     this._.removeEventListener("clustersUpdated", this._updateClustersFontScaleHandler);
+@@ -875,6 +978,7 @@ class Labels {
+    * Clears the labels data and resets the CSS labels renderer.
+    */
+   clear() {
++    this._cancelPositionSnapshot();
+     var _a, _b, _c;
+     if (this._clusterLabelsRefreshFrame !== void 0) {
+       cancelAnimationFrame(this._clusterLabelsRefreshFrame);
+diff --git a/cosmograph/types.d.ts b/cosmograph/types.d.ts
+index 2c5bfea47f9b52502b228891af9da23602d67bba..a57d5627b7211ab03c441e3d20d1b8cea670c509 100644
+--- a/cosmograph/types.d.ts
++++ b/cosmograph/types.d.ts
+@@ -396,6 +396,8 @@ export interface ICosmograph {
+      * @returns `Float32Array` of point positions (`[x, y, ...]` or `[x, y, z, ...]`).
+      */
+     getPointPositions(options?: PositionDimensionsOptions): Float32Array | undefined;
++    /** Nonblocking PBO/fence snapshot with independent cancellation for each consumer. */
++    getPointPositionsAsync(options?: PositionDimensionsOptions & { signal?: AbortSignal }): Promise<Float32Array>;
+     /**
+      * Gets the current X and Y coordinates of a point by its index.
+      * @param index Point index.

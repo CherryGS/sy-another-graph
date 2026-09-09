@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import type { WorkbenchState } from "./state";
 import { DEFAULT_FILTERS } from "../data/types";
-import { nodeType } from "../data/graph-model";
+import { getNodeTypeCounts } from "../data/graph-summary";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import { SettingSwitch } from "./SettingsPanel";
 
@@ -45,10 +45,8 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
     setExcludeDraft(filters.excludeIds.join("\n"));
   }, [filters.excludeIds]);
   const types = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const node of data?.nodes ?? [])
-      counts.set(nodeType(node), (counts.get(nodeType(node)) ?? 0) + 1);
-    return [...counts].sort(([a], [b]) =>
+    if (!data) return [];
+    return [...getNodeTypeCounts(data.nodes)].sort(([a], [b]) =>
       a === "d" ? -1 : b === "d" ? 1 : a.localeCompare(b),
     );
   }, [data]);

@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -35,44 +34,16 @@ import {
 } from "@/components/ui/empty";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getGraphSummary } from "../data/graph-summary";
 import { useWorkbench } from "./state";
 
 export function InsightsPage() {
   const state = useWorkbench();
   const navigate = useNavigate();
   const { data, stats, currentGraph } = state;
-  const structure = useMemo(() => {
-    if (!currentGraph || !stats) return null;
-    const isolated = currentGraph.nodes.reduce(
-      (count, node) => count + Number(node.degree === 0),
-      0,
-    );
-    let references = 0;
-    let referenceRecords = 0;
-    for (const edge of currentGraph.edges) {
-      if (edge.kind !== "reference") continue;
-      references += 1;
-      referenceRecords += edge.weight;
-    }
-    const connected = currentGraph.nodes.length - isolated;
-    return {
-      isolated,
-      connected,
-      references,
-      referenceRecords,
-      coverage: currentGraph.nodes.length
-        ? (connected / currentGraph.nodes.length) * 100
-        : 0,
-      averageDegree: currentGraph.nodes.length
-        ? stats.degrees.reduce((total, degree) => total + degree, 0) /
-          currentGraph.nodes.length
-        : 0,
-      topNodes: currentGraph.nodes
-        .slice()
-        .sort((a, b) => b.degree - a.degree)
-        .slice(0, 8),
-    };
-  }, [currentGraph, stats]);
+  const structure = currentGraph && stats
+    ? getGraphSummary(currentGraph, stats.degrees)
+    : null;
 
   if (!data || !stats || !currentGraph || !structure)
     return (

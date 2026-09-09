@@ -5,7 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@cosmograph/cosmograph@2.5.1': 35ffdfbbfe62c1172b4c7d882bd39acb8cd4c55973e0406d5fbedb0dc2f7ee0d
+  '@cosmograph/cosmograph@2.5.1': f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c
+  '@cosmograph/cosmos@2.5.1': 6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f
 
 importers:
 
@@ -15,7 +16,7 @@ importers:
     dependencies:
       '@cosmograph/cosmograph':
         specifier: 2.5.1
-        version: 2.5.1(patch_hash=35ffdfbbfe62c1172b4c7d882bd39acb8cd4c55973e0406d5fbedb0dc2f7ee0d)(csstype@3.2.3)
+        version: 2.5.1(patch_hash=f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c)(csstype@3.2.3)
       '@duckdb/duckdb-wasm':
         specifier: 1.32.0
         version: 1.32.0
@@ -3523,9 +3524,9 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@cosmograph/cosmograph@2.5.1(patch_hash=35ffdfbbfe62c1172b4c7d882bd39acb8cd4c55973e0406d5fbedb0dc2f7ee0d)(csstype@3.2.3)':
+  '@cosmograph/cosmograph@2.5.1(patch_hash=f9b8e91be908c229bfc4c9973e0873900e1941a3324a26c59ded41b4f9fcda7c)(csstype@3.2.3)':
     dependencies:
-      '@cosmograph/cosmos': 2.5.1
+      '@cosmograph/cosmos': 2.5.1(patch_hash=6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f)
       '@cosmograph/ui': 2.5.1(csstype@3.2.3)
       '@duckdb/duckdb-wasm': 1.32.0
       '@interacta/css-labels': 0.6.0
@@ -3546,7 +3547,7 @@ snapshots:
       - '@opentelemetry/api'
       - csstype
 
-  '@cosmograph/cosmos@2.5.1':
+  '@cosmograph/cosmos@2.5.1(patch_hash=6130af695aea4cf5fc08851aaed61f849e7634c0543ae08a80cb1e7970b4ae7f)':
     dependencies:
       '@luma.gl/core': 9.3.6
       '@luma.gl/engine': 9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6))

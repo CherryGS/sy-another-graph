@@ -136,13 +136,22 @@ cooling is measured in steps, not milliseconds, so elapsed settling time depends
 on the rate at which the renderer advances the simulation.
 
 Lookup caches and stable view arrays avoid repeated whole-graph scans and
-renderer uploads for unchanged views. Panel scrolling briefly yields simulation
-work while preserving explicit user pause. A version-pinned pnpm patch for
-Cosmograph 2.5.1 skips hidden/empty label GPU readbacks and limits simulation
-label refreshes with a 50–250 ms adaptive cooldown. Drag, resize, and camera
-interaction updates remain immediate. This controls label readback frequency,
-not a guaranteed frame rate. The patch and its tests are checked in under
-`patches/` and `src/graph/vendor-labels.test.ts` in the plugin sources.
+renderer uploads for unchanged views. Filters, the legend, and Insights share
+cached summaries of immutable graph arrays; the top-eight hub summary avoids
+sorting the full node array. Panel scrolling briefly yields simulation work
+while preserving explicit user pause.
+
+Version-pinned pnpm patches for Cosmos and Cosmograph 2.5.1 transfer continuous
+label coordinates through a shared pixel pack buffer and GPU completion fence.
+Regular and temporary endpoint labels use a 50–250 ms adaptive cooldown after
+each completed read and flush final coordinates when simulation stops. Pinned
+chosen labels retain their coordinates, and camera changes immediately reproject
+cached positions. Hidden or empty label layers
+do not request coordinates. Replaced data, dimensions, pin changes, cancellation,
+and disposal invalidate pending snapshots. Explicit geometry operations such as
+Fit retain their synchronous API. These changes reduce main-thread blocking;
+they do not guarantee a frame rate. Patches and installed-vendor regression tests
+are checked in under `patches/` and `src/graph/vendor-*.test.ts` in the plugin sources.
 
 SharedArrayBuffer transport is enabled only in a supported cross-origin
 isolated context. The supplied SiYuan WebUI does not provide that context, so

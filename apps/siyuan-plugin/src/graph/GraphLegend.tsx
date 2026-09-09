@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { nodeType } from "../data/graph-model";
+import { getNodeTypeCounts } from "../data/graph-summary";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import {
   NODE_TYPE_COLORS,
@@ -27,13 +27,8 @@ export function GraphLegend({
 }) {
   const titleId = useId();
   const types = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const node of nodes) {
-      const type = nodeType(node);
-      counts.set(type, (counts.get(type) ?? 0) + 1);
-    }
     const order = Object.keys(NODE_TYPE_COLORS);
-    return [...counts].sort(([left], [right]) => {
+    return [...getNodeTypeCounts(nodes)].sort(([left], [right]) => {
       const leftIndex = order.indexOf(left);
       const rightIndex = order.indexOf(right);
       return (

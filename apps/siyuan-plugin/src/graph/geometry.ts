@@ -12,6 +12,9 @@ export type ProjectionApi = Pick<Cosmograph, "spaceToScreenPosition"> & {
 export type PointGeometry = ProjectionApi & Pick<Cosmograph,
   "getPointPositions" | "getPointScreenRadiusByIndex"
 >;
+export type AsyncPointGeometry = ProjectionApi & Pick<Cosmograph,
+  "getPointPositionsAsync" | "getPointScreenRadiusByIndex"
+>;
 
 export function pointAt(positions: Float32Array, index: number, dimensions: Dimensions): PointPosition {
   const offset = index * dimensions;
