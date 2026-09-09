@@ -61,6 +61,8 @@ function harness() {
   const timers = new Map<number, () => void>();
   const frames = new Map<number, () => void>();
   let sequence = 0;
+  const fits = vi.fn();
+  let simulationRunning = false;
   let positions: Float32Array = new Float32Array();
   let positionDimensions: Dimensions = 2;
   let is3D = false;
@@ -91,6 +93,7 @@ function harness() {
   };
   const graph = {
     get is3D() { return is3D; },
+    get isSimulationRunning() { return simulationRunning; },
     stats: { pointsCount: 0, linksCount: 0 },
     setConfig: vi.fn(async (config: CosmographConfig) => {
       configurations.push(config);
@@ -130,13 +133,13 @@ function harness() {
     destroy: vi.fn(async () => {
       order.push("destroy");
     }),
-    pause: vi.fn(),
-    unpause: vi.fn(),
-    start: vi.fn(),
+    pause: vi.fn(() => { simulationRunning = false; }),
+    unpause: vi.fn(() => { simulationRunning = true; }),
+    start: vi.fn(() => { simulationRunning = true; }),
     selectPoints: vi.fn(),
     setFocusedPoint: vi.fn(),
     setPinnedPoints: vi.fn(),
-    fitView: vi.fn(),
+    fitViewByCoordinates: vi.fn((_coordinates: number[], duration?: number, padding?: number) => { fits(duration, padding); }),
     getZoomLevel: vi.fn(() => {
       if (is3D) throw new Error("2D zoom getter used in 3D");
       return zoom;
@@ -156,8 +159,9 @@ function harness() {
     spaceToScreenPosition: vi.fn((point: [number, number] | [number, number, number]): [number, number] => [
       point[0] * zoom + translateX, translateY - point[1] * zoom,
     ]),
-    setZoomTransformByPointPositions: vi.fn((points: Float32Array, _duration?: number, scale?: number) => {
+    setZoomTransformByPointPositions: vi.fn((points: Float32Array, duration?: number, scale?: number, padding?: number) => {
       if (is3D) throw new Error("2D framing used in 3D");
+      if (scale === undefined) { fits(duration, padding); return; }
       zoom = scale ?? zoom;
       translateX = width / 2 - points[0] * zoom;
       translateY = height / 2 + points[1] * zoom;
@@ -215,6 +219,8 @@ function harness() {
   );
   return {
     session,
+    fits,
+    settle: () => { simulationRunning = false; },
     graph,
     tables,
     order,
@@ -239,6 +245,109 @@ function flushScheduledFrames(h: ReturnType<typeof harness>) {
 }
 
 describe("renderer lifetime", () => {
+  it.each([2, 3] as const)("samples each explicit %sD fit once without rebuilding, reheating or changing pause", async (dimensions) => {
+    const h = harness();
+    h.session.controls(null, true, [], ["a"]);
+    await h.session.update(data(), { spaceDimensions: dimensions });
+    flushScheduledFrames(h);
+    const previousSample = h.session.getDiagnostics().layoutSample;
+    h.graph.getPointPositions.mockClear();
+    h.graph.setConfig.mockClear();
+    h.graph.setPointPositions.mockClear();
+    h.graph.start.mockClear();
+    h.graph.pause.mockClear();
+    h.graph.unpause.mockClear();
+    h.graph.setZoomTransformByPointPositions.mockClear();
+    h.graph.fitViewByCoordinates.mockClear();
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions });
+    if (dimensions === 2)
+      expect(h.graph.setZoomTransformByPointPositions).toHaveBeenCalledExactlyOnceWith(h.graph.getPointPositions.mock.results[0].value, 0, undefined, 0.15);
+    else expect(h.graph.fitViewByCoordinates).toHaveBeenCalledExactlyOnceWith([100, 110, 120, 130, 140, 150], 0, 0.15);
+    expect(h.graph.start).not.toHaveBeenCalled();
+    expect(h.graph.pause).not.toHaveBeenCalled();
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    expect(h.graph.setConfig).not.toHaveBeenCalled();
+    expect(h.graph.setPointPositions).not.toHaveBeenCalled();
+    expect(h.graph.isSimulationRunning).toBe(false);
+    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, layoutSample: previousSample + 1, layoutSnapshot: { count: 2, dimensions }, layoutSimulationRunning: false });
+    expect(h.session.getDiagnostics().layoutSampledAt).toEqual(expect.any(Number));
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.getPointPositions).toHaveBeenCalledTimes(2);
+    expect(h.session.getDiagnostics().layoutSample).toBe(previousSample + 2);
+    await h.session.dispose();
+  });
+
+  it("samples actual XY after returning from 3D and preserves natural settling independently of the pause toggle", async () => {
+    const h = harness();
+    const prepared = data();
+    await h.session.update(prepared, { spaceDimensions: 3 });
+    await h.session.update(prepared, { spaceDimensions: 2 });
+    flushScheduledFrames(h);
+    expect(h.session.positionDimensions).toBe(3);
+    h.settle();
+    h.graph.getPointPositions.mockClear();
+    h.graph.start.mockClear();
+    h.graph.unpause.mockClear();
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions: 2 });
+    expect(h.session.getDiagnostics()).toMatchObject({ layoutSnapshot: { dimensions: 2 }, layoutSimulationRunning: false });
+    expect(h.graph.isSimulationRunning).toBe(false);
+    expect(h.graph.start).not.toHaveBeenCalled();
+    expect(h.graph.unpause).not.toHaveBeenCalled();
+    await h.session.dispose();
+  });
+
+  it("keeps a retained sample's data revision until Fit samples the replacement graph", async () => {
+    const h = harness();
+    expect(h.session.getDiagnostics().layoutDataRevision).toBeNull();
+    await h.session.update(dataWithIds(["a", "b"]), {});
+    flushScheduledFrames(h);
+    const first = h.session.getDiagnostics();
+    expect(first).toMatchObject({
+      dataRevisions: 1,
+      layoutDataRevision: 1,
+      layoutSnapshot: { count: 2 },
+    });
+
+    await h.session.update(dataWithIds(["a", "b", "new"]), {});
+    flushScheduledFrames(h);
+    const replaced = h.session.getDiagnostics();
+    expect(replaced.dataRevisions).toBe(2);
+    expect(replaced.layoutDataRevision).toBe(1);
+    expect(replaced.layoutSnapshot).toBe(first.layoutSnapshot);
+    expect(replaced.layoutSampledAt).toBe(first.layoutSampledAt);
+    expect(replaced.layoutSample).toBe(first.layoutSample);
+
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.session.getDiagnostics()).toMatchObject({
+      dataRevisions: 2,
+      layoutDataRevision: 2,
+      layoutSample: first.layoutSample + 1,
+      layoutSnapshot: { count: 3 },
+    });
+    await h.session.dispose();
+  });
+
+  it("restores a naturally stopped state if a coordinate-fit implementation unexpectedly resumes it", async () => {
+    const h = harness();
+    await h.session.update(data(), {});
+    flushScheduledFrames(h);
+    h.settle();
+    h.graph.pause.mockClear();
+    h.graph.setZoomTransformByPointPositions.mockImplementationOnce(() => h.graph.unpause());
+    h.session.fit();
+    flushScheduledFrames(h);
+    expect(h.graph.isSimulationRunning).toBe(false);
+    expect(h.graph.pause).toHaveBeenCalledTimes(1);
+    expect(h.session.getDiagnostics().layoutSimulationRunning).toBe(false);
+    await h.session.dispose();
+  });
+
   it("restores XYZ by stable ID and the full 3D orbit camera across a data rebuild", async () => {
     const h = harness();
     h.session.controls("a", true, [], ["a", "c"]);
@@ -252,7 +361,11 @@ describe("renderer lifetime", () => {
     expect(h.graph.getCameraState()).toEqual(camera);
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 2]);
     expect(h.graph.getZoomLevel).not.toHaveBeenCalled();
-    expect(h.session.getDiagnostics()).toMatchObject({ dimensions: 3, camera, chosenIds: ["c", "a"], pinnedCount: 2, restoredPointCount: 2, positionWorldError: 0 });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      dimensions: 3, camera, chosenIds: ["c", "a"], pinnedCount: 2, restoredPointCount: 2, positionWorldError: 0,
+      layoutBefore: { count: 3, dimensions: 3, min: [10, 20, 30], max: [70, 80, 90], centroid: [40, 50, 60] },
+      layoutAfter: { count: 3, dimensions: 3, min: [10, 20, 30], max: [130, 140, 150], centroid: [70, 80, 90] },
+    });
     await h.session.dispose();
   });
 
@@ -332,7 +445,7 @@ describe("renderer lifetime", () => {
     h.session.fit();
     expect(h.graph.pause).not.toHaveBeenCalled();
     expect(h.graph.selectPoints).not.toHaveBeenCalled();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     const closing = h.session.dispose();
     expect(h.graph.destroy).not.toHaveBeenCalled();
     finish.resolve();
@@ -387,24 +500,24 @@ describe("renderer lifetime", () => {
     h.session.suspend();
     expect(h.frames.size).toBe(0);
     frame();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     await h.session.dispose();
     timer();
     frame();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
   });
 
   it("fits the first displayed graph but preserves the camera on later data and scope updates", async () => {
     const h = harness();
     await h.session.update(data("initial"), {});
     flushScheduledFrames(h);
-    expect(h.graph.fitView).toHaveBeenCalledExactlyOnceWith(0, 0.15);
-    h.graph.fitView.mockClear();
+    expect(h.fits).toHaveBeenCalledExactlyOnceWith(0, 0.15);
+    h.fits.mockClear();
     await h.session.update(data("refreshed"), {});
     await h.session.update(data("scope-changed"), {});
     expect(h.timers.size).toBe(0);
     flushScheduledFrames(h);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
     expect(
       h.configurations.every((config) => config.fitViewOnInit === false),
@@ -427,16 +540,16 @@ describe("renderer lifetime", () => {
     };
     await h.session.update(empty, {});
     expect(h.timers.size).toBe(0);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     await h.session.update(data("loaded"), {});
     flushScheduledFrames(h);
-    expect(h.graph.fitView).toHaveBeenCalledTimes(1);
-    h.graph.fitView.mockClear();
+    expect(h.fits).toHaveBeenCalledTimes(1);
+    h.fits.mockClear();
     await h.session.update(empty, {});
     await h.session.update(data("restored"), {});
     expect(h.timers.size).toBe(0);
     flushScheduledFrames(h);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     await h.session.dispose();
   });
 
@@ -444,7 +557,7 @@ describe("renderer lifetime", () => {
     const h = harness();
     await h.session.update(data("initial"), {});
     flushScheduledFrames(h);
-    h.graph.fitView.mockClear();
+    h.fits.mockClear();
     h.session.fit();
     const timer = h.timers.values().next().value!;
     h.timers.clear();
@@ -452,12 +565,12 @@ describe("renderer lifetime", () => {
     const staleFrame = h.frames.values().next().value!;
     await h.session.update(data("newer"), {});
     staleFrame();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     flushScheduledFrames(h);
-    expect(h.graph.fitView).toHaveBeenCalledExactlyOnceWith(0, 0.15);
+    expect(h.fits).toHaveBeenCalledExactlyOnceWith(0, 0.15);
     h.session.fit();
     flushScheduledFrames(h);
-    expect(h.graph.fitView).toHaveBeenCalledTimes(2);
+    expect(h.fits).toHaveBeenCalledTimes(2);
     await h.session.dispose();
   });
 
@@ -470,7 +583,7 @@ describe("renderer lifetime", () => {
     h.graph.setZoomLevel(4);
     const beforeA = h.graph.spaceToScreenPosition([100.25, -40.5]);
     const beforeB = h.graph.spaceToScreenPosition([500.75, 60.125]);
-    h.graph.fitView.mockClear();
+    h.fits.mockClear();
     h.graph.unpause.mockClear();
     await h.session.update(dataWithIds(["new", "b", "a"]), {});
     expect([...h.graph.getPointPositions()]).toEqual([100, 110, 500.75, 60.125, 100.25, -40.5]);
@@ -478,7 +591,7 @@ describe("renderer lifetime", () => {
     expect(h.graph.spaceToScreenPosition([500.75, 60.125])).toEqual(beforeB);
     expect(h.graph.getZoomLevel()).toBe(4);
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([1, 2]);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.unpause).not.toHaveBeenCalled();
     expect(h.session.getDiagnostics()).toMatchObject({
       dataRevisions: 2, restoredPointCount: 2,
@@ -577,7 +690,7 @@ describe("renderer lifetime", () => {
     expect(h.session.isInteractive).toBe(false);
     h.session.fit();
     h.session.controls("a", false);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.selectPoints).not.toHaveBeenCalled();
     await h.session.dispose();
   });
@@ -604,7 +717,7 @@ describe("renderer lifetime", () => {
     await h.session.update(prepared, {});
     h.timers.values().next().value!();
     h.frames.values().next().value!();
-    h.graph.fitView.mockClear();
+    h.fits.mockClear();
     h.graph.setConfig.mockClear();
     h.tables.stage.mockClear();
     h.graph.selectPoints.mockClear();
@@ -619,7 +732,7 @@ describe("renderer lifetime", () => {
     h.frames.values().next().value!();
     expect(h.graph.setZoomLevel).toHaveBeenCalledExactlyOnceWith(2.5, 0);
     expect(h.graph.unpause).not.toHaveBeenCalled();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.selectPoints).not.toHaveBeenCalled();
     expect(h.graph.setConfig).not.toHaveBeenCalled();
     expect(h.tables.stage).not.toHaveBeenCalled();
@@ -667,7 +780,7 @@ describe("renderer lifetime", () => {
     h.session.setActive(false);
     h.session.setActive(true);
     staleFit();
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     expect(h.frames.size).toBe(1);
     await h.session.dispose();
     expect(h.frames.size).toBe(0);
@@ -833,7 +946,7 @@ describe("renderer lifetime", () => {
     expect(h.session.getDiagnostics().dataRevisions).toBe(1);
     expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(1);
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
-    expect(h.graph.fitView).not.toHaveBeenCalled();
+    expect(h.fits).not.toHaveBeenCalled();
     h.session.controls(null, true, []);
     await vi.waitFor(() =>
       expect(h.session.getDiagnostics().outlinedCount).toBe(0),

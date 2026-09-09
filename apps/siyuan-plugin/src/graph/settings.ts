@@ -29,7 +29,7 @@ export const DEFAULT_GRAPH_SETTINGS: Readonly<GraphSettings> = {
   repulsion: 0.8,
   gravity: 0.12,
   linkDistance: 12,
-  linkSpring: 1,
+  linkSpring: 0.4,
   friction: 0.85,
   collision: 0,
   collisionPadding: 0,

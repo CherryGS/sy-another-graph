@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import type { GraphColorMode } from "../graph/node-colors";
-import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
+import {
+  DEFAULT_GRAPH_SETTINGS,
+  normalizeGraphSettings,
+  type GraphSettings,
+} from "../graph/settings";
 
-const KEY = "sy-another-graph:appearance:v1";
+export const VISUAL_PREFERENCES_KEY = "sy-another-graph:appearance:v2";
+const LEGACY_KEY = "sy-another-graph:appearance:v1";
 export interface VisualPreferences {
   colorBy: GraphColorMode;
   pointSize: number;
@@ -35,19 +40,45 @@ export function normalizeVisualPreferences(value: unknown): VisualPreferences {
   };
 }
 
+function readStoredPreferences(
+  storage: Pick<Storage, "getItem">,
+  key: string,
+): Partial<VisualPreferences> | null {
+  try {
+    const value: unknown = JSON.parse(storage.getItem(key) ?? "null");
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<VisualPreferences>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Read-only restoration; the hook writes the normalized result to v2. */
+export function readVisualPreferences(
+  storage?: Pick<Storage, "getItem">,
+): VisualPreferences {
+  let available: Pick<Storage, "getItem">;
+  try {
+    available = storage ?? localStorage;
+  } catch {
+    return normalizeVisualPreferences(null);
+  }
+  const current = readStoredPreferences(available, VISUAL_PREFERENCES_KEY);
+  if (current) return normalizeVisualPreferences(current);
+  const legacy = readStoredPreferences(available, LEGACY_KEY);
+  const restored = normalizeVisualPreferences(legacy);
+  // v1 persisted the accidentally increased default. v2 keeps a later explicit 1.
+  if (legacy?.graphSettings?.linkSpring === 1)
+    restored.graphSettings.linkSpring = DEFAULT_GRAPH_SETTINGS.linkSpring;
+  return restored;
+}
+
 export function useVisualPreferences() {
-  const [preferences, setPreferences] = useState(() => {
-    try {
-      return normalizeVisualPreferences(
-        JSON.parse(localStorage.getItem(KEY) ?? "null"),
-      );
-    } catch {
-      return normalizeVisualPreferences(null);
-    }
-  });
+  const [preferences, setPreferences] = useState(() => readVisualPreferences());
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(preferences));
+      localStorage.setItem(VISUAL_PREFERENCES_KEY, JSON.stringify(preferences));
     } catch {
       /* Appearance remains usable when browser storage is unavailable. */
     }

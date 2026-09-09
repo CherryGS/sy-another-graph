@@ -238,7 +238,11 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                 )}
                 {parameter("collision", "碰撞强度")}
                 {parameter("collisionPadding", "碰撞间距")}
-                {parameter("decay", "布局衰减时间（毫秒）")}
+                {parameter(
+                  "decay",
+                  "布局冷却步数",
+                  "按模拟步数计，不是毫秒；数值越大，布局冷却越慢。",
+                )}
               </FieldGroup>
             </TabsContent>
             <TabsContent value="spatial" className="m-0 p-4 pt-0">

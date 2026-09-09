@@ -29,6 +29,8 @@ WASM graph engine. The plugin is named `sy-another-graph`.
   settings panel with browser-local preferences. Branch/notebook/degree coloring
   remains available. In 3D, drag blank space to orbit and Space-drag to pan;
   Shift-drag retains chosen-set movement.
+- Type colors and node counts are available from the toolbar's collapsible
+  legend, keeping the graph canvas clear.
 - Saved filter/inspection views, existing path and insight tools, and local
   export of the visible graph.
 - Locally bundled renderer/database resources, escaped graph labels, and an
@@ -121,6 +123,12 @@ Source updates keep filters and valid identities. Renderer table updates restore
 coordinates for matching IDs and the captured 2D or 3D viewport; new nodes receive new
 initial positions. Only S is pinned against subsequent simulation. Ordinary tab
 and route transitions keep the existing graph and camera without rebuilding.
+
+The default link spring is Cosmograph's `0.4`; an earlier settings release
+accidentally persisted `1`. Preference migration corrects that legacy default
+while retaining other settings and later explicit custom values. Simulation
+cooling is measured in steps, not milliseconds, so elapsed settling time depends
+on the rate at which the renderer advances the simulation.
 
 Lookup caches and stable view arrays avoid repeated whole-graph scans and
 renderer uploads for unchanged views. Panel scrolling briefly yields simulation

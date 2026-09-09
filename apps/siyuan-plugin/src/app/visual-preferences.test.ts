@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_GRAPH_SETTINGS } from "../graph/settings";
-import { normalizeVisualPreferences } from "./visual-preferences";
+import {
+  normalizeVisualPreferences,
+  readVisualPreferences,
+  VISUAL_PREFERENCES_KEY,
+} from "./visual-preferences";
 
 const defaults = {
   colorBy: "type",
@@ -130,5 +134,152 @@ describe("visual preference normalization", () => {
     first.graphSettings.gravity = 1;
     expect(normalizeVisualPreferences(null)).toEqual(defaults);
     expect(DEFAULT_GRAPH_SETTINGS.gravity).toBe(0.12);
+  });
+});
+
+describe("versioned visual preference restoration", () => {
+  const legacyKey = "sy-another-graph:appearance:v1";
+  const stored = (entries: Record<string, string>) => ({
+    getItem: vi.fn((key: string) => entries[key] ?? null),
+  });
+
+  it("migrates only the old default spring while preserving other saved appearance and forces", () => {
+    const legacy = {
+      colorBy: "notebook",
+      pointSize: 7.5,
+      showLabels: false,
+      showLinks: false,
+      graphSettings: {
+        ...DEFAULT_GRAPH_SETTINGS,
+        dimensions: 3,
+        linkSpring: 1,
+        gravity: 0.2,
+        decay: 12000,
+        linkWidth: 2.5,
+        sphereShading: false,
+      },
+    };
+    const text = JSON.stringify(legacy);
+    const storage = stored({ [legacyKey]: text });
+    expect(readVisualPreferences(storage)).toEqual({
+      ...legacy,
+      graphSettings: { ...legacy.graphSettings, linkSpring: 0.4 },
+    });
+    expect(storage.getItem.mock.calls).toEqual([
+      [VISUAL_PREFERENCES_KEY],
+      [legacyKey],
+    ]);
+    expect(storage.getItem(legacyKey)).toBe(text);
+  });
+
+  it.each([0, 0.8, 2])("retains a custom legacy spring of %s", (linkSpring) => {
+    const storage = stored({
+      [legacyKey]: JSON.stringify({
+        colorBy: "branch",
+        showLinks: false,
+        graphSettings: { linkSpring, gravity: 0 },
+      }),
+    });
+    expect(readVisualPreferences(storage)).toMatchObject({
+      colorBy: "branch",
+      showLinks: false,
+      graphSettings: { linkSpring, gravity: 0 },
+    });
+  });
+
+  it("prefers a valid v2 record and preserves an explicit spring of one", () => {
+    const storage = stored({
+      [legacyKey]: JSON.stringify({ colorBy: "branch", graphSettings: { linkSpring: 1 } }),
+      [VISUAL_PREFERENCES_KEY]: JSON.stringify({
+        colorBy: "degree",
+        pointSize: 9,
+        showLabels: false,
+        graphSettings: { linkSpring: 1, decay: 8000 },
+      }),
+    });
+    expect(readVisualPreferences(storage)).toMatchObject({
+      colorBy: "degree",
+      pointSize: 9,
+      showLabels: false,
+      graphSettings: { linkSpring: 1, decay: 8000 },
+    });
+    expect(storage.getItem).toHaveBeenCalledExactlyOnceWith(VISUAL_PREFERENCES_KEY);
+  });
+
+  it("does not repeat the legacy migration after the user saves a new spring of one", () => {
+    const entries: Record<string, string> = {
+      [legacyKey]: JSON.stringify({ colorBy: "branch", graphSettings: { linkSpring: 1 } }),
+    };
+    const storage = stored(entries);
+    const migrated = readVisualPreferences(storage);
+    expect(migrated.graphSettings.linkSpring).toBe(0.4);
+    entries[VISUAL_PREFERENCES_KEY] = JSON.stringify(migrated);
+    const changed = {
+      ...readVisualPreferences(storage),
+      graphSettings: { ...migrated.graphSettings, linkSpring: 1 },
+    };
+    entries[VISUAL_PREFERENCES_KEY] = JSON.stringify(changed);
+    expect(readVisualPreferences(storage)).toEqual(changed);
+    expect(JSON.parse(entries[legacyKey]).graphSettings.linkSpring).toBe(1);
+  });
+
+  it.each(["{broken", "null", "[]", "false", '"old-format"'])
+    ("recovers a valid legacy record when v2 contains %s", (invalid) => {
+      const storage = stored({
+        [VISUAL_PREFERENCES_KEY]: invalid,
+        [legacyKey]: JSON.stringify({
+          colorBy: "notebook",
+          showLinks: false,
+          graphSettings: { linkSpring: 1, repulsion: 1.5 },
+        }),
+      });
+      expect(readVisualPreferences(storage)).toMatchObject({
+        colorBy: "notebook",
+        showLinks: false,
+        graphSettings: { linkSpring: 0.4, repulsion: 1.5 },
+      });
+    });
+
+  it("normalizes invalid v2 fields while retaining its valid values and explicit spring", () => {
+    const storage = stored({
+      [VISUAL_PREFERENCES_KEY]: JSON.stringify({
+        colorBy: "degree",
+        pointSize: "8",
+        showLabels: false,
+        graphSettings: { linkSpring: 1, gravity: "bad", repulsion: -1 },
+      }),
+      [legacyKey]: JSON.stringify({ colorBy: "branch", pointSize: 8 }),
+    });
+    expect(readVisualPreferences(storage)).toMatchObject({
+      colorBy: "degree",
+      pointSize: 4,
+      showLabels: false,
+      graphSettings: { linkSpring: 1, gravity: 0.12, repulsion: 0 },
+    });
+    expect(storage.getItem).toHaveBeenCalledExactlyOnceWith(VISUAL_PREFERENCES_KEY);
+  });
+
+  it("restores defaults when neither version is usable or storage reads are blocked", () => {
+    expect(readVisualPreferences(stored({}))).toEqual(defaults);
+    expect(readVisualPreferences(stored({
+      [VISUAL_PREFERENCES_KEY]: "{broken",
+      [legacyKey]: "[broken",
+    }))).toEqual(defaults);
+    expect(readVisualPreferences({
+      getItem() { throw new Error("Storage access blocked"); },
+    })).toEqual(defaults);
+  });
+
+  it("can still recover legacy preferences if only the v2 read fails", () => {
+    const storage = {
+      getItem(key: string) {
+        if (key === VISUAL_PREFERENCES_KEY) throw new Error("Unreadable v2");
+        return JSON.stringify({ pointSize: 6, graphSettings: { linkSpring: 0.8 } });
+      },
+    };
+    expect(readVisualPreferences(storage)).toMatchObject({
+      pointSize: 6,
+      graphSettings: { linkSpring: 0.8 },
+    });
   });
 });

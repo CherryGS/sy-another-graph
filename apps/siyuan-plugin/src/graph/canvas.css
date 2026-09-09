@@ -88,40 +88,6 @@
   color: #ffe0af;
 }
 
-.ag-canvas__legend {
-  position: absolute;
-  left: 12px;
-  bottom: 42px;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 12px;
-  max-width: min(720px, calc(100% - 32px));
-  padding: 5px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--muted-foreground);
-  font-size: 10px;
-  pointer-events: none;
-}
-
-.ag-canvas__legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.ag-canvas__legend i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.ag-canvas__external-key {
-  color: #d1a0eb;
-}
-
 .ag-graph-label--external::after,
 .ag-canvas__chosen-label--external::after {
   content: " ↗";
@@ -137,16 +103,6 @@
   inset-inline-end: 5px;
   top: 50%;
   transform: translateY(-50%);
-}
-
-.ag-canvas__external-key::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: #c58be6;
 }
 
 /* Cosmos loses its dragged-point hover when an interactive label intercepts the pointer. */

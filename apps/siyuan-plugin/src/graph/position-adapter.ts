@@ -1,5 +1,6 @@
 import type { Cosmograph } from "@cosmograph/cosmograph";
 import { cameraDepthOffset, pointAt, projectPosition, type CameraState, type Dimensions, type Point2D, type PointPosition, type ProjectionApi } from "./geometry";
+import { sampleLayoutPoints, type LayoutMetrics } from "./layout-sampler";
 
 /** The supported Cosmos position API is not yet forwarded by Cosmograph 2.5.1. */
 interface PositionApi {
@@ -56,6 +57,8 @@ export interface PositionRestore {
   restored: number;
   maximumWorldError: number | null;
   maximumScreenError: number | null;
+  layoutBefore: LayoutMetrics;
+  layoutAfter: LayoutMetrics;
   samples: {
     id: string;
     worldBefore: number[];
@@ -176,7 +179,11 @@ export function measurePositionRestore(
       screenBefore: probe.screen, screenAfter: screen,
     });
   }
-  return { restored, maximumWorldError, maximumScreenError, samples };
+  return {
+    restored, maximumWorldError, maximumScreenError, samples,
+    layoutBefore: sampleLayoutPoints(before.values()),
+    layoutAfter: sampleLayoutPoints(after.values()),
+  };
 }
 
 export interface GroupMotion {

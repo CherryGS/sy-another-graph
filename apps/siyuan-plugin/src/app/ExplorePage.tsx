@@ -21,6 +21,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { CosmographCanvas } from "../graph/CosmographCanvas";
+import { GraphLegend } from "../graph/GraphLegend";
 import { DEFAULT_FILTERS } from "../data/types";
 import type { GraphDirection } from "../engine/types";
 import { useWorkbench } from "./state";
@@ -77,6 +78,11 @@ export function ExplorePage({ active }: { active: boolean }) {
                 筛选
               </Button>
             </PopoverTrigger>
+            <GraphLegend
+              nodes={view.nodes}
+              colorBy={state.colorBy}
+              anchorRef={toolbarRef}
+            />
           </div>
           <div className="neighborhood-tools" aria-label="邻域扩展设置">
             <Badge variant="secondary">

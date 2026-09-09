@@ -19,7 +19,6 @@ import { ChosenLabels } from "./chosen-labels";
 import { beginCanvasGroupMotion } from "./position-adapter";
 import { DEFAULT_GRAPH_SETTINGS } from "./settings";
 import { displayConfig } from "./display-config";
-import { GraphLegend } from "./GraphLegend";
 import { GraphCanvasState } from "./GraphCanvasState";
 import { nodeContext } from "./node-context";
 import { nodeLabelClass } from "./node-label-class";
@@ -489,6 +488,13 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-position-world-error={diagnostics?.positionWorldError ?? ""}
       data-position-screen-error={diagnostics?.positionScreenError ?? ""}
       data-position-samples={JSON.stringify(diagnostics?.positionSamples ?? [])}
+      data-layout-before={JSON.stringify(diagnostics?.layoutBefore ?? null)}
+      data-layout-after={JSON.stringify(diagnostics?.layoutAfter ?? null)}
+      data-layout-snapshot={JSON.stringify(diagnostics?.layoutSnapshot ?? null)}
+      data-layout-sample={diagnostics?.layoutSample ?? 0}
+      data-layout-sampled-at={diagnostics?.layoutSampledAt ?? ""}
+      data-layout-simulation-running={diagnostics?.layoutSimulationRunning ?? ""}
+      data-layout-data-revision={diagnostics?.layoutDataRevision ?? ""}
       data-zoom-before={diagnostics?.zoomBefore ?? ""}
       data-zoom-after={diagnostics?.zoomAfter ?? ""}
       data-drag-count={diagnostics?.dragCount ?? 0}
@@ -516,9 +522,6 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             <p key={line}>{line}</p>
           ))}
         </div>
-      )}
-      {visible && !loading && !visibleError && (
-        <GraphLegend nodes={nodes} colorBy={colorBy} />
       )}
       <GraphCanvasState error={visibleError} loading={loading} initializing={!session} preparing={isPreparing} nodeCount={nodes.length} onRetry={() => setRetry((value) => value + 1)} />
     </div>

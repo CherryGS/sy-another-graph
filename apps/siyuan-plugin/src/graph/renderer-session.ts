@@ -3,6 +3,7 @@ import type { GraphTableStore, UploadedGraph } from "./graph-tables";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasStats } from "./types";
 import type { CameraState, Dimensions } from "./geometry";
+import { sampleLayoutBuffer, type LayoutMetrics } from "./layout-sampler";
 import {
   captureNodePositions,
   captureViewport,
@@ -29,7 +30,9 @@ type Renderer = Pick<
   | "selectPoints"
   | "setFocusedPoint"
   | "setPinnedPoints"
-  | "fitView"
+  | "fitViewByCoordinates"
+  | "getPointPositions"
+  | "isSimulationRunning"
   | "getZoomLevel"
   | "setZoomLevel"
 > & ViewportApi;
@@ -63,6 +66,13 @@ export interface RendererDiagnostics {
   positionWorldError: number | null;
   positionScreenError: number | null;
   positionSamples: PositionRestore["samples"];
+  layoutBefore: PositionRestore["layoutBefore"] | null;
+  layoutAfter: PositionRestore["layoutAfter"] | null;
+  layoutSnapshot: LayoutMetrics | null;
+  layoutSample: number;
+  layoutSampledAt: number | null;
+  layoutSimulationRunning: boolean | null;
+  layoutDataRevision: number | null;
   zoomBefore: number | null;
   zoomAfter: number | null;
 }
@@ -138,6 +148,13 @@ export class RendererSession {
     positionWorldError: null,
     positionScreenError: null,
     positionSamples: [],
+    layoutBefore: null,
+    layoutAfter: null,
+    layoutSnapshot: null,
+    layoutSample: 0,
+    layoutSampledAt: null,
+    layoutSimulationRunning: null,
+    layoutDataRevision: null,
     zoomBefore: null,
     zoomAfter: null,
   };
@@ -404,6 +421,7 @@ export class RendererSession {
           positionWorldError: continuity?.maximumWorldError ?? null,
           positionScreenError: continuity?.maximumScreenError ?? null,
           positionSamples: continuity?.samples ?? [],
+          ...(continuity ? { layoutBefore: continuity.layoutBefore, layoutAfter: continuity.layoutAfter } : {}),
           zoomBefore: viewportBefore?.dimensions === 2 ? viewportBefore.zoom : viewportToRestore?.dimensions === 2 ? viewportToRestore.zoom : null,
           zoomAfter: this.graph.is3D ? null : (this.graph.getZoomLevel() ?? null),
         });
@@ -718,8 +736,21 @@ export class RendererSession {
           return;
         this.fitFrame = undefined;
         this.needsFit = false;
-        // Snap in our tracked frame; no untracked zoom transition may survive a rebuild.
-        this.runControl(() => this.graph.fitView(0, 0.15));
+        // Replace fitView's own readback with one shared by fitting and diagnostics.
+        // These public coordinate-fit APIs change only the camera, not topology or alpha.
+        this.runControl(() => {
+          const dimensions = this.graph.is3D ? 3 : 2;
+          const wasRunning = this.graph.isSimulationRunning;
+          const positions = this.graph.getPointPositions({ dimensions });
+          if (!positions?.length) return;
+          const layoutSampledAt = performance.now();
+          const layoutSnapshot = sampleLayoutBuffer(positions, dimensions);
+          if (dimensions === 3) this.graph.fitViewByCoordinates(Array.from(positions), 0, 0.15);
+          else this.graph.setZoomTransformByPointPositions(positions, 0, undefined, 0.15);
+          // Also preserve a naturally settled layout, independent of the user's pause toggle.
+          if (wasRunning === false && Boolean(this.graph.isSimulationRunning)) this.graph.pause();
+          this.publishDiagnostics({ layoutSnapshot, layoutSample: this.diagnosticState.layoutSample + 1, layoutSampledAt, layoutSimulationRunning: wasRunning ?? null, layoutDataRevision: this.diagnosticState.dataRevisions });
+        });
       });
     }, delay);
   }

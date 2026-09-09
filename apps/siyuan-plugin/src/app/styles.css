@@ -116,6 +116,15 @@ textarea {
   flex: 1;
   overflow: hidden;
 }
+.legend-popover {
+  width: min(320px, calc(100vw - 24px));
+}
+.legend-scroll {
+  height: min(
+    320px,
+    max(0px, calc(var(--radix-popover-content-available-height) - 48px))
+  );
+}
 .explore-layout {
   position: relative;
   flex: 1;
