@@ -1,4 +1,5 @@
 import { isNativeBlockId } from "./scope-menu";
+import { NativeBlockPreview } from "./native-preview";
 
 export const WORKBENCH_CHANNEL = "sy-another-graph";
 
@@ -21,6 +22,7 @@ export class PersistentWorkbench {
   private bounds = "";
   private pendingScopeId: string | null = null;
   private sourceVersion = 0;
+  private preview: NativeBlockPreview | null = null;
 
   constructor(pluginName: string) {
     this.pluginName = pluginName;
@@ -56,6 +58,10 @@ export class PersistentWorkbench {
       this.frame?.contentWindow != null &&
       event.source === this.frame.contentWindow
     );
+  }
+
+  previewBlock(event: MessageEvent): void {
+    if (this.active && this.ownsMessage(event)) this.preview?.handle(event.data);
   }
 
   /** Keep the latest explicit entry request until the child acknowledges it. */
@@ -97,6 +103,8 @@ export class PersistentWorkbench {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.preview?.clear();
+    this.preview = null;
     this.pendingScopeId = null;
     if (this.scheduled !== null) window.cancelAnimationFrame(this.scheduled);
     this.scheduled = null;
@@ -140,10 +148,12 @@ export class PersistentWorkbench {
     document.body.appendChild(container);
     this.container = container;
     this.frame = frame;
+    this.preview = new NativeBlockPreview(frame);
   }
 
   private onFrameLoad = (): void => {
     if (!this.frame || this.disposed) return;
+    this.preview?.clear();
     this.frame.dataset.atlasLoadCount = String(
       Number(this.frame.dataset.atlasLoadCount) + 1,
     );
@@ -185,6 +195,7 @@ export class PersistentWorkbench {
     if (rect) {
       const bounds = `${rect.left},${rect.top},${rect.width},${rect.height}`;
       if (bounds !== this.bounds) {
+        this.preview?.clear();
         container.style.left = `${rect.left}px`;
         container.style.top = `${rect.top}px`;
         container.style.width = `${rect.width}px`;
@@ -194,6 +205,7 @@ export class PersistentWorkbench {
     }
     if (active !== this.active) {
       this.active = active;
+      if (!active) this.preview?.clear();
       if (!active && document.activeElement === frame) frame.blur();
       container.style.visibility = active ? "visible" : "hidden";
       container.style.pointerEvents = active ? "auto" : "none";

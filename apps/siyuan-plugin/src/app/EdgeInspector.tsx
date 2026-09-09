@@ -32,28 +32,31 @@ import { EDGE_KIND_LABELS, NODE_TYPE_LABELS } from "../data/labels";
 import { nodeType } from "../data/graph-model";
 import { getGraphLookups } from "../data/graph-lookups";
 import type { GraphNode } from "../data/types";
+import { NativePreviewButton } from "./NativePreviewButton";
 
 function SourceCard({
   node,
   id,
   open,
-  canOpen,
+  nativeId,
 }: {
   node: GraphNode | undefined;
   id: string;
   open: (id: string) => void;
-  canOpen: boolean;
+  nativeId: string | null;
 }) {
+  const canOpen = !!nativeId;
   return (
-    <Button
+    <NativePreviewButton
+      nativeId={nativeId}
       variant="outline"
       className="h-auto w-full flex-col items-start gap-2 py-3"
       disabled={!canOpen}
       onClick={() => open(id)}
-      title={canOpen ? "打开这一原始位置" : "暂无可打开的原生上下文"}
+      aria-label={canOpen ? `打开原始位置：${node?.label ?? id}` : "暂无可打开的原生上下文"}
     >
       <span className="flex w-full min-w-0 items-center justify-between gap-2">
-        <span className="min-w-0 truncate">{node?.label ?? id}</span>
+        <span data-native-preview-anchor className="min-w-0 truncate">{node?.label ?? id}</span>
         {canOpen && <ArrowUpRight data-icon="inline-end" />}
       </span>
       {node && (
@@ -75,7 +78,7 @@ function SourceCard({
       <code className="w-full whitespace-normal break-all text-left text-xs text-muted-foreground">
         {id}
       </code>
-    </Button>
+    </NativePreviewButton>
   );
 }
 
@@ -150,7 +153,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                     node={byId.get(occurrence.sourceId)}
                     id={occurrence.sourceId}
                     open={state.openDocument}
-                    canOpen={state.canOpen(occurrence.sourceId)}
+                    nativeId={state.nativeBlockId(occurrence.sourceId)}
                   />
                   <span className="self-center text-xs text-muted-foreground">
                     {occurrence.kind === "hierarchy" ? "包含 ↓" : "↓"}
@@ -161,14 +164,14 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       node={byId.get(id)}
                       id={id}
                       open={state.openDocument}
-                      canOpen={state.canOpen(id)}
+                      nativeId={state.nativeBlockId(id)}
                     />
                   ))}
                   <SourceCard
                     node={byId.get(occurrence.targetId)}
                     id={occurrence.targetId}
                     open={state.openDocument}
-                    canOpen={state.canOpen(occurrence.targetId)}
+                    nativeId={state.nativeBlockId(occurrence.targetId)}
                   />
                   {occurrence.weight > 1 && (
                     <Badge variant="outline">

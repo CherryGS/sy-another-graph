@@ -635,6 +635,8 @@ export function useWorkbenchState() {
     busy: busy || (chosenIds.length > 0 && engineLoading),
     findPath,
     openDocument,
+    nativeBlockId: (id: string) =>
+      data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null,
     canOpen: (id: string) =>
       !!(data && currentGraph && resolveOpenBlock(id, data, currentGraph)),
     savedViews,

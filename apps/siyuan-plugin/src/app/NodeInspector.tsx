@@ -15,12 +15,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,20 +27,14 @@ import {
 import type { WorkbenchState } from "./state";
 import { nodeColor } from "../graph/node-colors";
 import { nodeType } from "../data/graph-model";
-import { getGraphLookups } from "../data/graph-lookups";
-import { EDGE_KIND_LABELS, NODE_TYPE_LABELS } from "../data/labels";
+import { NODE_TYPE_LABELS } from "../data/labels";
+import { NodeRelations } from "./NodeRelations";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
   const [target, setTarget] = useState("");
-  const [limit, setLimit] = useState(30);
   const targetId = useId();
   const node = state.selected;
   if (!node) return null;
-  const viewLookups = getGraphLookups(state.view);
-  const incident = viewLookups.incidentEdges(node.index);
-  const byIndex = state.currentGraph
-    ? getGraphLookups(state.currentGraph).byIndex
-    : undefined;
   const notebook = state.data?.notebooks.find(
     (book) => book.id === node.notebook,
   );
@@ -98,8 +86,8 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 {node.heading && ` › ${node.heading}`}
               </p>
             )}
-            {node.content && (
-              <p className="max-h-50 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed">
+            {node.content && (node.blockType !== "d" || node.content.trim() !== node.label.trim()) && (
+              <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed">
                 {node.content}
               </p>
             )}
@@ -107,62 +95,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
               双击画布节点或标签可打开原文。
             </p>
             <Separator />
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-medium">当前显示的关系</h3>
-              <Badge variant="outline">
-                {incident.length.toLocaleString()}
-              </Badge>
-            </div>
-            <div className="flex flex-col gap-1">
-              {incident.slice(0, limit).map((edge, index) => {
-                const outward = edge.source === node.index;
-                const other = byIndex?.get(outward ? edge.target : edge.source);
-                return (
-                  <Button
-                    variant="ghost"
-                    className="h-auto w-full flex-col items-start gap-1.5 py-2.5"
-                    key={`${edge.kind}:${edge.source}:${edge.target}:${index}`}
-                    onClick={() => state.inspectEdge(edge)}
-                  >
-                    <span className="flex w-full items-center justify-between gap-2">
-                      <Badge variant="outline">
-                        {EDGE_KIND_LABELS[edge.kind]} · {outward ? "→" : "←"}
-                      </Badge>
-                      {edge.weight > 1 && (
-                        <span className="text-xs text-muted-foreground">
-                          {edge.weight} 条记录
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className="w-full truncate text-left"
-                      title={other?.label}
-                    >
-                      {other?.label ?? "未知端点"}
-                    </span>
-                  </Button>
-                );
-              })}
-              {!incident.length && (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>当前没有显示的关系</EmptyTitle>
-                    <EmptyDescription>
-                      可调整图谱筛选与扩展范围。
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              )}
-            </div>
-            {incident.length > limit && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setLimit((value) => value + 30)}
-              >
-                显示更多关系（剩余 {incident.length - limit}）
-              </Button>
-            )}
+            <NodeRelations node={node} state={state} />
             <Collapsible>
               <CollapsibleTrigger asChild>
                 <Button

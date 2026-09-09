@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PersistentWorkbench, WORKBENCH_CHANNEL } from "./persistent-workbench";
+import { NativeBlockPreview } from "./native-preview";
 
 interface Box {
   left: number;
@@ -192,6 +193,32 @@ function harness() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("plugin-lifetime workbench browsing context", () => {
+  it("admits preview messages only from its visible owned frame and clears them on layout changes", () => {
+    const handle = vi.spyOn(NativeBlockPreview.prototype, "handle").mockImplementation(() => {});
+    const clear = vi.spyOn(NativeBlockPreview.prototype, "clear").mockImplementation(() => {});
+    const h = harness();
+    const anchor = h.placeholder();
+    h.attach(anchor);
+    const event = { origin: h.window.location.origin, source: h.iframe().contentWindow, data: {} } as unknown as MessageEvent;
+    clear.mockClear();
+    h.session.previewBlock({ ...event, source: null });
+    h.session.previewBlock({ ...event, origin: "https://untrusted.example" });
+    expect(handle).not.toHaveBeenCalled();
+    h.session.previewBlock(event);
+    expect(handle).toHaveBeenCalledOnce();
+    anchor.box.left += 20;
+    h.session.refresh();
+    h.flush();
+    expect(clear).toHaveBeenCalledOnce();
+    h.detach(anchor);
+    h.session.previewBlock(event);
+    expect(handle).toHaveBeenCalledOnce();
+    expect(clear).toHaveBeenCalledTimes(2);
+    h.session.dispose();
+    expect(clear).toHaveBeenCalledTimes(3);
+    handle.mockRestore();
+    clear.mockRestore();
+  });
   it("retains source versions before iframe setup and replays the latest version after readiness", () => {
     const host = harness();
     host.session.markSourceChanged();

@@ -121,6 +121,10 @@ export default class SiYuanGraphPlugin extends Plugin {
       type?: string;
       id?: unknown;
     };
+    if (data?.channel === WORKBENCH_CHANNEL && data.type === "native-preview") {
+      this.workbench.previewBlock(event);
+      return;
+    }
     if (
       data?.channel === WORKBENCH_CHANNEL &&
       data.type === "workbench-ready"
