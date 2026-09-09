@@ -12,11 +12,14 @@ tracked package scripts and tool configuration.
 | `pnpm lint` | Run Oxlint in check-only mode. |
 | `pnpm typecheck` | Check the TypeScript project references. |
 | `pnpm test` | Run the TypeScript, acquisition, renderer-table, and worker tests. |
+| `pnpm test:deploy` | Verify managed deployment and path guards using temporary workspaces. |
 | `pnpm test:rust` | Run the native Rust graph tests. |
 | `pnpm lint:rust` | Run Clippy with warnings denied. |
 | `pnpm build:wasm` | Build generated browser WASM bindings with existing tools. |
-| `pnpm build` | Build WASM, the SiYuan host adapter, and the React workbench. |
+| `pnpm build:artifacts` | Build WASM, the SiYuan host adapter, and the React workbench into `dist/`. |
+| `pnpm build` / `pnpm release` | Test deployment guards, build release artifacts, validate the plugin, and deploy to the configured personal workspace `E:/Data/Siyuan`. |
 | `pnpm check:plugin` | Validate built metadata, required assets, and the CommonJS loader contract. |
+| `pnpm deploy:release` | Validate and copy existing release artifacts to `E:/Data/Siyuan`. |
 | `pnpm dev` | Watch the CommonJS host adapter without clearing UI output. |
 | `pnpm dev:ui` | Watch the ESM workbench and its assets. |
 | `pnpm deploy:test <workspace>` | Copy the built plugin into an explicitly selected test workspace. |
@@ -31,8 +34,11 @@ tracked package scripts and tool configuration.
 
 - The SiYuan frontend build emits a CommonJS `index.js` and keeps `siyuan`
   external so the host supplies its API, following the official plugin sample.
-- Keep routine build output in the member's `dist/` directory. Test deployment
-  requires an explicit workspace and may replace only this build's managed files.
+- Keep generated build output in the member's `dist/` directory. Root release
+  builds deploy to the owner's explicitly configured personal workspace.
+  Artifact-only builds, checks, tests, and watchers do not deploy there. Every
+  deployment requires an explicit workspace path and may replace only this
+  build's managed files.
 - Keep note acquisition read-only; do not use native graph APIs that persist
   graph settings merely to read graph data.
 - Keep runtime resources local and graph labels escaped. Preserve vendor

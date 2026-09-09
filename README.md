@@ -51,21 +51,36 @@ SIMD compilation gave small, mixed runtime changes without improving the
 neighborhood workload. Routine builds therefore do not require Binaryen or
 additional WebAssembly target features.
 
+Run the following from the repository root for personal release installation:
+
+```sh
+pnpm release
+```
+
+`pnpm build` is equivalent: it tests deployment guards, builds release artifacts,
+validates the plugin, and automatically installs it into
+`E:/Data/Siyuan/data/plugins/sy-another-graph`. This workspace is configured in
+the root `deploy:release` script. No marketplace registration or upload is needed.
+Use `pnpm deploy:release` to validate and install already built artifacts.
+
+Validation and artifact-only commands remain available:
+
 ```sh
 pnpm check
-pnpm build
+pnpm build:artifacts
 pnpm deploy:test E:/Data/SYTest
 ```
 
-`pnpm check` runs frozen dependency validation, Clippy, Rust tests, WASM build,
-Oxlint, TypeScript, Vitest, frontend/plugin builds, and artifact validation.
-Build output is in `apps/siyuan-plugin/dist/`.
+`pnpm check` runs frozen dependency validation, deployment tests, Clippy, Rust
+tests, WASM build, Oxlint, TypeScript, Vitest, frontend/plugin builds, and artifact
+validation without deploying. `pnpm build:artifacts` only builds into
+`apps/siyuan-plugin/dist/`. Test deployment requires the explicit workspace shown
+above or another deliberately selected path.
 
-The test deployment command requires an explicit existing SiYuan workspace. It
-copies only the built plugin into that workspace's plugins directory and records
-managed files. It refuses an unrelated pre-existing plugin. Windows directory
-junctions were not served reliably by the tested SiYuan version, so deployment
-uses ordinary files.
+Deployment records its managed files, updates those files, and removes obsolete
+managed assets while preserving unrelated files. It refuses unmanaged collisions
+and linked destinations. Windows directory junctions were not served reliably by
+the tested SiYuan version, so installed plugins use ordinary files.
 
 Reload SiYuan, enable **Atlas Graph / Atlas 思源图谱** in downloaded plugins, and
 use the graph toolbar icon or **Alt+Shift+G**. The supplied test environment is

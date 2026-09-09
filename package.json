@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "pnpm --dir apps/siyuan-plugin dev",
     "dev:ui": "pnpm --dir apps/siyuan-plugin dev:ui",
-    "deploy:test": "node scripts/deploy-test.mjs",
+    "deploy:test": "node scripts/deploy-plugin.mjs",
+    "deploy:release": "pnpm check:plugin && node scripts/deploy-plugin.mjs \"E:/Data/Siyuan\"",
     "check:deps": "pnpm install --frozen-lockfile --strict-peer-dependencies",
     "lint": "pnpm --dir apps/siyuan-plugin lint",
     "typecheck": "pnpm --dir apps/siyuan-plugin typecheck",
@@ -17,8 +18,11 @@
     "test:rust": "cargo test --workspace --locked",
     "lint:rust": "cargo clippy --workspace --all-targets --locked -- -D warnings",
     "test": "pnpm --dir apps/siyuan-plugin test",
-    "build": "pnpm build:wasm && pnpm --dir apps/siyuan-plugin build",
+    "test:deploy": "node --test scripts/deploy-plugin.test.mjs",
+    "build:artifacts": "pnpm build:wasm && pnpm --dir apps/siyuan-plugin build",
+    "build": "pnpm test:deploy && pnpm build:artifacts && pnpm deploy:release",
+    "release": "pnpm build",
     "check:plugin": "pnpm --dir apps/siyuan-plugin check:plugin",
-    "check": "pnpm check:deps && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
+    "check": "pnpm check:deps && pnpm test:deploy && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
   }
 }
