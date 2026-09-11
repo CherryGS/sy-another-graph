@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronDown, GitBranch, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, GitBranch, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +29,14 @@ import { nodeColor } from "../graph/node-colors";
 import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import { NodeRelations } from "./NodeRelations";
+import { NativePreviewButton } from "./NativePreviewButton";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
   const [target, setTarget] = useState("");
   const targetId = useId();
   const node = state.selected;
   if (!node) return null;
+  const nativeId = state.nativeBlockId(node.id);
   const notebook = state.data?.notebooks.find(
     (book) => book.id === node.notebook,
   );
@@ -48,9 +50,24 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
               className="size-2 shrink-0 rounded-full"
               style={{ background: nodeColor(node, state.colorBy) }}
             />
-            <span className="min-w-0 truncate" title={node.label}>
-              {node.label}
-            </span>
+            {nativeId ? (
+              <NativePreviewButton
+                nativeId={nativeId}
+                variant="ghost"
+                className="h-auto min-w-0 flex-1 justify-start px-1 py-0.5"
+                aria-label={`打开当前节点原文：${node.label}`}
+                onClick={() => state.openDocument(node.id)}
+              >
+                <span data-native-preview-anchor className="min-w-0 truncate">
+                  {node.label}
+                </span>
+                <ArrowUpRight data-icon="inline-end" />
+              </NativePreviewButton>
+            ) : (
+              <span className="min-w-0 truncate" title={node.label}>
+                {node.label}
+              </span>
+            )}
           </CardTitle>
           <CardAction>
             <Tooltip>
@@ -92,7 +109,9 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              双击画布节点或标签可打开原文。
+              {nativeId
+                ? "悬浮上方标题预览原文，点击标题打开。"
+                : "该节点暂无可预览的原生上下文。"}
             </p>
             <Separator />
             <NodeRelations node={node} state={state} />
