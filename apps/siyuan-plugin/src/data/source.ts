@@ -339,7 +339,7 @@ async function loadSnapshot(
   let cursor = "";
   while (initialBlocks.last !== null && cursor < initialBlocks.last) {
     const page = await sql<BlockRow>(
-      `SELECT id, box, path, hpath, content, type, root_id, parent_id, ial, CASE WHEN type='av' THEN markdown ELSE '' END AS markdown FROM blocks WHERE id > ${quote(cursor)} AND id <= ${quote(initialBlocks.last)} ORDER BY id LIMIT ${pageSize}`,
+      `SELECT id, box, path, hpath, content, type, root_id, parent_id, ial, CASE WHEN type IN ('av','p','h','t') THEN markdown ELSE '' END AS markdown FROM blocks WHERE id > ${quote(cursor)} AND id <= ${quote(initialBlocks.last)} ORDER BY id LIMIT ${pageSize}`,
       signal,
     );
     if (page.length === 0) break;
@@ -437,6 +437,15 @@ async function loadSnapshot(
     notebooks,
     source: "siyuan",
     loadedAt: new Date().toISOString(),
+    mentionBlocks: blocks.map(block => ({
+      id: block.id,
+      rootId: block.type && block.type !== "d" ? block.root_id ?? block.id : block.id,
+      type: block.type || "d",
+      title: !block.type || block.type === "d" ? block.content : "",
+      ial: block.ial ?? "",
+      markdown: ["p", "h", "t"].includes(block.type ?? "") && typeof block.markdown === "string"
+        ? block.markdown : null,
+    })),
     loadMs: performance.now() - started,
     warnings,
   };

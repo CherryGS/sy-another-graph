@@ -13,6 +13,8 @@ export interface GraphView {
 }
 
 export interface CurrentGraph extends GraphView {
+  /** Original sources allowed before type projection; excludes display-only representatives. */
+  sourceIds: ReadonlySet<string>;
   /** Source-to-display mapping, plus selectable document representatives. */
   representatives: Map<string, string>;
   /** Visible identities; hidden source blocks cannot remain chosen. */
@@ -268,6 +270,8 @@ export function projectGraph(
   };
   for (const edge of data.edges) {
     if (edge.kind === "hierarchy") continue;
+    // Derived candidates are attached after native eligibility and projection.
+    if (edge.kind === "text-mention") continue;
     if (edge.kind === "reference" ? !filters.references : !filters.databases)
       continue;
     const originalSource = byIndex.get(edge.source);
@@ -334,6 +338,7 @@ export function projectGraph(
     representatives,
     eligibleIds,
     excludedIds,
+    sourceIds: candidates,
   };
 }
 

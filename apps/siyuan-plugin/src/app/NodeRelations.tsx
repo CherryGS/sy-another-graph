@@ -60,6 +60,7 @@ function RelationGroup({
                 {context && <span className="w-full truncate text-left text-xs text-muted-foreground" title={other?.humanPath}>{context}</span>}
                 <span className="flex w-full flex-wrap items-center gap-1.5">
                   <Badge variant="outline">{EDGE_KIND_LABELS[edge.kind]}</Badge>
+                  {edge.ambiguous && <Badge variant="secondary">同名候选</Badge>}
                   {other && <span className="text-xs text-muted-foreground">{NODE_TYPE_LABELS[nodeType(other)] ?? nodeType(other)}</span>}
                   {edge.weight > 1 && <span className="ml-auto text-xs text-muted-foreground">{edge.weight.toLocaleString()} 条记录</span>}
                 </span>

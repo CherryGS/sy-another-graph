@@ -30,6 +30,7 @@ import { GraphFiltersPanel } from "./GraphFiltersPanel";
 import { GraphSearch } from "./GraphSearch";
 import { NodeInspector } from "./NodeInspector";
 import { EdgeInspector } from "./EdgeInspector";
+import { MentionNotice } from "./MentionNotice";
 
 export function ExplorePage({ active }: { active: boolean }) {
   const state = useWorkbench();
@@ -170,6 +171,7 @@ export function ExplorePage({ active }: { active: boolean }) {
           <GraphFiltersPanel state={state} />
         </PopoverContent>
       </Popover>
+      <MentionNotice state={state} />
       {(state.focusLabel.includes("截断") ||
         state.focusLabel.startsWith("最短路径")) && (
         <Alert className="rounded-none py-2">
@@ -280,6 +282,7 @@ export function ExplorePage({ active }: { active: boolean }) {
         <span>
           {view.nodes.length.toLocaleString()} 节点 ·{" "}
           {view.edges.length.toLocaleString()} 关系
+          {filters.mentions !== "off" && ` · ${state.mentionState.result.edges.length.toLocaleString()} 条文本提及`}
         </span>
         <span className="gesture-help">
           {state.graphSettings.dimensions === 3

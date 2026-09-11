@@ -6,6 +6,7 @@ import { nodeColor } from "./node-colors";
 const CHUNK_SIZE = 8192;
 const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
   reference: "#91b7df",
+  "text-mention": "#d6b670",
   hierarchy: "#60728d",
   "database-embedding": "#8a82ba",
   "database-membership": "#6cbaae",
@@ -135,7 +136,7 @@ export async function prepareGraph(
       width[linkCount] = reference
         ? 1.55 + emphasis * 0.8
         : 0.95 + emphasis * 0.35;
-      style[linkCount] = hierarchy ? 1 : 0;
+      style[linkCount] = edge.kind === "text-mention" ? 2 : hierarchy ? 1 : 0;
       // Preserve the exact source edge, including self-loops and original provenance.
       indexToEdge.push(edge);
       linkCount++;

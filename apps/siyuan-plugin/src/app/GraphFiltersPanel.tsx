@@ -27,6 +27,7 @@ import { DEFAULT_FILTERS } from "../data/types";
 import { getNodeTypeCounts } from "../data/graph-summary";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import { SettingSwitch } from "./SettingsPanel";
+import { MentionControls } from "./MentionControls";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
@@ -181,6 +182,7 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
                 <FieldDescription>
                   每条启用的关系计 1 跳；关闭的关系不参与邻域扩展。
                 </FieldDescription>
+                <MentionControls state={state} />
                 <SettingSwitch
                   id="isolated-filter"
                   name="隐藏未选中的孤立节点"

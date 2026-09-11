@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
+import { verifyMentionWorker } from "./check-mentions-worker.mjs";
 
 const readJson = (path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -29,6 +30,7 @@ assert.ok(manifest.description.default, "A default description is required");
 for (const file of [
   "index.js",
   "index.css",
+  "third-party-mentions.txt",
   manifest.readme.default,
   "ui/index.html",
 ]) {
@@ -73,4 +75,5 @@ assert.ok(
   "The entry must extend the host Plugin",
 );
 
-console.log("Plugin metadata, build assets, and CommonJS entry are valid.");
+await verifyMentionWorker();
+console.log("Plugin metadata, build assets, CommonJS entry, and bundled mention worker are valid.");

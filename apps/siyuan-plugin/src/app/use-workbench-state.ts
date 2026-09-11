@@ -25,7 +25,7 @@ import {
 import { newSavedView, readSavedViews, type SavedView } from "../data/views";
 import type { GraphColorMode } from "../graph/node-colors";
 import type { GraphDirection } from "../engine/types";
-import { EMPTY_SELECTION, retainSelection, selectNode } from "./selection";
+import { EMPTY_SELECTION, retainSelection, restoreSelection, selectNode } from "./selection";
 import { useGraphEngine } from "./use-graph-engine";
 import { ExplorationRequest } from "./exploration-request";
 import { SourceRefresh, subscribeSourceRefresh } from "./source-refresh";
@@ -35,6 +35,8 @@ import {
 } from "./visual-preferences";
 import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
 import { getGraphLookups, searchGraphNodes } from "../data/graph-lookups";
+import { withMentionEdges } from "../mentions/graph-integration";
+import { useMentions } from "./use-mentions";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -192,7 +194,7 @@ export function useWorkbenchState() {
     scopeId,
     includeChildDocuments,
   } = filters;
-  const currentGraph = useMemo(
+  const baseGraph = useMemo(
     () =>
       data
         ? projectGraph(data, {
@@ -219,22 +221,30 @@ export function useWorkbenchState() {
       includeChildDocuments,
     ],
   );
+  const availableSelection = useMemo(
+    () =>
+      baseGraph
+        ? retainSelection(selection, baseGraph.eligibleIds)
+        : selection,
+    [selection, baseGraph],
+  );
+  const chosenIds = availableSelection.chosenIds;
+  const chosenKey = JSON.stringify(chosenIds);
+  const chosenSet = useMemo(() => new Set(chosenIds), [chosenIds]);
+  const mentionState = useMentions(data, baseGraph, filters.mentions, chosenIds);
+  const mentionsPending = filters.mentions !== "off" && !mentionState.error
+    && (filters.mentions !== "selected" || chosenIds.length > 0)
+    && (!mentionState.ready || mentionState.pending);
+  const currentGraph = useMemo(
+    () => baseGraph ? withMentionEdges(baseGraph, mentionState.result.edges) : null,
+    [baseGraph, mentionState.result.edges],
+  );
   const {
     loaded,
     current: engine,
     loading: engineLoading,
     error: engineError,
   } = useGraphEngine(currentGraph, setToast);
-  const availableSelection = useMemo(
-    () =>
-      currentGraph
-        ? retainSelection(selection, currentGraph.eligibleIds)
-        : selection,
-    [selection, currentGraph],
-  );
-  const chosenIds = availableSelection.chosenIds;
-  const chosenKey = JSON.stringify(chosenIds);
-  const chosenSet = useMemo(() => new Set(chosenIds), [chosenIds]);
 
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Scope/source/type changes invalidate selections and pins against the same graph used for traversal.
@@ -404,6 +414,7 @@ export function useWorkbenchState() {
       setDepthState(value);
   };
   const findPath = async (targetId: string) => {
+    if (mentionsPending) { setToast("文本提及仍在计算，完成后可查找包含提及关系的路径。"); return; }
     const loadedGraph = engine.current;
     const target = currentGraph?.nodes.find(
       (node) => node.id === targetId || node.label === targetId,
@@ -525,7 +536,7 @@ export function useWorkbenchState() {
   const saveView = (name: string) => {
     if (
       data &&
-      persistViews([newSavedView(name, filters, selectedId), ...savedViews])
+      persistViews([newSavedView(name, filters, selectedId, { chosenIds, multiple: availableSelection.multiple }), ...savedViews])
     )
       setToast("视图已保存到当前浏览器");
   };
@@ -550,11 +561,7 @@ export function useWorkbenchState() {
     const nextGraph = projectGraph(currentData, saved.filters);
     const selectedExists =
       !saved.selectedId || nextGraph.eligibleIds.has(saved.selectedId);
-    setSelection(
-      selectedExists && saved.selectedId
-        ? selectNode(EMPTY_SELECTION, saved.selectedId)
-        : { ...EMPTY_SELECTION },
-    );
+    setSelection(restoreSelection(saved, nextGraph.eligibleIds));
     setInspectedEdge(null);
     setToast(
       selectedExists
@@ -565,6 +572,7 @@ export function useWorkbenchState() {
   };
   const exportGraph = async () => {
     if (!data || exporting) return;
+    if (mentionsPending) { setToast("文本提及仍在计算，完成后可导出包含提及关系的图谱。"); return; }
     const current = revision.current;
     const abort = new AbortController();
     exportAbort.current = abort;
@@ -596,6 +604,7 @@ export function useWorkbenchState() {
     load,
     filters,
     setFilters,
+    mentionState,
     selectedId,
     setSelectedId,
     selected,
@@ -632,7 +641,7 @@ export function useWorkbenchState() {
     setPaused,
     fitRequest,
     fit: () => setFitRequest((value) => value + 1),
-    busy: busy || (chosenIds.length > 0 && engineLoading),
+    busy: busy || (chosenIds.length > 0 && engineLoading) || mentionsPending,
     findPath,
     openDocument,
     nativeBlockId: (id: string) =>

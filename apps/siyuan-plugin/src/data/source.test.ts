@@ -98,6 +98,18 @@ function stalledFetch(_path: unknown, request: RequestInit): Promise<Response> {
 }
 
 describe("SiYuan source block graph", () => {
+  it("acquires native prose and name metadata for the separate mention index without exporting raw Markdown on nodes", async () => {
+    const database = databaseFixture(2, false);
+    const insert = database.prepare("INSERT INTO blocks(id, box, path, content, type, root_id, parent_id, ial, markdown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.run("p", "book", "/doc-000000.sy", "Document 1 inline", "p", "doc-000000", "doc-000000", '{: name="Passage" alias="Alias"}', "Document 1 `inline`");
+    insert.run("code", "book", "/doc-000000.sy", "Document 1", "c", "doc-000000", "doc-000000", "", "```\nDocument 1\n```");
+    mockSiYuan(database);
+    const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
+    expect(graph.mentionBlocks!.find(block => block.id === "p")).toMatchObject({ rootId: "doc-000000", markdown: "Document 1 `inline`", ial: '{: name="Passage" alias="Alias"}' });
+    expect(graph.mentionBlocks!.find(block => block.id === "code")!.markdown).toBeNull();
+    expect(graph.mentionBlocks!.find(block => block.id === "doc-000001")!.title).toBe("Document 1");
+    expect(graph.nodes.find(node => node.id === "p")).not.toHaveProperty("markdown");
+  });
   it("retains actual reference endpoints, including self references, and document parents", () => {
     const graph = normalizeGraph(
       [

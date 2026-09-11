@@ -125,6 +125,8 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
             <p className="text-xs leading-relaxed text-muted-foreground">
               {edge.kind === "hierarchy"
                 ? "虚线表示内容包含，不是正文引用。"
+                : edge.kind === "text-mention"
+                  ? "点线表示正文命中了目标名称，是可能的文本提及；可结合原始段落判断。"
                 : edge.kind === "reference"
                   ? "以下是这条连线对应的原始引用端点。"
                   : "以下关系来自数据库的真实成员、绑定或关系字段。"}
@@ -137,6 +139,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                 {edge.weight.toLocaleString()} 条记录
               </Badge>
             </div>
+            {!!edge.omittedProvenance && <p className="text-xs text-muted-foreground">另有 {edge.omittedProvenance.toLocaleString()} 组出处超出展示上限；计数包含这些命中。</p>}
             {occurrences.slice(0, limit).map((occurrence, index) => (
               <Card
                 size="sm"
@@ -149,6 +152,17 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex min-w-0 flex-col gap-2">
+                  {occurrence.mention && (
+                    <div className="flex flex-col gap-2">
+                      <Badge variant="outline" className="max-w-full"><span className="truncate" title={occurrence.mention.keyword}>命中名称：{occurrence.mention.keyword}</span></Badge>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                        {occurrence.mention.excerpt.slice(0, occurrence.mention.start)}
+                        <mark className="bg-accent text-accent-foreground">{occurrence.mention.excerpt.slice(occurrence.mention.start, occurrence.mention.end)}</mark>
+                        {occurrence.mention.excerpt.slice(occurrence.mention.end)}
+                      </p>
+                      {occurrence.mention.candidates > 1 && <p className="text-xs text-muted-foreground">此名称对应范围内 {occurrence.mention.candidates} 个原始位置；当前目标为同名候选之一。</p>}
+                    </div>
+                  )}
                   <SourceCard
                     node={byId.get(occurrence.sourceId)}
                     id={occurrence.sourceId}
@@ -175,7 +189,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                   />
                   {occurrence.weight > 1 && (
                     <Badge variant="outline">
-                      {occurrence.weight} 条索引记录
+                      {occurrence.weight} {occurrence.kind === "text-mention" ? "处文本命中" : "条索引记录"}
                     </Badge>
                   )}
                   {occurrence.databaseId && (

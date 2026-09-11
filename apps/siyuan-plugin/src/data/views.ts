@@ -1,4 +1,5 @@
 import { DEFAULT_FILTERS, type GraphDataset, type GraphFilters } from "./types";
+import { isMentionMode } from "../mentions/types";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
@@ -8,6 +9,8 @@ export interface SavedView {
   createdAt: string;
   filters: GraphFilters;
   selectedId: string | null;
+  chosenIds?: string[];
+  multiple?: boolean;
   source: "siyuan";
 }
 
@@ -26,7 +29,9 @@ export function filterGraph(
     (edge) =>
       indices.has(edge.source) &&
       indices.has(edge.target) &&
-      (edge.kind === "reference"
+      (edge.kind === "text-mention"
+        ? filters.mentions !== "off"
+        : edge.kind === "reference"
         ? filters.references
         : edge.kind === "hierarchy"
           ? filters.hierarchy
@@ -72,6 +77,7 @@ export function readSavedViews(
             typeof item.filters.includeChildDocuments === "boolean") &&
           (item.filters.databases === undefined ||
             typeof item.filters.databases === "boolean") &&
+          (item.filters.mentions === undefined || isMentionMode(item.filters.mentions)) &&
           (item.filters.excludeIds === undefined ||
             (Array.isArray(item.filters.excludeIds) &&
               item.filters.excludeIds.every(
@@ -84,6 +90,8 @@ export function readSavedViews(
                   typeof type === "string" && type.trim().length > 0,
               ))) &&
           (item.selectedId === null || typeof item.selectedId === "string") &&
+          (item.chosenIds === undefined || (Array.isArray(item.chosenIds) && item.chosenIds.every((id: unknown) => typeof id === "string"))) &&
+          (item.multiple === undefined || typeof item.multiple === "boolean") &&
           // The old schema carried a dataset key. Migrate only genuine SiYuan
           // views; never relabel a legacy generated dataset as workspace data.
           (item.datasetKey === undefined || item.datasetKey === "siyuan"),
@@ -105,10 +113,13 @@ export function readSavedViews(
             item.filters.includeChildDocuments ??
             DEFAULT_FILTERS.includeChildDocuments,
           databases: item.filters.databases ?? true,
+          mentions: item.filters.mentions ?? "off",
           excludeIds: [...(item.filters.excludeIds ?? [])],
           hiddenTypes: [...(item.filters.hiddenTypes ?? [])],
         },
         selectedId: item.selectedId,
+        ...(item.chosenIds ? { chosenIds: [...new Set(item.chosenIds)] } : {}),
+        ...(item.multiple !== undefined ? { multiple: item.multiple } : {}),
         source: "siyuan",
       }));
   } catch {
@@ -120,6 +131,7 @@ export function newSavedView(
   name: string,
   filters: GraphFilters,
   selectedId: string | null,
+  selection?: { chosenIds: readonly string[]; multiple: boolean },
 ): SavedView {
   return {
     id: crypto.randomUUID(),
@@ -132,6 +144,7 @@ export function newSavedView(
       hiddenTypes: [...filters.hiddenTypes],
     },
     selectedId,
+    ...(selection ? { chosenIds: [...selection.chosenIds], multiple: selection.multiple } : {}),
     source: "siyuan",
   };
 }

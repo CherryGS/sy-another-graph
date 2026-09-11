@@ -20,7 +20,8 @@ graph includes all indexed workspace content allowed by those filters.
 
 - Search by title or ID, or click a node to inspect it. Details include source
   paths and excerpts where available. Double-click an eligible node to open its
-  native SiYuan source; relationship details also provide source links.
+  native SiYuan source. Hover the inspector title or a relationship source/target
+  to preview the native content; click the title or source entry to open it.
 - **Shift-click** toggles a node's chosen membership. Chosen nodes have equal
   status, remain fixed during simulation, and keep persistent labels. Inspecting
   another node preserves the chosen set.
@@ -37,6 +38,25 @@ graph includes all indexed workspace content allowed by those filters.
 
 Open the toolbar legend for node-type colors and counts. Node and relationship
 inspectors overlay the canvas so the graph stays visible.
+
+## Discover text mentions
+
+Open **Graph filters** and set **Text mentions** to **Chosen nodes** or
+**All in scope**. It is disabled by default. Both modes share one asynchronous
+local index of document titles and native names/aliases. Chosen mode includes
+incoming and outgoing mentions for every chosen node, including a chosen
+document's own eligible body; inspecting another node leaves that set intact.
+
+Gold dotted arrows connect ordinary prose to matching names. Open a relationship
+to see its source passage, highlighted match, occurrence count, and any same-name
+candidates. Code, links, and explicit-reference syntax are excluded. Existing
+enabled references take precedence over duplicate text mentions. These are
+possible connections to assess from their source passages.
+
+Both endpoints must remain inside the active scope and exclusions. Enabled
+mentions participate in layout, neighborhoods, and paths, with one hop per edge.
+Index progress and limited coverage are reported. Mode and selection changes
+reuse the cache; note, title, and alias edits update it through source refresh.
 
 ## Move and arrange the view
 
@@ -55,8 +75,9 @@ choices and restore matching node positions and the current view.
 ## Insights, saved views, and export
 
 Insights show graph structure, highly connected nodes, and runtime information.
-Up to 50 saved views store filters and one inspected identity in the current
-browser; layout coordinates and the complete chosen set remain session state.
+Up to 50 saved views store filters, mention mode, the complete chosen set,
+multi-selection state, and the independently inspected identity in the current
+browser; layout coordinates remain session state.
 Display and force preferences are also saved in the current browser.
 
 JSON export captures the visible graph and creates a temporary export file in
@@ -83,3 +104,5 @@ Visualization by [Cosmograph](https://cosmograph.app/), licensed under
 [CC BY-NC 4.0 / separate commercial terms](https://cosmograph.app/docs-general/citing-and-licensing/).
 Its attribution remains visible. React, TanStack Router, DuckDB-WASM, Apache
 Arrow, and other dependencies retain their respective licenses.
+The bundled Markdown parser notices are in
+[third-party-mentions.txt](third-party-mentions.txt).

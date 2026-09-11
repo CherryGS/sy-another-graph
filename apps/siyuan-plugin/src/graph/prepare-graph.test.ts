@@ -66,6 +66,16 @@ describe("prepareGraph", () => {
     expect(links.getChild("style")?.type.toString()).toBe("Uint8");
   });
 
+  it("renders text mentions with the dotted style while retaining their exact provenance", async () => {
+    const mention = { source: 3, target: 18, kind: "text-mention" as const, weight: 2,
+      provenance: [{ sourceId: "paragraph", targetId: "beta", kind: "text-mention" as const, weight: 2 }] };
+    const result = await prepareGraph([node("alpha", 3), node("beta", 18)], [mention], new AbortController().signal);
+    const links = result.config.links as Table;
+    expect(Array.from(links.getChild("style")!)).toEqual([2]);
+    expect(Array.from(links.getChild("color")!)).toEqual(["#d6b670"]);
+    expect(result.indexToEdge[0]).toBe(mention);
+  });
+
   it("does not publish preparation that was cancelled while yielding to the browser", async () => {
     const controller = new AbortController();
     const pending = prepareGraph([node("alpha", 3)], [], controller.signal);

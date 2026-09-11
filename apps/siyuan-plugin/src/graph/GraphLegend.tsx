@@ -88,6 +88,11 @@ export function GraphLegend({
             <p className="text-xs leading-relaxed text-muted-foreground">
               数量基于当前图谱节点；色点对应按类型着色。
             </p>
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground" aria-label="关系线型">
+              <span>实线：块引用和数据库关系</span>
+              <span>虚线：包含关系</span>
+              <span>金色点线：文本提及候选，可查看命中依据</span>
+            </div>
           </div>
         </ScrollArea>
       </PopoverContent>

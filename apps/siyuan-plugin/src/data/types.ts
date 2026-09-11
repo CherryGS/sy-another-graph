@@ -24,6 +24,7 @@ export interface GraphNode {
 
 export type GraphEdgeKind =
   | "reference"
+  | "text-mention"
   | "hierarchy"
   | "database-embedding"
   | "database-membership"
@@ -36,6 +37,7 @@ export interface GraphProvenance {
   targetId: string;
   kind: GraphEdgeKind;
   weight: number;
+  mention?: MentionEvidence;
   databaseId?: string;
   targetDatabaseId?: string;
   sourceItemId?: string;
@@ -54,6 +56,8 @@ export interface GraphEdge {
   kind: GraphEdgeKind;
   weight: number;
   provenance?: GraphProvenance[];
+  omittedProvenance?: number;
+  ambiguous?: boolean;
 }
 
 export interface Notebook {
@@ -72,6 +76,7 @@ export interface GraphDataset {
   referenceCount: number;
   skippedReferences: number;
   warnings: string[];
+  mentionBlocks?: MentionBlock[];
 }
 
 export interface GraphFilters {
@@ -85,6 +90,7 @@ export interface GraphFilters {
   excludeIds: string[];
   hiddenTypes: string[];
   databases: boolean;
+  mentions: MentionMode;
 }
 
 export const DEFAULT_FILTERS: GraphFilters = {
@@ -98,6 +104,7 @@ export const DEFAULT_FILTERS: GraphFilters = {
   excludeIds: [],
   hiddenTypes: [],
   databases: true,
+  mentions: "off",
 };
 
 export const PALETTE = [
@@ -110,3 +117,4 @@ export const PALETTE = [
   "#aa9cf0",
   "#65c3e5",
 ];
+import type { MentionBlock, MentionEvidence, MentionMode } from "../mentions/types";

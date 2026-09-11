@@ -25,6 +25,7 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
 
 export const EDGE_KIND_LABELS: Record<GraphEdgeKind, string> = {
   reference: "块引用",
+  "text-mention": "文本提及",
   hierarchy: "包含关系",
   "database-embedding": "数据库载体",
   "database-membership": "数据库成员",
