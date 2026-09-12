@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -25,14 +27,27 @@ import {
 import type { WorkbenchState } from "./state";
 import { DEFAULT_FILTERS } from "../data/types";
 import { getNodeTypeCounts } from "../data/graph-summary";
+import { isTypeHidden } from "../data/filter-types";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import { SettingSwitch } from "./SettingsPanel";
 import { MentionControls } from "./MentionControls";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
-export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
+export function GraphFiltersPanel({
+  state,
+  onBack,
+  footer,
+}: {
+  state: WorkbenchState;
+  onBack: () => void;
+  footer: ReactNode;
+}) {
   const { filters, setFilters, data } = state;
+  const backRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    backRef.current?.focus();
+  }, []);
   const [scopeDraft, setScopeDraft] = useState(filters.scopeId);
   const [excludeDraft, setExcludeDraft] = useState(
     filters.excludeIds.join("\n"),
@@ -59,7 +74,18 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
   return (
     <section className="filter-panel" aria-label="图谱筛选">
       <div className="px-4 py-3">
-        <h2 className="font-medium">范围与关系</h2>
+        <div className="flex items-center gap-2">
+          <Button
+            ref={backRef}
+            variant="ghost"
+            size="icon-sm"
+            aria-label="返回筛选预设"
+            onClick={onBack}
+          >
+            <ArrowLeft />
+          </Button>
+          <h2 className="font-medium">编辑当前筛选</h2>
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">
           筛选自动生效，节点选择与邻域操作位于工具栏。
         </p>
@@ -200,7 +226,11 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    setFilters((previous) => ({ ...previous, hiddenTypes: [] }))
+                    setFilters((previous) => ({
+                      ...previous,
+                      documentsOnly: false,
+                      hiddenTypes: [],
+                    }))
                   }
                 >
                   全部类型
@@ -211,9 +241,8 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
                   onClick={() =>
                     setFilters((previous) => ({
                       ...previous,
-                      hiddenTypes: types
-                        .map(([type]) => type)
-                        .filter((type) => type !== "d"),
+                      documentsOnly: true,
+                      hiddenTypes: [],
                     }))
                   }
                 >
@@ -231,19 +260,23 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
                       id={`type-${type}`}
                       aria-label={`显示${NODE_TYPE_LABELS[type] ?? type}`}
                       disabled={type === "d"}
-                      checked={
-                        type === "d" || !filters.hiddenTypes.includes(type)
-                      }
+                      checked={!isTypeHidden(filters, type)}
                       onCheckedChange={(checked) =>
-                        setFilters((previous) => ({
-                          ...previous,
-                          hiddenTypes:
-                            checked === true
-                              ? previous.hiddenTypes.filter(
-                                  (hidden) => hidden !== type,
-                                )
-                              : [...previous.hiddenTypes, type],
-                        }))
+                        setFilters((previous) => {
+                          const hiddenTypes = previous.documentsOnly
+                            ? types.map(([nodeType]) => nodeType).filter(
+                                (nodeType) => nodeType !== "d",
+                              )
+                            : previous.hiddenTypes;
+                          return {
+                            ...previous,
+                            documentsOnly: false,
+                            hiddenTypes:
+                              checked === true
+                                ? hiddenTypes.filter((hidden) => hidden !== type)
+                                : [...new Set([...hiddenTypes, type])],
+                          };
+                        })
                       }
                     />
                     <FieldLabel htmlFor={`type-${type}`}>
@@ -260,12 +293,18 @@ export function GraphFiltersPanel({ state }: { state: WorkbenchState }) {
           </FieldGroup>
         </div>
       </ScrollArea>
-      <div className="border-t p-3">
+      <Separator />
+      <div className="flex flex-col gap-2 p-3">
+        {footer}
         <Button
           variant="outline"
           className="w-full"
           onClick={() =>
-            setFilters({ ...DEFAULT_FILTERS, excludeIds: [], hiddenTypes: [] })
+            setFilters({
+              ...DEFAULT_FILTERS,
+              excludeIds: [...DEFAULT_FILTERS.excludeIds],
+              hiddenTypes: [...DEFAULT_FILTERS.hiddenTypes],
+            })
           }
         >
           重置筛选

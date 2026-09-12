@@ -7,6 +7,8 @@ import {
   type GraphNode,
 } from "./types";
 
+const ALL_TYPE_FILTERS = { ...DEFAULT_FILTERS, documentsOnly: false };
+
 function source(
   id: string,
   index: number,
@@ -96,7 +98,7 @@ function databaseFixture(): GraphDataset {
 describe("native contexts for the current graph", () => {
   it("chooses an eligible mirror in the selected notebook for the shared database and detached items", () => {
     const data = databaseFixture();
-    const graph = projectGraph(data, { ...DEFAULT_FILTERS, notebook: "B" });
+    const graph = projectGraph(data, { ...ALL_TYPE_FILTERS, notebook: "B" });
     expect(resolveOpenBlock("av:db", data, graph)).toBe("carrier-b");
     expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBe(
       "carrier-b",
@@ -108,7 +110,7 @@ describe("native contexts for the current graph", () => {
   it("does not reuse a context excluded by any overlapping or repeated subtree root", () => {
     const data = databaseFixture();
     const graph = projectGraph(data, {
-      ...DEFAULT_FILTERS,
+      ...ALL_TYPE_FILTERS,
       excludeIds: ["doc-a", "carrier-a", "bound-b", "doc-a", "missing"],
     });
     expect([...graph.excludedIds].sort()).toEqual([
@@ -127,7 +129,7 @@ describe("native contexts for the current graph", () => {
   it("opens exact hidden source blocks instead of their displayed document representative", () => {
     const data = databaseFixture();
     const graph = projectGraph(data, {
-      ...DEFAULT_FILTERS,
+      ...ALL_TYPE_FILTERS,
       hiddenTypes: ["p", "av"],
     });
     expect(graph.representatives.get("bound-b")).toBe("doc-b");
@@ -140,7 +142,7 @@ describe("native contexts for the current graph", () => {
   it("prefers the actual bound block, including when its type is hidden", () => {
     const data = databaseFixture();
     const graph = projectGraph(data, {
-      ...DEFAULT_FILTERS,
+      ...ALL_TYPE_FILTERS,
       hiddenTypes: ["p"],
     });
     expect(resolveOpenBlock("av-item:db:bound", data, graph)).toBe("bound-b");
@@ -152,7 +154,7 @@ describe("native contexts for the current graph", () => {
   it("returns no database context when every embedding is excluded, even if binding relationships keep the database visible", () => {
     const data = databaseFixture();
     const graph = projectGraph(data, {
-      ...DEFAULT_FILTERS,
+      ...ALL_TYPE_FILTERS,
       excludeIds: ["carrier-a", "carrier-b"],
     });
     expect(graph.eligibleIds.has("av:db")).toBe(true);
@@ -167,7 +169,7 @@ describe("native contexts for the current graph", () => {
     data.edges = data.edges.filter(
       (edge) => edge.kind !== "database-embedding",
     );
-    const graph = projectGraph(data, DEFAULT_FILTERS);
+    const graph = projectGraph(data, ALL_TYPE_FILTERS);
     expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBeNull();
     expect(resolveOpenBlock("av:db", data, graph)).toBeNull();
     expect(resolveOpenBlock("unknown-native-id", data, graph)).toBeNull();
@@ -177,13 +179,13 @@ describe("native contexts for the current graph", () => {
     const data = databaseFixture();
     data.nodes[7].boundBlockId = "unavailable-block";
     data.edges = data.edges.filter((edge) => edge.kind !== "database-binding");
-    const graph = projectGraph(data, DEFAULT_FILTERS);
+    const graph = projectGraph(data, ALL_TYPE_FILTERS);
     expect(resolveOpenBlock("av-item:db:bound", data, graph)).toBe("carrier-a");
   });
 
   it("does not open entities removed by the database presence switch", () => {
     const data = databaseFixture();
-    const graph = projectGraph(data, { ...DEFAULT_FILTERS, databases: false });
+    const graph = projectGraph(data, { ...ALL_TYPE_FILTERS, databases: false });
     expect(resolveOpenBlock("av:db", data, graph)).toBeNull();
     expect(resolveOpenBlock("av-item:db:bound", data, graph)).toBeNull();
     expect(resolveOpenBlock("bound-b", data, graph)).toBe("bound-b");
@@ -191,8 +193,8 @@ describe("native contexts for the current graph", () => {
 
   it("keeps cached resolution isolated between immutable graph revisions", () => {
     const data = databaseFixture();
-    const graphA = projectGraph(data, { ...DEFAULT_FILTERS, notebook: "A" });
-    const graphB = projectGraph(data, { ...DEFAULT_FILTERS, notebook: "B" });
+    const graphA = projectGraph(data, { ...ALL_TYPE_FILTERS, notebook: "A" });
+    const graphB = projectGraph(data, { ...ALL_TYPE_FILTERS, notebook: "B" });
     for (let repeat = 0; repeat < 3; repeat++) {
       expect(resolveOpenBlock("av:db", data, graphA)).toBe("carrier-a");
       expect(resolveOpenBlock("av:db", data, graphB)).toBe("carrier-b");

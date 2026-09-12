@@ -5,6 +5,8 @@ import {
 } from "./host/persistent-workbench";
 import { isNativeBlockId, registerScopeMenus } from "./host/scope-menu";
 import { registerSourceChanges } from "./host/source-events";
+import { PresetStorage } from "./host/preset-storage";
+import { GraphTabTitle, DEFAULT_GRAPH_TAB_TITLE } from "./host/graph-tab-title";
 
 const TAB_TYPE = "atlas";
 
@@ -14,11 +16,17 @@ export default class SiYuanGraphPlugin extends Plugin {
   private unloaded = false;
   private removeScopeMenus: (() => void) | null = null;
   private removeSourceChanges: (() => void) | null = null;
+  private presetStorage: PresetStorage | null = null;
+  private graphTitle: GraphTabTitle | null = null;
 
   onload() {
     this.unloaded = false;
     const workbench = new PersistentWorkbench(this.name);
     this.workbench = workbench;
+    const ownsMessage = (event: MessageEvent) => workbench.ownsMessage(event);
+    this.presetStorage = new PresetStorage(this, ownsMessage, window.location.origin);
+    const graphTitle = new GraphTabTitle(ownsMessage);
+    this.graphTitle = graphTitle;
     this.addIcons(
       '<symbol id="iconAtlasGraph" viewBox="0 0 24 24"><path d="m7 7 10 2M7 7l4 11m6-9-6 9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="6" r="3" fill="currentColor"/><circle cx="18" cy="9" r="3" fill="currentColor"/><circle cx="11" cy="19" r="3" fill="currentColor"/></symbol>',
     );
@@ -28,6 +36,7 @@ export default class SiYuanGraphPlugin extends Plugin {
         (this.element as HTMLElement).style.cssText =
           "height:100%;width:100%;min-width:0;min-height:0;overflow:hidden;";
         workbench.attach(this.element as HTMLElement);
+        graphTitle.attach(this.tab);
       },
       resize() {
         workbench.refresh();
@@ -36,9 +45,11 @@ export default class SiYuanGraphPlugin extends Plugin {
         workbench.refresh();
       },
       beforeDestroy(this: Custom) {
+        graphTitle.detach(this.tab);
         workbench.detach(this.element as HTMLElement);
       },
       destroy(this: Custom) {
+        graphTitle.detach(this.tab);
         workbench.detach(this.element as HTMLElement);
       },
     });
@@ -77,6 +88,7 @@ export default class SiYuanGraphPlugin extends Plugin {
       .find((custom) => custom.tab?.headElement.isConnected);
     if (existing) {
       existing.tab.parent.switchTab(existing.tab.headElement);
+      this.graphTitle?.attach(existing.tab);
       this.workbench?.refresh();
       return Promise.resolve(existing.tab);
     }
@@ -105,7 +117,7 @@ export default class SiYuanGraphPlugin extends Plugin {
       app: this.app,
       custom: {
         id: this.name + TAB_TYPE,
-        title: "Atlas 图谱",
+        title: this.graphTitle?.title ?? DEFAULT_GRAPH_TAB_TITLE,
         icon: "iconAtlasGraph",
       },
     }).finally(() => {
@@ -116,6 +128,7 @@ export default class SiYuanGraphPlugin extends Plugin {
 
   private onMessage = (event: MessageEvent) => {
     if (!this.workbench?.ownsMessage(event)) return;
+    if (this.presetStorage?.handle(event) || this.graphTitle?.handle(event)) return;
     const data = event.data as {
       channel?: string;
       type?: string;
@@ -161,6 +174,10 @@ export default class SiYuanGraphPlugin extends Plugin {
     this.removeScopeMenus = null;
     this.removeSourceChanges?.();
     this.removeSourceChanges = null;
+    this.presetStorage?.dispose();
+    this.presetStorage = null;
+    this.graphTitle?.dispose();
+    this.graphTitle = null;
     this.workbench?.dispose();
     this.workbench = null;
   }

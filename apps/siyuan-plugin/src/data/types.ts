@@ -88,6 +88,8 @@ export interface GraphFilters {
   scopeId: string;
   includeChildDocuments: boolean;
   excludeIds: string[];
+  /** Keeps only documents even when acquisition adds new block or entity types. */
+  documentsOnly: boolean;
   hiddenTypes: string[];
   databases: boolean;
   mentions: MentionMode;
@@ -97,11 +99,12 @@ export const DEFAULT_FILTERS: GraphFilters = {
   query: "",
   notebook: "",
   references: true,
-  hierarchy: true,
+  hierarchy: false,
   hideIsolated: false,
   scopeId: "",
   includeChildDocuments: true,
   excludeIds: [],
+  documentsOnly: true,
   hiddenTypes: [],
   databases: true,
   mentions: "off",

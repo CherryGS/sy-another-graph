@@ -35,6 +35,7 @@ describe("saved view recovery", () => {
       ...legacyFilters,
       scopeId: "",
       excludeIds: [],
+      documentsOnly: false,
       hiddenTypes: [],
     });
     expect(view.filters.excludeIds).not.toBe(DEFAULT_FILTERS.excludeIds);
@@ -49,6 +50,8 @@ describe("saved view recovery", () => {
     ["includeChildDocuments", null],
     ["databases", "false"],
     ["databases", null],
+    ["documentsOnly", "false"],
+    ["documentsOnly", null],
     ["excludeIds", "20260909010000-doc0001"],
     ["excludeIds", ["20260909010000-doc0001", 2]],
     ["excludeIds", [null]],
@@ -76,6 +79,7 @@ describe("saved view recovery", () => {
       scopeId: "20260909010000-doc0001",
       includeChildDocuments: false,
       databases: false,
+      documentsOnly: false,
       excludeIds: ["20260909010001-block01"],
       hiddenTypes: ["p", "future-block-kind"],
     };
@@ -105,6 +109,19 @@ describe("saved view recovery", () => {
     expect(DEFAULT_FILTERS.hiddenTypes).toEqual([]);
     expect(readSavedViews(store)[0].filters.excludeIds).toEqual([]);
     expect(readSavedViews(store)[0].filters.hiddenTypes).toEqual([]);
+  });
+
+  it("migrates old custom type choices independently of the conservative default and preserves an explicit document-only view", () => {
+    const legacy = { ...DEFAULT_FILTERS, documentsOnly: undefined, hiddenTypes: ["p"] };
+    const [custom, documents] = readSavedViews(storage([
+      { ...saved, id: "old-custom", filters: legacy },
+      { ...saved, id: "documents" },
+    ]));
+    expect(custom.filters.documentsOnly).toBe(false);
+    expect(custom.filters.hiddenTypes).toEqual(["p"]);
+    expect(documents.filters.documentsOnly).toBe(true);
+    expect(documents.filters.hierarchy).toBe(false);
+    expect(documents.filters.mentions).toBe("off");
   });
 
   it("snapshots exclusion and hidden-type arrays when saving rather than aliasing live settings", () => {
@@ -265,6 +282,7 @@ describe("visible graph isolation", () => {
     const view = filterGraph(graph, {
       ...DEFAULT_FILTERS,
       references: false,
+      hierarchy: true,
       hideIsolated: true,
     });
     expect(view.nodes.map((node) => node.index)).toEqual([7, 11]);

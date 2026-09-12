@@ -77,6 +77,8 @@ export function readSavedViews(
             typeof item.filters.includeChildDocuments === "boolean") &&
           (item.filters.databases === undefined ||
             typeof item.filters.databases === "boolean") &&
+          (item.filters.documentsOnly === undefined ||
+            typeof item.filters.documentsOnly === "boolean") &&
           (item.filters.mentions === undefined || isMentionMode(item.filters.mentions)) &&
           (item.filters.excludeIds === undefined ||
             (Array.isArray(item.filters.excludeIds) &&
@@ -115,6 +117,8 @@ export function readSavedViews(
           databases: item.filters.databases ?? true,
           mentions: item.filters.mentions ?? "off",
           excludeIds: [...(item.filters.excludeIds ?? [])],
+          // Older views express their type choices solely through hiddenTypes.
+          documentsOnly: item.filters.documentsOnly ?? false,
           hiddenTypes: [...(item.filters.hiddenTypes ?? [])],
         },
         selectedId: item.selectedId,

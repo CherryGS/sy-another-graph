@@ -37,6 +37,9 @@ import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
 import { getGraphLookups, searchGraphNodes } from "../data/graph-lookups";
 import { withMentionEdges } from "../mentions/graph-integration";
 import { useMentions } from "./use-mentions";
+import { useFilterPresets } from "./use-filter-presets";
+import { useGraphTabState } from "./use-graph-tab-state";
+import { samePresetFilters } from "../presets/model";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -73,6 +76,7 @@ export function useWorkbenchState() {
     hiddenTypes: [],
   }));
   const filtersRef = useRef(filters);
+  const filterRuleRevision = useRef(0);
   const [selection, setSelection] = useState({ ...EMPTY_SELECTION });
   const [inspectedEdge, setInspectedEdge] = useState<{
     graph: CurrentGraph;
@@ -180,9 +184,13 @@ export function useWorkbenchState() {
   const setFilters = useCallback((action: SetStateAction<GraphFilters>) => {
     const previous = filtersRef.current;
     const next = typeof action === "function" ? action(previous) : action;
+    if (next === previous) return;
+    if (!samePresetFilters(previous, next)) filterRuleRevision.current++;
     filtersRef.current = next;
     setFiltersState(next);
   }, []);
+  const filterPresets = useFilterPresets(filters, filtersRef, filterRuleRevision, data, dataRef, setFilters);
+  const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified);
 
   const {
     notebook,
@@ -190,6 +198,7 @@ export function useWorkbenchState() {
     hierarchy,
     excludeIds,
     hiddenTypes,
+    documentsOnly,
     databases,
     scopeId,
     includeChildDocuments,
@@ -204,6 +213,7 @@ export function useWorkbenchState() {
             hierarchy,
             excludeIds,
             hiddenTypes,
+            documentsOnly,
             databases,
             scopeId,
             includeChildDocuments,
@@ -216,6 +226,7 @@ export function useWorkbenchState() {
       hierarchy,
       excludeIds,
       hiddenTypes,
+      documentsOnly,
       databases,
       scopeId,
       includeChildDocuments,
@@ -604,6 +615,8 @@ export function useWorkbenchState() {
     load,
     filters,
     setFilters,
+    filterPresets,
+    graphTabState,
     mentionState,
     selectedId,
     setSelectedId,

@@ -16,6 +16,34 @@ Notebook filters, subtree exclusions, node types, and enabled relationship types
 further determine the graph you explore. Without a document or block scope, the
 graph includes all indexed workspace content allowed by those filters.
 
+New sessions start with document nodes and references; containment and text
+mentions are disabled. Hidden native block references remain represented by
+their owning documents. Document-only mode also hides new non-document block
+types that appear later.
+
+## Switch filter presets
+
+Click **Filter: preset name** to open the compact preset menu. **New preset** is
+first; copy, rename, and delete controls follow each preset. New presets use the
+conservative document defaults. Copies keep the chosen preset's saved rules.
+Open **Edit current filters** to adjust scope, notebooks, relationships, and types.
+
+Changes apply to the graph immediately and mark the preset with an asterisk.
+Choose **Update preset** to replace its saved rules, or **Save as preset** to
+create an independent configuration. Deleting a preset keeps the current graph
+configuration; **Undo** restores the deleted entry.
+
+Up to 50 presets are stored in the current workspace's plugin data. Reloading
+restores the last active preset after validating its source scope, unless newer
+filter or native-scope actions have already taken precedence. Unavailable sources
+and storage failures are reported. Search text, chosen nodes, and layout positions
+are not part of a filter preset; saved views retain their separate exploration
+role. Switching filters keeps choices that remain eligible in the new graph.
+
+The SiYuan graph tab shows its current scope and preset name. An asterisk marks
+modified rules, and the tab tooltip provides the filter summary. Inspecting a
+node or changing the neighborhood depth does not rename the tab.
+
 ## Choose nodes and explore relationships
 
 - Search by title or ID, or click a node to inspect it. Details include source
@@ -93,6 +121,8 @@ are bundled locally, and graph data stays on the current SiYuan origin.
 Available content depends on SiYuan's index. If notes change during acquisition,
 Atlas may report an incomplete or changed snapshot; use Refresh after editing
 settles. Unavailable database data and processing limits are reported in the UI.
+Document-only defaults reduce the displayed graph; source acquisition and the
+background text-mention index still process workspace data.
 
 Version 0.1 targets desktop use with SiYuan 3.8.3 or later. Verification currently
 covers the SiYuan 3.8.3 WebUI on Windows. Large-graph responsiveness depends on

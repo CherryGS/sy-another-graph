@@ -6,6 +6,7 @@ import type {
   GraphProvenance,
 } from "./types";
 import { getGraphLookups, type GraphLike } from "./graph-lookups";
+import { isTypeHidden } from "./filter-types";
 
 export interface GraphView {
   nodes: GraphNode[];
@@ -170,9 +171,6 @@ export function projectGraph(
   const excludedIds = containment
     ? expandContainment(containment, filters.excludeIds, true)
     : new Set<string>();
-  const hidden = new Set(filters.hiddenTypes);
-  // Documents remain the representation for globally hidden content types.
-  hidden.delete("d");
   const candidates = new Set<string>();
   for (const node of data.nodes) {
     if (excludedIds.has(node.id) || (scopeIds && !scopeIds.has(node.id))) continue;
@@ -229,7 +227,7 @@ export function projectGraph(
   const eligibleIds = new Set<string>();
   for (const node of data.nodes) {
     if (!candidates.has(node.id)) continue;
-    if (!hidden.has(nodeType(node))) eligibleIds.add(node.id);
+    if (!isTypeHidden(filters, nodeType(node))) eligibleIds.add(node.id);
     else if (isBlock(node) && node.rootId) {
       const document = byId.get(node.rootId);
       if (

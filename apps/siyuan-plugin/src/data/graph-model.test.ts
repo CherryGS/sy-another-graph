@@ -86,6 +86,7 @@ function dataset(nodes: GraphNode[], specs: EdgeSpec[]): GraphDataset {
 const filters = (overrides: Partial<GraphFilters> = {}): GraphFilters => ({
   ...DEFAULT_FILTERS,
   hierarchy: false,
+  documentsOnly: false,
   ...overrides,
 });
 
@@ -275,6 +276,71 @@ function shortestPath(
   }
   return null;
 }
+
+describe("conservative document-only filters", () => {
+  it("defaults to document references and projects native types without admitting database entities or future types", () => {
+    const data = dataset([
+      node("A", 0), node("B", 1),
+      block("paragraph", 2, "p", "A"),
+      block("future", 3, "future-block-kind", "B"),
+      block("carrier", 4, "av", "A"),
+      node("database", 5, { entity: "database", rootId: undefined }),
+      node("item", 6, { entity: "database-item", rootId: undefined }),
+    ], [
+      ["paragraph", "future", "reference", 2],
+      ["A", "B", "hierarchy"],
+      ["carrier", "database", "database-embedding"],
+      ["database", "item", "database-membership"],
+      ["item", "B", "database-binding"],
+    ]);
+    const graph = projectGraph(data, DEFAULT_FILTERS);
+    expect(ids(graph)).toEqual(["A", "B"]);
+    expect(graph.edges).toHaveLength(1);
+    expect(pairs(graph, "reference")).toEqual(["A>B"]);
+    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
+      { sourceId: "paragraph", targetId: "future", kind: "reference", weight: 2 },
+    ] });
+    expect(graph.representatives.get("future")).toBe("B");
+    expect(graph.representatives.has("database")).toBe(false);
+    expect(graph.representatives.has("item")).toBe(false);
+    expect(DEFAULT_FILTERS.mentions).toBe("off");
+    expect(ids(projectGraph(data, { ...DEFAULT_FILTERS, hiddenTypes: ["d"] }))).toEqual(["A", "B"]);
+
+    const custom = projectGraph(data, filters({ hiddenTypes: ["p"] }));
+    expect(ids(custom)).toEqual(["A", "B", "carrier", "database", "future", "item"]);
+    expect(pairs(custom, "reference")).toEqual(["A>future"]);
+    expect(pairs(custom, "database-membership")).toEqual(["database>item"]);
+  });
+
+  it("keeps only in-scope source facts when every content type projects onto the same document", () => {
+    const data = dataset([
+      node("D", 0), block("scope", 1, "h", "D"),
+      block("first", 2, "future-block-kind", "D", "scope"),
+      block("second", 3, "p", "D", "scope"),
+      block("sibling", 4, "future-block-kind", "D"),
+      block("removed", 5, "p", "D", "scope"),
+    ], [
+      ["first", "second", "reference", 2],
+      ["first", "sibling", "reference", 9],
+      ["sibling", "second", "reference", 10],
+      ["D", "first", "reference", 11],
+      ["removed", "second", "reference", 12],
+    ]);
+    const scoped = { ...DEFAULT_FILTERS, scopeId: "scope", excludeIds: ["removed"] };
+    const graph = projectGraph(data, scoped);
+    expect(ids(graph)).toEqual(["D"]);
+    expect(pairs(graph, "reference")).toEqual(["D>D"]);
+    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
+      { sourceId: "first", targetId: "second", kind: "reference", weight: 2 },
+    ] });
+    expect(graph.sourceIds).toEqual(new Set(["scope", "first", "second"]));
+    expect(scopeBackground(data, graph, "scope", true)).toEqual(new Set(["D"]));
+    expect(resolveOpenBlock("first", data, graph)).toBe("first");
+    expect(resolveOpenBlock("sibling", data, graph)).toBeNull();
+    expect(resolveOpenBlock("removed", data, graph)).toBeNull();
+    expect(projectGraph(data, { ...scoped, excludeIds: ["D"] }).nodes).toEqual([]);
+  });
+});
 
 describe("source exclusion and current endpoint projection", () => {
   it.each([

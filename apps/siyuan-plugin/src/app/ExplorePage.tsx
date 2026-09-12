@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Focus, Pause, Play, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Focus, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,9 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   Popover,
   PopoverAnchor,
-  PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -26,7 +26,7 @@ import { DEFAULT_FILTERS } from "../data/types";
 import type { GraphDirection } from "../engine/types";
 import { useWorkbench } from "./state";
 import { usePanelScrolling } from "./use-panel-scrolling";
-import { GraphFiltersPanel } from "./GraphFiltersPanel";
+import { FilterPresetMenu } from "./FilterPresetMenu";
 import { GraphSearch } from "./GraphSearch";
 import { NodeInspector } from "./NodeInspector";
 import { EdgeInspector } from "./EdgeInspector";
@@ -69,16 +69,23 @@ export function ExplorePage({ active }: { active: boolean }) {
         >
           <div className="search-tools">
             <GraphSearch state={state} anchorRef={toolbarRef} />
-            <PopoverTrigger asChild>
-              <Button
-                variant={state.filtersOpen ? "secondary" : "outline"}
-                size="sm"
-                aria-label="图谱筛选"
-              >
-                <SlidersHorizontal data-icon="inline-start" />
-                筛选
-              </Button>
-            </PopoverTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={state.filtersOpen ? "secondary" : "outline"}
+                    size="sm"
+                    className="max-w-[min(14rem,100%)]"
+                    aria-label={`图谱筛选：${state.filterPresets.activeName}${state.filterPresets.modified ? "，已修改" : ""}`}
+                  >
+                    <span className="truncate">筛选：{state.filterPresets.activeName}</span>
+                    {state.filterPresets.modified && <span aria-hidden="true">*</span>}
+                    <ChevronDown data-icon="inline-end" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{state.graphTabState.description}</TooltipContent>
+            </Tooltip>
             <GraphLegend
               nodes={view.nodes}
               anchorRef={toolbarRef}
@@ -163,13 +170,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <PopoverContent
-          align="start"
-          className="filter-popover p-0"
-          aria-label="图谱筛选"
-        >
-          <GraphFiltersPanel state={state} />
-        </PopoverContent>
+        <FilterPresetMenu state={state} />
       </Popover>
       <MentionNotice state={state} />
       {(state.focusLabel.includes("截断") ||
@@ -238,8 +239,8 @@ export function ExplorePage({ active }: { active: boolean }) {
                   onClick={() =>
                     state.setFilters({
                       ...DEFAULT_FILTERS,
-                      excludeIds: [],
-                      hiddenTypes: [],
+                      excludeIds: [...DEFAULT_FILTERS.excludeIds],
+                      hiddenTypes: [...DEFAULT_FILTERS.hiddenTypes],
                     })
                   }
                 >
