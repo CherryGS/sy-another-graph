@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type Ref } from "react";
 import {
   Check,
   Copy,
@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PopoverContent } from "@/components/ui/popover";
@@ -48,6 +47,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
   const [details, setDetails] = useState(false);
   const [naming, setNaming] = useState<NamingAction | null>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
+  const editRequest = useRef(0);
   const busy = presets.loading || presets.saving;
   const disabled = busy || !presets.available;
   const full = presets.presets.length >= 50;
@@ -60,6 +60,13 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
   function finishNaming() {
     setNaming(null);
     state.setFiltersOpen(true);
+  }
+
+  async function editPreset(preset: FilterPreset) {
+    const request = ++editRequest.current;
+    // Reopening the current preset must retain its unsaved filter changes.
+    const editable = preset.id === presets.activeId || await presets.apply(preset.id);
+    if (editable && request === editRequest.current) setDetails(true);
   }
 
   const saveActions = (presets.modified || !presets.activeId) && (
@@ -136,10 +143,10 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       <PopoverContent
         align="start"
         className="filter-popover gap-0 p-0"
-        aria-label={details ? "编辑当前筛选" : "筛选预设"}
+        aria-label={details ? `编辑筛选：${presets.activeName}` : "筛选预设"}
         onCloseAutoFocus={(event) => {
           if (naming) event.preventDefault();
-          else setDetails(false);
+          else { editRequest.current++; setDetails(false); }
         }}
       >
         {details ? (
@@ -174,8 +181,30 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                   <Spinner />
                   正在读取预设
                 </div>
-              ) : presets.presets.length ? (
+              ) : (
                 <ul className="flex flex-col gap-1" aria-label="筛选预设列表">
+                  {!presets.activeId && (
+                    <li className="flex min-w-0 items-center gap-1">
+                      <Button
+                        variant="secondary"
+                        className="min-w-0 flex-1 justify-start"
+                        aria-label="当前筛选：自定义"
+                        aria-pressed
+                        onClick={() => state.setFiltersOpen(false)}
+                      >
+                        <Check data-icon="inline-start" />
+                        <span className="truncate">自定义</span>
+                      </Button>
+                      <PresetAction
+                        buttonRef={editButtonRef}
+                        label="编辑筛选：自定义"
+                        hint="编辑筛选"
+                        icon={SlidersHorizontal}
+                        disabled={false}
+                        onClick={() => setDetails(true)}
+                      />
+                    </li>
+                  )}
                   {presets.presets.map((preset) => (
                     <li key={preset.id} className="flex min-w-0 items-center gap-1">
                       <Button
@@ -198,6 +227,14 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                         )}
                         <span className="truncate">{preset.name}</span>
                       </Button>
+                      <PresetAction
+                        buttonRef={preset.id === presets.activeId ? editButtonRef : undefined}
+                        label={`编辑筛选：${preset.name}`}
+                        hint="编辑筛选"
+                        icon={SlidersHorizontal}
+                        disabled={preset.id !== presets.activeId && disabled}
+                        onClick={() => void editPreset(preset)}
+                      />
                       <PresetAction
                         label={`复制预设：${preset.name}`}
                         hint="复制"
@@ -222,29 +259,14 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <Empty className="p-4">
-                  <EmptyHeader>
-                    <EmptyTitle>暂无筛选预设</EmptyTitle>
-                  </EmptyHeader>
-                </Empty>
               )}
               {full && (
                 <p className="px-2 text-xs text-muted-foreground">
                   最多保存 50 个预设。
                 </p>
               )}
-              <Separator />
+              {(saveActions || presets.error || presets.deleted) && <Separator />}
               {saveActions && <div className="p-2">{saveActions}</div>}
-              <Button
-                ref={editButtonRef}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => setDetails(true)}
-              >
-                <SlidersHorizontal data-icon="inline-start" />
-                编辑当前筛选
-              </Button>
               {feedback}
             </div>
           </ScrollArea>
@@ -262,12 +284,14 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
 }
 
 function PresetAction({
+  buttonRef,
   label,
   hint,
   icon: Icon,
   disabled,
   onClick,
 }: {
+  buttonRef?: Ref<HTMLButtonElement>;
   label: string;
   hint: string;
   icon: LucideIcon;
@@ -278,6 +302,7 @@ function PresetAction({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
+          ref={buttonRef}
           variant="ghost"
           size="icon-sm"
           aria-label={label}

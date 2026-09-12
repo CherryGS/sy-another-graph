@@ -24,9 +24,12 @@ types that appear later.
 ## Switch filter presets
 
 Click **Filter: preset name** to open the compact preset menu. **New preset** is
-first; copy, rename, and delete controls follow each preset. New presets use the
+first; edit, copy, rename, and delete controls follow each preset. New presets use the
 conservative document defaults. Copies keep the chosen preset's saved rules.
-Open **Edit current filters** to adjust scope, notebooks, relationships, and types.
+Use a preset's **Edit filters** action to adjust scope, notebooks, relationships,
+and types. Editing another preset first applies that preset; reopening the active
+preset keeps its temporary changes. Unsaved custom rules have their own editable
+row, including after deleting the active preset.
 
 Changes apply to the graph immediately and mark the preset with an asterisk.
 Choose **Update preset** to replace its saved rules, or **Save as preset** to

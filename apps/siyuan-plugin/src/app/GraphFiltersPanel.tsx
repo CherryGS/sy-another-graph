@@ -84,7 +84,9 @@ export function GraphFiltersPanel({
           >
             <ArrowLeft />
           </Button>
-          <h2 className="font-medium">编辑当前筛选</h2>
+          <h2 className="min-w-0 truncate font-medium" title={state.filterPresets.activeName}>
+            编辑筛选：{state.filterPresets.activeName}
+          </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           筛选自动生效，节点选择与邻域操作位于工具栏。
