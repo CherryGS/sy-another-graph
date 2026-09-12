@@ -410,7 +410,7 @@ export class RendererSession {
           );
         }
         this.currentData = data;
-        const forceKeys = ["simulationRepulsion", "simulationGravity", "simulationLinkDistance", "simulationLinkSpring", "simulationFriction", "simulationCollision", "simulationCollisionPadding", "simulationDecay"] as const;
+        const forceKeys = ["simulationRepulsion", "simulationGravity", "simulationLinkDistance", "simulationLinkSpring", "simulationFriction", "simulationCollision", "simulationCollisionPadding", "simulationDecay", "simulationCluster", "pointClusterBy", "pointClusterByFn"] as const;
         if (!dataChanged && this.currentConfig && appliedConfig && forceKeys.some((key) => this.currentConfig![key] !== appliedConfig![key]))
           this.needsSimulationRestart = true;
         this.currentConfig = appliedConfig;

@@ -261,6 +261,32 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                 <FieldDescription>
                   滑块松开后应用。布局暂停时，可点击画布右下角继续布局查看效果。
                 </FieldDescription>
+                <FieldSet>
+                  <FieldLegend>社区聚合</FieldLegend>
+                  <FieldGroup>
+                    <SettingSwitch
+                      id="community-enabled"
+                      name="启用社区聚合"
+                      checked={settings.communityEnabled}
+                      onChange={(communityEnabled) => state.setGraphSettings({ communityEnabled })}
+                    />
+                    <FieldDescription>
+                      按当前图的连接分组，让同组节点更靠近。节点颜色沿用现有设置。
+                    </FieldDescription>
+                    {settings.communityEnabled && <>
+                      {parameter("communityStrength", "社区聚拢力度", "越大越紧密；设为 0 可保留分组而关闭聚拢力。")}
+                      {parameter("communityResolution", "社区划分粒度", "越大通常分得越细；修改后重新计算社区。")}
+                      <SettingSwitch
+                        id="community-background"
+                        name="显示社区区域背景（2D）"
+                        checked={settings.communityBackground}
+                        disabled={settings.dimensions === 3}
+                        onChange={(communityBackground) => state.setGraphSettings({ communityBackground })}
+                      />
+                      <FieldDescription>区域背景随节点移动更新，仅在二维显示。</FieldDescription>
+                    </>}
+                  </FieldGroup>
+                </FieldSet>
                 {parameter("repulsion", "节点斥力", "提高后，节点之间更分散。")}
                 {parameter("gravity", "中心引力")}
                 {parameter("linkDistance", "连线目标距离")}

@@ -31,6 +31,7 @@ for (const file of [
   "index.js",
   "index.css",
   "third-party-mentions.txt",
+  "third-party-communities.txt",
   manifest.readme.default,
   "ui/index.html",
 ]) {

@@ -1,6 +1,16 @@
 use crate::{Direction, Graph};
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+pub fn detect_communities(
+    nodes: u32,
+    endpoints: &[u32],
+    resolution: f64,
+) -> Result<Vec<u32>, JsValue> {
+    crate::detect_communities(nodes, endpoints, resolution)
+        .map_err(|error| JsValue::from_str(&error))
+}
+
 fn direction(value: u8) -> Result<Direction, JsValue> {
     match value {
         0 => Ok(Direction::Both),

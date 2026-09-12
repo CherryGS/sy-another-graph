@@ -106,6 +106,34 @@ reuse the cache; note, title, and alias edits update it through source refresh.
 Tab and page changes retain the graph session. Source refreshes keep valid
 choices and restore matching node positions and the current view.
 
+## Community layout
+
+In **Graph settings → Force layout**, enable **Community aggregation** to draw
+connected groups closer together. Existing node colors, selection, pinning,
+and graph relationships retain their meaning. The feature is off by default.
+
+- **Attraction strength** adjusts Cosmograph's native cluster force. Zero keeps
+  the computed groups while disabling that force. A paused layout changes when
+  you resume it.
+- **Granularity** controls the grouping scale; larger values generally produce
+  finer groups. It recalculates membership for the current graph in a separate
+  local Worker. Changing attraction strength reuses membership.
+- **Community territory background (2D)** optionally paints subtle regions
+  near group members. Regions follow movement and zoom, leave distant empty
+  space unpainted, and do not intercept graph interaction. The background is
+  disabled in 3D; native community attraction works in both dimensions.
+
+Leiden grouping uses the current eligible nodes and enabled relationships, with
+one undirected, equal-weight connection per distinct node pair. Repeated
+occurrences and reciprocal edges do not add grouping weight. Original edge
+directions, counts, and source evidence remain available in the graph. Singleton
+groups receive no additional attraction or territory. The status counts only
+groups with at least two nodes.
+
+Community work is cancelled when replaced and reports failure without preventing
+ordinary graph use. Detection and territory timings depend on graph structure
+and the device. Dependency notices are in [third-party-communities.txt](third-party-communities.txt).
+
 ## Insights, saved views, and export
 
 Insights show graph structure, highly connected nodes, and runtime information.

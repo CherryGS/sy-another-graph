@@ -500,6 +500,22 @@ describe("renderer lifetime", () => {
     await h.session.dispose();
   });
 
+  it("changes community membership and strength without replacing topology or moving paused pins", async () => {
+    const h = harness();
+    const prepared = data();
+    h.session.controls("a", true, ["a"], ["a"]);
+    await h.session.update(prepared, { simulationCluster: 0 });
+    h.graph.setPointPositions(new Float32Array([11, 22, 33, 44]));
+    const clustering = { pointClusterBy: "index", pointClusterByFn: () => 0, simulationCluster: 0.4 };
+    await h.session.update(prepared, clustering);
+    expect([...h.graph.getPointPositions()]).toEqual([11, 22, 33, 44]);
+    expect(h.graph.start).not.toHaveBeenCalled();
+    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, chosenIds: ["a"], pinnedCount: 1, inspectedId: "a" });
+    h.session.controls("a", false, ["a"], ["a"]);
+    expect(h.graph.start).toHaveBeenCalledExactlyOnceWith(0.3);
+    await h.session.dispose();
+  });
+
   it("waits for an in-flight rebuild before destroying GPU, tables, and database", async () => {
     const h = harness();
     await h.session.update(data(), {});

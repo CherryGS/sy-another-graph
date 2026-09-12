@@ -26,9 +26,32 @@ index d1232d5454995e5bc20bc939cdb7cf797f7c679a..272422143d45d818b188315dabede73d
       * Get current cluster coordinates.
       * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
 diff --git a/dist/index.js b/dist/index.js
-index c882ce202541233f37eb2513738d0eb758fde784..67490ad6601581e2955f47642bf042793536dda9 100644
+index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8fa93ef017 100644
 --- a/dist/index.js
 +++ b/dist/index.js
+@@ -4244,8 +4244,8 @@ void main() {
+     // positioning points to custom cluster position or either to the center of mass;
+     // the centermass texture holds [sum(x), sum(y), count, sum(z)] and the position
+     // texture stores z in the alpha channel
+-    vec4 custom = texture(clusterPositionsTexture, pointClusterIndices.xy / clustersTextureSize);
+-    vec4 centermassValues = texture(centermassTexture, pointClusterIndices.xy / clustersTextureSize);
++    vec4 custom = texture(clusterPositionsTexture, (pointClusterIndices.xy + 0.5) / clustersTextureSize);
++    vec4 centermassValues = texture(centermassTexture, (pointClusterIndices.xy + 0.5) / clustersTextureSize);
+     vec3 centermass = vec3(centermassValues.rg, centermassValues.a) / centermassValues.b;
+     vec3 clusterPositions;
+     if (custom.x < 0.0 || custom.y < 0.0) {
+@@ -4265,9 +4265,9 @@ void main() {
+     }
+ #else
+     // positioning points to custom cluster position or either to the center of mass
+-    vec2 clusterPositions = texture(clusterPositionsTexture, pointClusterIndices.xy / clustersTextureSize).xy;
++    vec2 clusterPositions = texture(clusterPositionsTexture, (pointClusterIndices.xy + 0.5) / clustersTextureSize).xy;
+     if (clusterPositions.x < 0.0 || clusterPositions.y < 0.0) {
+-      vec4 centermassValues = texture(centermassTexture, pointClusterIndices.xy / clustersTextureSize);
++      vec4 centermassValues = texture(centermassTexture, (pointClusterIndices.xy + 0.5) / clustersTextureSize);
+       clusterPositions = centermassValues.xy / centermassValues.b;
+     }
+     vec4 clusterCustomCoeff = texture(clusterForceCoefficient, textureCoords);
 @@ -10270,7 +10270,7 @@ class hn {
     */
    setPinnedPoints(e) {

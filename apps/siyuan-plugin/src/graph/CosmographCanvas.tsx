@@ -16,6 +16,10 @@ import { RendererSession } from "./renderer-session";
 import { DragLabelGuard } from "./drag-label-guard";
 import { CanvasGestures } from "./canvas-gestures";
 import { ChosenLabels } from "./chosen-labels";
+import { CommunityBackground } from "./community-background";
+import { useCommunities } from "./use-communities";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { beginCanvasGroupMotion } from "./position-adapter";
 import { DEFAULT_GRAPH_SETTINGS } from "./settings";
 import { displayConfig } from "./display-config";
@@ -114,6 +118,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     fitRequest,
   } = props;
   const container = useRef<HTMLDivElement>(null);
+  const communityCanvas = useRef<HTMLCanvasElement>(null);
+  const communityBackground = useRef<CommunityBackground | null>(null);
   const tooltip = useRef<HTMLDivElement>(null);
   const pointer = useRef({ x: 12, y: 12 });
   const latestProps = useRef(props);
@@ -130,6 +136,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     session?.getDiagnostics ?? noDiagnostics,
   );
   const [prepared, setPrepared] = useState<PreparedGraph | null>(null);
+  const communities = useCommunities(prepared, settings.communityEnabled, settings.communityResolution);
   const [counts, setCounts] = useState({ nodes: 0, links: 0 });
   const [isPreparing, setIsPreparing] = useState(true);
   const [isRendering, setIsRendering] = useState(false);
@@ -159,6 +166,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     let database: LocalDuckDB | undefined;
     let owned: RendererSession | undefined;
     let labels: ChosenLabels | undefined;
+    let background: CommunityBackground | undefined;
     let interaction: CanvasGestures | undefined;
     let active = true;
     // eslint-disable-next-line react/set-state-in-effect -- Mirror the lifetime of an external GPU/worker resource.
@@ -172,6 +180,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     const fail = (failure: unknown) => {
       interaction?.cancel();
       labels?.setActive(false);
+      background?.setActive(false);
       labelGuard?.end();
       if (active) {
         setError(errorMessage(failure));
@@ -183,6 +192,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       event.preventDefault();
       interaction?.cancel();
       labels?.setActive(false);
+      background?.setActive(false);
       labelGuard?.end();
       owned?.suspend();
       if (active)
@@ -209,7 +219,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             latestProps.current.onSelect(action.id, action.event);
         };
         const refreshStoppedLabels = () => {
-          if (active && owned?.isInteractive) labels?.refreshAfterSimulation();
+          if (active && owned?.isInteractive) {
+            labels?.refreshAfterSimulation();
+            background?.settle();
+          }
         };
         const base: CosmographConfig = {
           ...BASE_CONFIG,
@@ -246,16 +259,17 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labelGuard?.begin();
             setHovered(null);
           },
-          onDrag: () => labels?.refresh(),
+          onDrag: () => { labels?.refresh(); background?.refresh(); },
           onDragEnd: () => {
             labelGuard?.end();
             labels?.refresh();
+            background?.settle();
           },
-          onSimulationTick: () => labels?.refresh("simulation"),
+          onSimulationTick: () => { labels?.refresh("simulation"); background?.refresh("simulation"); },
           onSimulationPause: refreshStoppedLabels,
           onSimulationEnd: refreshStoppedLabels,
-          onZoom: () => labels?.refresh("projection"),
-          onResize: () => labels?.refresh("projection"),
+          onZoom: () => { labels?.refresh("projection"); background?.refresh("projection"); },
+          onResize: () => { labels?.refresh("projection"); background?.refresh("projection"); },
           pointLabelClassName: (_text, _index, id) =>
             id &&
               (latestProps.current.chosenIds.includes(id) ||
@@ -275,6 +289,10 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
         );
         labels = new ChosenLabels(element, graph, choose, setHovered);
         chosenLabels.current = labels;
+        if (communityCanvas.current) {
+          background = new CommunityBackground(communityCanvas.current, graph);
+          communityBackground.current = background;
+        }
         const localPosition = (event: MouseEvent): [number, number] => {
           const bounds = (graph.getCanvas() ?? element).getBoundingClientRect();
           return [event.clientX - bounds.left, event.clientY - bounds.top];
@@ -312,10 +330,11 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labelGuard?.begin();
             setHovered(null);
           },
-          onMove: () => labels?.refresh(),
+          onMove: () => { labels?.refresh(); background?.refresh(); },
           onEnd: (moved) => {
             labelGuard?.end();
             labels?.refresh();
+            background?.settle();
             owned?.groupDragFinished(moved);
           },
           onClearChosen: () => latestProps.current.onClearChosen(),
@@ -338,6 +357,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       active = false;
       interaction?.dispose();
       labels?.dispose();
+      background?.dispose();
+      if (communityBackground.current === background) communityBackground.current = null;
       if (gestures.current === interaction) gestures.current = null;
       if (chosenLabels.current === labels) chosenLabels.current = null;
       labelGuard?.dispose();
@@ -360,6 +381,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     dragLabels.current?.end();
     gestures.current?.cancel();
     chosenLabels.current?.setActive(false);
+    communityBackground.current?.setActive(false);
     hoveredLink.current = undefined;
     owner.current?.suspend();
     // eslint-disable-next-line react/set-state-in-effect -- Publish the external renderer's preparation state.
@@ -389,6 +411,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     dragLabels.current?.end();
     gestures.current?.cancel();
     chosenLabels.current?.setActive(false);
+    communityBackground.current?.setActive(false);
     hoveredLink.current = undefined;
     // eslint-disable-next-line react/set-state-in-effect -- Controls stay disabled while the external GPU configuration is changing.
     setIsRendering(true);
@@ -404,6 +427,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       .update(prepared, {
         ...interactiveConfig.current,
         ...displayConfig({ settings, colorBy, showLabels, showLinks, pointSize, pointsCount: prepared.pointsCount }),
+        ...communities.config,
       })
       .then((stats) => {
         if (!active || !stats) return;
@@ -416,6 +440,8 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           latestProps.current.spotlightIds,
         );
         chosenLabels.current?.setActive(latestProps.current.active !== false);
+        communityBackground.current?.update(session.displayed, communities.partition, settings.communityEnabled && settings.communityBackground && settings.dimensions === 2);
+        communityBackground.current?.setActive(latestProps.current.active !== false);
         latestProps.current.onReady?.(stats);
       })
       .catch((failure: unknown) => {
@@ -429,7 +455,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       active = false;
       session.suspend();
     };
-  }, [session, prepared, showLabels, showLinks, pointSize, colorBy, settings]);
+  }, [session, prepared, showLabels, showLinks, pointSize, colorBy, settings, communities.config, communities.partition]);
 
   useLayoutEffect(() => {
     if (!visible) {
@@ -438,6 +464,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     }
     session?.setActive(visible);
     chosenLabels.current?.setActive(visible && Boolean(session?.isInteractive));
+    communityBackground.current?.setActive(visible && Boolean(session?.isInteractive));
   }, [session, visible]);
 
   useEffect(() => {
@@ -476,6 +503,12 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       aria-busy={loading && !visibleError}
       data-rendered-nodes={counts.nodes}
       data-rendered-links={counts.links}
+      data-community-enabled={settings.communityEnabled}
+      data-community-pending={communities.pending}
+      data-community-count={communities.partition?.count ?? 0}
+      data-community-ms={communities.partition?.calculationMs ?? ""}
+      data-community-resolution={settings.communityResolution}
+      data-community-strength={settings.communityEnabled ? settings.communityStrength : 0}
       data-active={diagnostics?.active ?? visible}
       data-renderer-id={diagnostics?.sessionId}
       data-configurations={diagnostics?.configurations ?? 0}
@@ -518,6 +551,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       }}
       onPointerLeave={() => setHovered(null)}
     >
+      <canvas ref={communityCanvas} className="ag-canvas__community-background" aria-hidden="true" />
       <div
         ref={container}
         className="ag-canvas__renderer"
@@ -525,6 +559,13 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           pointerEvents: loading || visibleError || !visible ? "none" : "auto",
         }}
       />
+      {settings.communityEnabled && nodes.length > 0 && !visibleError && (
+        <div className="ag-canvas__community-status" role="status">
+          {communities.error
+            ? <Alert variant="destructive"><AlertDescription>社区计算失败：{communities.error} 可重新启用社区聚合重试。</AlertDescription></Alert>
+            : <Badge variant="secondary">{communities.pending ? "正在计算社区…" : communities.partition ? communities.partition.count ? `${communities.partition.count} 个可聚合社区` : "暂无可聚合社区" : "准备社区…"}</Badge>}
+        </div>
+      )}
       {context && visible && !loading && !visibleError && (
         <div ref={tooltip} className="ag-canvas__tooltip" role="tooltip">
           <strong>{context.title}</strong>

@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@cosmograph/cosmograph@2.5.1': 811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a
-  '@cosmograph/cosmos@2.5.1': 149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4
+  '@cosmograph/cosmos@2.5.1': 79c03070df23aff85fb01e184a0b2b8d66dfa0af9eedfb353ba1e9358421e9cf
 
 importers:
 
@@ -3626,7 +3626,7 @@ snapshots:
 
   '@cosmograph/cosmograph@2.5.1(patch_hash=811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a)(csstype@3.2.3)':
     dependencies:
-      '@cosmograph/cosmos': 2.5.1(patch_hash=149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4)
+      '@cosmograph/cosmos': 2.5.1(patch_hash=79c03070df23aff85fb01e184a0b2b8d66dfa0af9eedfb353ba1e9358421e9cf)
       '@cosmograph/ui': 2.5.1(csstype@3.2.3)
       '@duckdb/duckdb-wasm': 1.32.0
       '@interacta/css-labels': 0.6.0
@@ -3647,7 +3647,7 @@ snapshots:
       - '@opentelemetry/api'
       - csstype
 
-  '@cosmograph/cosmos@2.5.1(patch_hash=149aab7383e78b5b7265e97c3a8ea5bf2c28a4b22facf8174bb4c6ac29fa69c4)':
+  '@cosmograph/cosmos@2.5.1(patch_hash=79c03070df23aff85fb01e184a0b2b8d66dfa0af9eedfb353ba1e9358421e9cf)':
     dependencies:
       '@luma.gl/core': 9.3.6
       '@luma.gl/engine': 9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6))
