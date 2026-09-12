@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { GRAPH_SETTING_RANGES } from "../graph/settings";
 import type { GraphColorMode } from "../graph/node-colors";
 import type { WorkbenchState } from "./state";
@@ -181,6 +182,39 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                       checked={state.showLabels}
                       onChange={state.setShowLabels}
                     />
+                    <Field data-disabled={!state.showLabels}>
+                      <FieldLabel id="label-density-label">标签密度</FieldLabel>
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        className="w-full"
+                        aria-labelledby="label-density-label"
+                        aria-describedby="label-density-description"
+                        disabled={!state.showLabels}
+                        value={settings.labelDensity}
+                        onValueChange={(labelDensity) => {
+                          if (
+                            labelDensity === "standard" ||
+                            labelDensity === "dense" ||
+                            labelDensity === "high"
+                          )
+                            state.setGraphSettings({ labelDensity });
+                        }}
+                      >
+                        <ToggleGroupItem value="standard" className="flex-1">
+                          标准
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="dense" className="flex-1">
+                          较密
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="high" className="flex-1">
+                          密集
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                      <FieldDescription id="label-density-description">
+                        提高密度可显示更多标签，重叠时仍会自动避让。
+                      </FieldDescription>
+                    </Field>
                     <SettingSwitch
                       id="scale-points"
                       name="节点随缩放改变大小"

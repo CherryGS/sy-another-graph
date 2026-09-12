@@ -99,6 +99,9 @@ reuse the cache; note, title, and alias edits update it through source refresh.
   lower-right canvas controls. Display and force settings control appearance
   and motion. Center gravity attracts unpinned nodes toward the layout center
   while chosen nodes keep their fixed positions.
+- Adjust **Label density** in the display settings to show more labels in
+  available space. The denser middle option is the default; all three options
+  retain overlap avoidance and are saved in the current browser.
 
 Tab and page changes retain the graph session. Source refreshes keep valid
 choices and restore matching node positions and the current view.

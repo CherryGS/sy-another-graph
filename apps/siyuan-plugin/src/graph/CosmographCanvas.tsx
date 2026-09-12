@@ -48,7 +48,6 @@ const BASE_CONFIG: CosmographConfig = {
   // The local text tooltip avoids upstream hover labels' untracked SQL/DOM continuations.
   showHoveredPointLabel: false,
   showDynamicLabels: true,
-  showDynamicLabelsLimit: 40,
   showUnselectedPointLabels: false,
   showSelectedLabels: true,
   showTopLabels: false,

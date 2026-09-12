@@ -1,7 +1,17 @@
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 
+export type LabelDensity = "standard" | "dense" | "high";
+
+// Sampling and candidate limits both apply before label collision culling.
+const LABEL_DENSITY_CONFIG = {
+  standard: { showDynamicLabelsLimit: 40, selectedPointLabelsLimit: 100, pointSamplingDistance: 125 },
+  dense: { showDynamicLabelsLimit: 240, selectedPointLabelsLimit: 240, pointSamplingDistance: 64 },
+  high: { showDynamicLabelsLimit: 600, selectedPointLabelsLimit: 600, pointSamplingDistance: 40 },
+} satisfies Record<LabelDensity, CosmographConfig>;
+
 export interface GraphSettings {
   dimensions: 2 | 3;
+  labelDensity: LabelDensity;
   linkWidth: number;
   linkOpacity: number;
   showArrows: boolean;
@@ -21,6 +31,7 @@ export interface GraphSettings {
 
 export const DEFAULT_GRAPH_SETTINGS: Readonly<GraphSettings> = {
   dimensions: 2,
+  labelDensity: "dense",
   linkWidth: 1,
   linkOpacity: 0.88,
   showArrows: true,
@@ -57,6 +68,8 @@ export function normalizeGraphSettings(settings?: Partial<GraphSettings>): Graph
   const result = { ...DEFAULT_GRAPH_SETTINGS };
   if (!settings) return result;
   result.dimensions = settings.dimensions === 3 ? 3 : 2;
+  if (settings.labelDensity === "standard" || settings.labelDensity === "dense" || settings.labelDensity === "high")
+    result.labelDensity = settings.labelDensity;
   for (const key of ["showArrows", "curvedLinks", "scalePointsOnZoom", "sphereShading"] as const)
     if (typeof settings[key] === "boolean") result[key] = settings[key];
   for (const key of Object.keys(GRAPH_SETTING_RANGES) as (keyof typeof GRAPH_SETTING_RANGES)[]) {
@@ -72,6 +85,7 @@ export function graphSettingsConfig(settings?: Partial<GraphSettings>): Cosmogra
   const value = normalizeGraphSettings(settings);
   return {
     spaceDimensions: value.dimensions,
+    ...LABEL_DENSITY_CONFIG[value.labelDensity],
     linkWidthScale: value.linkWidth,
     linkOpacity: value.linkOpacity,
     linkDefaultArrows: value.showArrows,

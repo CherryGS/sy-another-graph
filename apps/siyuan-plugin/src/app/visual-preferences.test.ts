@@ -52,6 +52,7 @@ describe("visual preference normalization", () => {
       "showLinks": false,
       "graphSettings": {
         "dimensions": "3",
+        "labelDensity": "unlimited",
         "linkWidth": 100,
         "linkOpacity": -1,
         "gravity": "0.5",
@@ -68,6 +69,7 @@ describe("visual preference normalization", () => {
       showLinks: false,
       graphSettings: {
         dimensions: 2,
+        labelDensity: "dense",
         linkWidth: 4,
         linkOpacity: 0.05,
         gravity: DEFAULT_GRAPH_SETTINGS.gravity,
@@ -91,6 +93,7 @@ describe("visual preference normalization", () => {
       graphSettings: {
         ...DEFAULT_GRAPH_SETTINGS,
         dimensions: 3,
+        labelDensity: "high",
         linkWidth: 2.5,
         linkOpacity: 0.4,
         repulsion: 2,
