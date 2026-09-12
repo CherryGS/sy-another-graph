@@ -25,18 +25,7 @@ textarea {
   background: var(--background);
   color: var(--foreground);
 }
-.app-toolbar {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-}
-.main-nav,
-.header-actions {
+.graph-actions {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -46,19 +35,6 @@ textarea {
   flex: 1;
   min-height: 0;
   min-width: 0;
-}
-.route-layer {
-  position: absolute;
-  inset: 0;
-  min-width: 0;
-  min-height: 0;
-}
-.graph-route[data-route-active="false"] {
-  visibility: hidden;
-  pointer-events: none;
-}
-.auxiliary-route {
-  background: var(--background);
 }
 .explore-page {
   display: flex;
@@ -94,7 +70,10 @@ textarea {
   min-width: 130px;
   max-width: 360px;
 }
-.dimension-toggle {
+.display-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -213,6 +192,15 @@ textarea {
   width: 100%;
   table-layout: fixed;
 }
+@media (max-width: 1100px) {
+  .search-tools {
+    flex-basis: calc(100% - 210px);
+  }
+  .neighborhood-tools {
+    order: 3;
+    width: 100%;
+  }
+}
 @media (max-width: 760px) {
   .inspector-panel {
     width: min(300px, 48%);
@@ -220,27 +208,16 @@ textarea {
   .exploration-toolbar {
     gap: 8px;
   }
-  .search-tools {
-    flex-basis: calc(100% - 110px);
-  }
-  .neighborhood-tools {
-    order: 3;
-    width: 100%;
-  }
   .gesture-help {
     display: none;
   }
 }
 @media (max-width: 440px) {
-  .app-toolbar {
-    padding: 6px;
-  }
-  .main-nav,
-  .header-actions {
-    gap: 0;
-  }
   .exploration-toolbar {
     padding: 8px;
+  }
+  .search-tools {
+    flex-basis: 100%;
   }
   .neighborhood-tools {
     gap: 6px;

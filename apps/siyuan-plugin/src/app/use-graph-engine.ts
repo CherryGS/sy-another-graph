@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   createGraphEngine,
-  type EngineStats,
   type GraphEngine,
 } from "../engine/client";
 import { numericTopology, type CurrentGraph } from "../data/graph-model";
@@ -10,7 +9,6 @@ export interface LoadedGraphEngine {
   graph: CurrentGraph;
   engine: GraphEngine;
   topology: ReturnType<typeof numericTopology>;
-  stats: EngineStats;
 }
 
 export function useGraphEngine(
@@ -31,9 +29,9 @@ export function useGraphEngine(
     current.current = null;
     void engine
       .load(graph.nodes.length, topology.endpoints)
-      .then((stats) => {
+      .then(() => {
         if (!active) return;
-        const result = { graph, engine, topology, stats };
+        const result = { graph, engine, topology };
         current.current = result;
         setLoaded(result);
       })

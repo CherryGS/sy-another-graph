@@ -28,6 +28,8 @@ import { useWorkbench } from "./state";
 import { usePanelScrolling } from "./use-panel-scrolling";
 import { FilterPresetMenu } from "./FilterPresetMenu";
 import { GraphSearch } from "./GraphSearch";
+import { GraphActions } from "./GraphActions";
+import { GraphNotices } from "./GraphNotices";
 import { NodeInspector } from "./NodeInspector";
 import { EdgeInspector } from "./EdgeInspector";
 import { MentionNotice } from "./MentionNotice";
@@ -150,28 +152,31 @@ export function ExplorePage({ active }: { active: boolean }) {
               </span>
             )}
           </div>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            variant="outline"
-            className="dimension-toggle"
-            aria-label="图谱维度"
-            value={String(state.graphSettings.dimensions)}
-            onValueChange={(value) => {
-              if (value === "2" || value === "3")
-                state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
-            }}
-          >
-            <ToggleGroupItem value="2" aria-label="二维模式">
-              2D
-            </ToggleGroupItem>
-            <ToggleGroupItem value="3" aria-label="三维模式">
-              3D
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <div className="display-tools">
+            <ToggleGroup
+              type="single"
+              size="sm"
+              variant="outline"
+              aria-label="图谱维度"
+              value={String(state.graphSettings.dimensions)}
+              onValueChange={(value) => {
+                if (value === "2" || value === "3")
+                  state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
+              }}
+            >
+              <ToggleGroupItem value="2" aria-label="二维模式">
+                2D
+              </ToggleGroupItem>
+              <ToggleGroupItem value="3" aria-label="三维模式">
+                3D
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <GraphActions state={state} />
+          </div>
         </div>
         <FilterPresetMenu state={state} />
       </Popover>
+      <GraphNotices state={state} />
       <MentionNotice state={state} />
       {(state.focusLabel.includes("截断") ||
         state.focusLabel.startsWith("最短路径")) && (

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { projectGraph, numericTopology } from "../data/graph-model";
 import { DEFAULT_FILTERS, type GraphDataset, type GraphEdge, type GraphNode } from "../data/types";
-import { newSavedView, readSavedViews } from "../data/views";
-import { restoreSelection } from "../app/selection";
 import { mentionScope, withMentionEdges } from "./graph-integration";
 
 function node(index: number, id: string, blockType = "d", rootId = id, parentId?: string): GraphNode {
@@ -36,17 +34,4 @@ describe("mentions inside projected native scope", () => {
     expect(base.nodes.map(node => node.degree)).toEqual([0, 0]);
   });
 
-  it("persists the whole activation set separately from right-panel inspection, with legacy off migration", () => {
-    const saved = newSavedView("mentions", { ...DEFAULT_FILTERS, mentions: "selected" }, "inspected",
-      { chosenIds: ["a", "b"], multiple: true });
-    const [restored] = readSavedViews({ getItem: () => JSON.stringify([saved]) });
-    expect(restored.filters.mentions).toBe("selected");
-    expect(restoreSelection(restored, new Set(["a", "b", "inspected"]))).toEqual({ chosenIds: ["a", "b"], inspectedId: "inspected", multiple: true });
-    expect(restoreSelection(restored, new Set(["a"]))).toEqual({ chosenIds: ["a"], inspectedId: null, multiple: true });
-    const legacy = { ...saved, chosenIds: undefined, multiple: undefined, filters: { ...saved.filters, mentions: undefined } };
-    const [old] = readSavedViews({ getItem: () => JSON.stringify([legacy]) });
-    expect(old.filters.mentions).toBe("off");
-    expect(restoreSelection(old, new Set(["inspected"])).chosenIds).toEqual(["inspected"]);
-    expect(readSavedViews({ getItem: () => JSON.stringify([{ ...saved, filters: { ...saved.filters, mentions: "unknown" } }]) })).toEqual([]);
-  });
 });

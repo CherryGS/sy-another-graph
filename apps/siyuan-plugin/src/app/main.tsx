@@ -4,33 +4,25 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Navigate,
   RouterProvider,
 } from "@tanstack/react-router";
-import { InsightsPage } from "./InsightsPage";
 import { Layout } from "./Layout";
-import { SavedPage } from "./SavedPage";
 import { WorkbenchProvider } from "./state";
 import "./theme.css";
 import "./styles.css";
 
-const rootRoute = createRootRoute({ component: Layout });
+const rootRoute = createRootRoute({
+  component: Layout,
+  notFoundComponent: () => <Navigate to="/" replace />,
+});
 const graphRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: () => null,
 });
-const insightsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/insights",
-  component: InsightsPage,
-});
-const savedRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/saved",
-  component: SavedPage,
-});
 const router = createRouter({
-  routeTree: rootRoute.addChildren([graphRoute, insightsRoute, savedRoute]),
+  routeTree: rootRoute.addChildren([graphRoute]),
   history: createHashHistory(),
 });
 

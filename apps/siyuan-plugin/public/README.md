@@ -40,8 +40,8 @@ Up to 50 presets are stored in the current workspace's plugin data. Reloading
 restores the last active preset after validating its source scope, unless newer
 filter or native-scope actions have already taken precedence. Unavailable sources
 and storage failures are reported. Search text, chosen nodes, and layout positions
-are not part of a filter preset; saved views retain their separate exploration
-role. Switching filters keeps choices that remain eligible in the new graph.
+are not part of a filter preset. Switching filters keeps choices that remain
+eligible in the new graph.
 
 The SiYuan graph tab shows its current scope and preset name. An asterisk marks
 modified rules, and the tab tooltip provides the filter summary. Inspecting a
@@ -134,13 +134,12 @@ Community work is cancelled when replaced and reports failure without preventing
 ordinary graph use. Detection and territory timings depend on graph structure
 and the device. Dependency notices are in [third-party-communities.txt](third-party-communities.txt).
 
-## Insights, saved views, and export
+## Toolbar and export
 
-Insights show graph structure, highly connected nodes, and runtime information.
-Up to 50 saved views store filters, mention mode, the complete chosen set,
-multi-selection state, and the independently inspected identity in the current
-browser; layout coordinates remain session state.
-Display and force preferences are also saved in the current browser.
+The workbench opens directly to the graph. Search, filter presets, the legend,
+neighborhood controls, 2D/3D, Refresh, Export, and Settings share one wrapping
+toolbar above the canvas. Display and force preferences are saved in the current
+browser; layout coordinates and chosen nodes remain session state.
 
 JSON export captures the visible graph and creates a temporary export file in
 the SiYuan workspace. Use the persistent **Download JSON** link to save it.
@@ -149,7 +148,7 @@ Exporting does not change note content.
 ## Data and availability
 
 Atlas reads workspace content without editing notes, references, or database
-fields. Saved views and preferences use browser-local storage. Graph resources
+fields. Appearance preferences use browser-local storage. Graph resources
 are bundled locally, and graph data stays on the current SiYuan origin.
 
 Available content depends on SiYuan's index. If notes change during acquisition,

@@ -22,10 +22,9 @@ import {
   createViewProjector,
   type CurrentGraph,
 } from "../data/graph-model";
-import { newSavedView, readSavedViews, type SavedView } from "../data/views";
 import type { GraphColorMode } from "../graph/node-colors";
 import type { GraphDirection } from "../engine/types";
-import { EMPTY_SELECTION, retainSelection, restoreSelection, selectNode } from "./selection";
+import { EMPTY_SELECTION, retainSelection, selectNode } from "./selection";
 import { useGraphEngine } from "./use-graph-engine";
 import { ExplorationRequest } from "./exploration-request";
 import { SourceRefresh, subscribeSourceRefresh } from "./source-refresh";
@@ -113,7 +112,6 @@ export function useWorkbenchState() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fitRequest, setFitRequest] = useState(0);
-  const [savedViews, setSavedViews] = useState(readSavedViews);
   const [exporting, setExporting] = useState(false);
   const [exportFile, setExportFile] = useState<ExportFile | null>(null);
   const exportAbort = useRef<AbortController | null>(null);
@@ -530,57 +528,6 @@ export function useWorkbenchState() {
     return () => window.removeEventListener("message", handleScope);
   }, [setFilters]);
 
-  const persistViews = (next: SavedView[]) => {
-    if (next.length > 50) {
-      setToast("最多保存 50 个视图，请先移除不需要的视图");
-      return false;
-    }
-    try {
-      localStorage.setItem("sy-another-graph:views", JSON.stringify(next));
-      setSavedViews(next);
-      return true;
-    } catch {
-      setToast("浏览器存储不可用，视图未保存");
-      return false;
-    }
-  };
-  const saveView = (name: string) => {
-    if (
-      data &&
-      persistViews([newSavedView(name, filters, selectedId, { chosenIds, multiple: availableSelection.multiple }), ...savedViews])
-    )
-      setToast("视图已保存到当前浏览器");
-  };
-  const restoreView = async (saved: SavedView) => {
-    const currentData = data ?? (await load());
-    if (!currentData) return false;
-    if (
-      saved.filters.notebook &&
-      !currentData.notebooks.some((book) => book.id === saved.filters.notebook)
-    ) {
-      setToast("该视图的笔记本已不可用，请重新选择探索范围。");
-      return false;
-    }
-    if (
-      saved.filters.scopeId &&
-      !currentData.nodes.some((node) => node.id === saved.filters.scopeId)
-    ) {
-      setToast("该视图的范围块已不可用，请重新选择范围。");
-      return false;
-    }
-    setFilters({ ...saved.filters });
-    const nextGraph = projectGraph(currentData, saved.filters);
-    const selectedExists =
-      !saved.selectedId || nextGraph.eligibleIds.has(saved.selectedId);
-    setSelection(restoreSelection(saved, nextGraph.eligibleIds));
-    setInspectedEdge(null);
-    setToast(
-      selectedExists
-        ? `已恢复「${saved.name}」`
-        : "已恢复筛选条件；原选中节点已不在当前图谱中",
-    );
-    return true;
-  };
   const exportGraph = async () => {
     if (!data || exporting) return;
     if (mentionsPending) { setToast("文本提及仍在计算，完成后可导出包含提及关系的图谱。"); return; }
@@ -607,7 +554,6 @@ export function useWorkbenchState() {
     currentGraph,
     sourceLookups,
     currentLookups,
-    stats: loaded?.stats ?? null,
     loading,
     error: error || engineError,
     toast,
@@ -661,10 +607,6 @@ export function useWorkbenchState() {
       data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null,
     canOpen: (id: string) =>
       !!(data && currentGraph && resolveOpenBlock(id, data, currentGraph)),
-    savedViews,
-    persistViews,
-    saveView,
-    restoreView,
     exportGraph,
     exporting,
     exportFile,

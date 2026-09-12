@@ -52,13 +52,3 @@ export function retainSelection(
     multiple: previous.multiple && chosenIds.length > 0,
   };
 }
-
-/** Preserve the actual activation set in saved selected-mention views. Legacy
- * views retain their former single-selection behavior. */
-export function restoreSelection(
-  saved: { selectedId: string | null; chosenIds?: readonly string[]; multiple?: boolean },
-  eligibleIds: ReadonlySet<string>,
-): GraphSelection {
-  const chosenIds = [...new Set(saved.chosenIds ?? (saved.selectedId ? [saved.selectedId] : []))];
-  return retainSelection({ chosenIds, inspectedId: saved.selectedId, multiple: saved.multiple ?? chosenIds.length > 1 }, eligibleIds);
-}

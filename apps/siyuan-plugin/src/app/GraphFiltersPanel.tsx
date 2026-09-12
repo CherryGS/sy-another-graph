@@ -53,7 +53,7 @@ export function GraphFiltersPanel({
     filters.excludeIds.join("\n"),
   );
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- Reflect native scope and saved-view changes.
+    // eslint-disable-next-line react/set-state-in-effect -- Reflect native scope and filter-preset changes.
     setScopeDraft(filters.scopeId);
   }, [filters.scopeId]);
   useEffect(() => {
