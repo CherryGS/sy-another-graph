@@ -1,3 +1,5 @@
+import type { ReadIssue } from "./read-issues";
+
 export interface GraphNode {
   id: string;
   label: string;
@@ -75,7 +77,7 @@ export interface GraphDataset {
   loadMs: number;
   referenceCount: number;
   skippedReferences: number;
-  warnings: string[];
+  warnings: ReadIssue[];
   mentionBlocks?: MentionBlock[];
 }
 

@@ -154,6 +154,15 @@ are bundled locally, and graph data stays on the current SiYuan origin.
 Available content depends on SiYuan's index. If notes change during acquisition,
 Atlas may report an incomplete or changed snapshot; use Refresh after editing
 settles. Unavailable database data and processing limits are reported in the UI.
+Reading issues appear as a temporary toast at the lower left of the graph.
+**View details** opens a modal with affected identities, available source
+locations, reasons, impact, and suggested checks. The compact lower-left issue
+button reopens the report after the toast disappears. The report can be copied,
+and available sources can be opened without changing graph selection or filters.
+Totals cover all detected issues; each category retains up to 20 detail records,
+with omitted records and shortened values explicitly marked. Diagnostic scope is
+the acquired workspace index, before display filters. Imported database field
+keys are preserved as opaque identifiers rather than validated as native block IDs.
 Document-only defaults reduce the displayed graph; source acquisition and the
 background text-mention index still process workspace data.
 

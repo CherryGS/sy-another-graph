@@ -114,6 +114,7 @@ export function useWorkbenchState() {
   const [fitRequest, setFitRequest] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportFile, setExportFile] = useState<ExportFile | null>(null);
+  const [readIssuesOpen, setReadIssuesOpen] = useState(false);
   const exportAbort = useRef<AbortController | null>(null);
   const loadAbort = useRef<AbortController | null>(null);
   const revision = useRef(0);
@@ -479,9 +480,7 @@ export function useWorkbenchState() {
       if (requests.current.currentToken === requestToken) setBusy(false);
     }
   };
-  const openDocument = (id: string) => {
-    const nativeId =
-      data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null;
+  const openNativeBlock = (nativeId: string | null) => {
     if (!nativeId || !NATIVE_ID.test(nativeId)) {
       setToast("该节点在当前范围内暂无可打开的原生上下文");
       return;
@@ -492,6 +491,13 @@ export function useWorkbenchState() {
         window.location.origin,
       );
     else setToast("请从思源插件页签打开图谱，以跳转到原文");
+  };
+  const openDocument = (id: string) => openNativeBlock(
+    data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null,
+  );
+  const openReadIssueSource = (id: string) => {
+    const node = sourceLookups?.byId.get(id);
+    openNativeBlock(node?.entity === "block" ? node.id : null);
   };
 
   useEffect(() => {
@@ -610,6 +616,9 @@ export function useWorkbenchState() {
     exportGraph,
     exporting,
     exportFile,
+    readIssuesOpen,
+    setReadIssuesOpen,
+    openReadIssueSource,
     dismissExport: () => setExportFile(null),
   };
 }

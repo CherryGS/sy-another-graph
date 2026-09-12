@@ -1,8 +1,6 @@
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { WorkbenchState } from "./state";
 
 export function GraphNotices({ state }: { state: WorkbenchState }) {
@@ -36,31 +34,6 @@ export function GraphNotices({ state }: { state: WorkbenchState }) {
             </div>
           </AlertDescription>
         </Alert>
-      )}
-      {!!state.data?.warnings.length && (
-        <Collapsible className="border-b">
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-            >
-              读取提示
-              <Badge variant="outline">{state.data.warnings.length}</Badge>
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent
-            className="max-h-36 overflow-y-auto"
-            data-scroll-panel
-          >
-            {state.data.warnings.map((warning) => (
-              <Alert key={warning}>
-                <AlertTitle>数据读取提示</AlertTitle>
-                <AlertDescription>{warning}</AlertDescription>
-              </Alert>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
       )}
     </>
   );

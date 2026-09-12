@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { diagnosticValue, ReadDiagnosticError, ReadIssueCollector, type ReadIssue } from "./read-issues";
 import type { BlockRow } from "./source";
 import {
   PALETTE,
@@ -44,36 +45,48 @@ const databaseNodeId = (id: string) => `av:${id}`;
 const itemNodeId = (databaseId: string, id: string) =>
   `av-item:${databaseId}:${id}`;
 
-function record(value: unknown): Record<string, unknown> {
+function invalid(message: string, path: string, value: unknown, expected: string): never {
+  throw new ReadDiagnosticError(message, { "位置": path, "实际值": diagnosticValue(value), "期望": expected });
+}
+
+function record(value: unknown, path: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("数据库接口返回了无效对象");
+    invalid("数据库接口返回了无效对象", path, value, "对象");
   return value as Record<string, unknown>;
 }
 
-function nativeId(value: unknown): string {
+function nativeId(value: unknown, path: string): string {
   if (typeof value !== "string" || !NATIVE_ID.test(value))
-    throw new Error("数据库接口返回了无效标识");
+    invalid("数据库接口返回了无效标识", path, value, "思源原生 ID（14 位数字、连字符、7 位字母或数字）");
   return value;
 }
 
-function values(value: unknown): unknown[] {
+/** AV field keys are opaque identifiers; imported keys need not be block IDs. */
+function fieldId(value: unknown, path: string): string {
+  if (typeof value !== "string" || !value.trim())
+    invalid("数据库接口返回了无效字段标识", path, value, "非空字符串（字段 ID 不要求思源块 ID 格式）");
+  return value;
+}
+
+function values(value: unknown, path: string): unknown[] {
   // Go's omitempty removes an empty values array; null also represents empty.
   if (value == null) return [];
-  if (!Array.isArray(value)) throw new Error("数据库接口返回了无效字段值");
+  if (!Array.isArray(value)) invalid("数据库接口返回了无效字段值", path, value, "数组，或省略/null 表示空值");
   return value;
 }
 
 function decodeDatabase(id: string, response: unknown): Database {
-  const av = record(record(response).av);
-  if (av.id !== id || !Array.isArray(av.keyValues))
-    throw new Error("数据库接口未返回完整逻辑库");
-  const fields = av.keyValues.map((entry) => {
-    const field = record(entry);
-    return { key: record(field.key), values: values(field.values) };
+  const av = record(record(response, "data").av, "av");
+  if (av.id !== id) invalid("数据库接口返回的逻辑库不匹配", "av.id", av.id, id);
+  if (!Array.isArray(av.keyValues)) invalid("数据库接口未返回完整逻辑库", "av.keyValues", av.keyValues, "字段数组");
+  const fields = av.keyValues.map((entry, index) => {
+    const path = `av.keyValues[${index}]`;
+    const field = record(entry, path);
+    return { path, key: record(field.key, `${path}.key`), values: values(field.values, `${path}.values`) };
   });
   const primaryFields = fields.filter(({ key }) => key.type === "block");
   if (primaryFields.length !== 1)
-    throw new Error("数据库缺少唯一的条目主键字段");
+    invalid("数据库缺少唯一的条目主键字段", "av.keyValues", primaryFields.length, "恰好 1 个 type=block 字段");
   const primary = primaryFields[0];
   if (primary.values.length > MAX_ITEMS)
     throw new Error(
@@ -81,43 +94,45 @@ function decodeDatabase(id: string, response: unknown): Database {
     );
   const items: DatabaseItem[] = [];
   const itemIds = new Set<string>();
-  for (const raw of primary.values) {
-    const value = record(raw);
-    const itemId = nativeId(value.blockID);
-    const block = record(value.block);
-    if (itemIds.has(itemId)) throw new Error("数据库返回了重复条目标识");
+  for (const [index, raw] of primary.values.entries()) {
+    const path = `${primary.path}.values[${index}]`;
+    const value = record(raw, path);
+    const itemId = nativeId(value.blockID, `${path}.blockID`);
+    const block = record(value.block, `${path}.block`);
+    if (itemIds.has(itemId)) invalid("数据库返回了重复条目标识", `${path}.blockID`, itemId, "库内唯一条目 ID");
     if (value.isDetached !== undefined && typeof value.isDetached !== "boolean")
-      throw new Error("数据库返回了无效条目绑定状态");
+      invalid("数据库返回了无效条目绑定状态", `${path}.isDetached`, value.isDetached, "布尔值");
     itemIds.add(itemId);
     items.push({
       id: itemId,
       label: typeof block.content === "string" ? block.content : "",
       // isDetached is authoritative, even when stale data carries a block.id.
-      boundBlockId: value.isDetached ? undefined : nativeId(block.id),
+      boundBlockId: value.isDetached ? undefined : nativeId(block.id, `${path}.block.id`),
     });
   }
   const relations: DatabaseRelation[] = [];
   const targets = new Set<string>();
   const fieldIds = new Set<string>();
   for (const field of fields) {
-    const fieldId = nativeId(field.key.id);
-    if (fieldIds.has(fieldId)) throw new Error("数据库返回了重复字段标识");
-    fieldIds.add(fieldId);
+    const keyId = fieldId(field.key.id, `${field.path}.key.id`);
+    if (fieldIds.has(keyId)) invalid("数据库返回了重复字段标识", `${field.path}.key.id`, keyId, "库内唯一字段 ID");
+    fieldIds.add(keyId);
     if (field.key.type !== "relation") continue;
     // An unconfigured relation field has no target and declares no edge.
     if (field.key.relation == null) continue;
-    const config = record(field.key.relation);
+    const config = record(field.key.relation, `${field.path}.key.relation`);
     if (config.avID === "" || config.avID == null) continue;
-    const targetDatabaseId = nativeId(config.avID);
+    const targetDatabaseId = nativeId(config.avID, `${field.path}.key.relation.avID`);
     targets.add(targetDatabaseId);
     const seen = new Set<string>();
-    for (const raw of field.values) {
-      const value = record(raw);
+    for (const [index, raw] of field.values.entries()) {
+      const path = `${field.path}.values[${index}]`;
+      const value = record(raw, path);
       if (value.relation == null) continue;
-      const relation = record(value.relation);
-      const sourceItemId = nativeId(value.blockID);
-      for (const rawTarget of values(relation.blockIDs)) {
-        const targetItemId = nativeId(rawTarget);
+      const relation = record(value.relation, `${path}.relation`);
+      const sourceItemId = nativeId(value.blockID, `${path}.blockID`);
+      for (const [targetIndex, rawTarget] of values(relation.blockIDs, `${path}.relation.blockIDs`).entries()) {
+        const targetItemId = nativeId(rawTarget, `${path}.relation.blockIDs[${targetIndex}]`);
         const key = `${sourceItemId}:${targetItemId}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -129,11 +144,11 @@ function decodeDatabase(id: string, response: unknown): Database {
           sourceItemId,
           targetItemId,
           targetDatabaseId,
-          fieldId,
+          fieldId: keyId,
           fieldName: typeof field.key.name === "string" ? field.key.name : "",
           isTwoWay: config.isTwoWay === true,
           pairedFieldId: config.backKeyID
-            ? nativeId(config.backKeyID)
+            ? fieldId(config.backKeyID, `${field.path}.key.relation.backKeyID`)
             : undefined,
         });
       }
@@ -142,7 +157,7 @@ function decodeDatabase(id: string, response: unknown): Database {
   return {
     id,
     name: typeof av.name === "string" && av.name ? av.name : "未命名数据库",
-    primaryFieldId: nativeId(primary.key.id),
+    primaryFieldId: fieldId(primary.key.id, `${primary.path}.key.id`),
     primaryFieldName:
       typeof primary.key.name === "string" ? primary.key.name : "",
     items,
@@ -183,7 +198,7 @@ export async function addDatabaseGraph(
   blocks: readonly BlockRow[],
   signal: AbortSignal,
   progress: (message: string) => void,
-): Promise<{ nodes: GraphNode[]; edges: GraphEdge[]; warnings: string[] }> {
+): Promise<{ nodes: GraphNode[]; edges: GraphEdge[]; warnings: ReadIssue[] }> {
   signal.throwIfAborted();
   const nodes = base.nodes.map((node) => ({ ...node }));
   const edges = base.edges.map((edge) => ({
@@ -192,14 +207,17 @@ export async function addDatabaseGraph(
   }));
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const embeddings = new Map<string, GraphNode[]>();
-  let missingEmbeddings = 0;
+  const issues = new ReadIssueCollector();
   for (const block of blocks) {
     if (block.type !== "av") continue;
     const node = byId.get(block.id);
     if (!node) continue;
     const id = embeddingDatabaseId(block);
     if (!id) {
-      missingEmbeddings++;
+      issues.add("database-identifier", {
+        fields: { "载体块 ID": block.id, "来源位置": block.hpath || block.path, "载体内容": block.markdown ?? "", "原因": "缺少可识别的 NodeAttributeView/data-av-id，或逻辑库 ID 格式不符" },
+        openBlockId: block.id, openLabel: "打开数据库载体",
+      });
       continue;
     }
     node.databaseId = id;
@@ -207,11 +225,6 @@ export async function addDatabaseGraph(
     if (existing) existing.push(node);
     else embeddings.set(id, [node]);
   }
-  const warnings: string[] = [];
-  if (missingEmbeddings)
-    warnings.push(
-      `无法识别 ${missingEmbeddings.toLocaleString()} 个数据库块的逻辑库标识，数据库关系可能不完整。`,
-    );
   const queue = [...embeddings.keys()];
   const scheduled = new Set(queue);
   const databases: Database[] = [];
@@ -228,26 +241,35 @@ export async function addDatabaseGraph(
     const id = queue[cursor];
     progress(`正在读取数据库 · ${cursor + 1} / ${queue.length}`);
     let database: Database;
+    let databaseName = "（名称不可用）";
     try {
-      database = decodeDatabase(
-        id,
-        await api<unknown>("/api/av/getAttributeView", { id }, signal),
-      );
+      const response = await api<{ av?: { name?: unknown } } | null>("/api/av/getAttributeView", { id }, signal);
+      if (typeof response?.av?.name === "string") databaseName = response.av.name;
+      database = decodeDatabase(id, response);
     } catch (error) {
       signal.throwIfAborted();
       const reason = error instanceof Error ? error.message : "接口请求失败";
-      warnings.push(
-        `数据库 ${id} 未能完整读取：${reason}。相关连接可能不完整。`,
-      );
+      const origin = embeddings.get(id)?.[0];
+      issues.add("database-read", {
+        fields: {
+          "数据库": databaseName, "数据库 ID": id, "接口": "/api/av/getAttributeView", "原因": reason,
+          ...(origin ? { "载体块 ID": origin.id, "来源位置": origin.humanPath || origin.path } : { "发现方式": "由其他数据库的关联字段发现，本次没有可用载体" }),
+          ...(error instanceof ReadDiagnosticError ? error.fields : {}),
+        },
+        openBlockId: origin?.id, openLabel: "打开数据库来源",
+      });
       continue;
     }
     if (
       itemCount + database.items.length > MAX_ITEMS ||
       relationCount + database.relations.length > MAX_RELATIONS
     ) {
-      warnings.push(
-        `数据库关系达到本次读取上限（${MAX_ITEMS.toLocaleString()} 个条目、${MAX_RELATIONS.toLocaleString()} 条字段关联）；数据库 ${id} 及后续数据库未加入，当前图谱不完整。`,
-      );
+      issues.add("database-budget", { fields: {
+        "数据库": database.name, "数据库 ID": id, "已读取条目": String(itemCount),
+        "当前库条目": String(database.items.length), "条目上限": String(MAX_ITEMS),
+        "已读取字段关联": String(relationCount), "当前库字段关联": String(database.relations.length),
+        "字段关联上限": String(MAX_RELATIONS), "未加入已发现数据库": String(queue.length - cursor),
+      }, openBlockId: embeddings.get(id)?.[0]?.id, openLabel: "打开数据库来源" });
       break;
     }
     itemCount += database.items.length;
@@ -260,9 +282,7 @@ export async function addDatabaseGraph(
     }
   }
   if (queue.length > MAX_DATABASES)
-    warnings.push(
-      `数据库读取达到 ${MAX_DATABASES.toLocaleString()} 个逻辑库的上限，当前数据库关系不完整。`,
-    );
+    issues.add("database-budget", { fields: { "触发限制": "逻辑库的上限", "逻辑库上限": String(MAX_DATABASES), "已发现逻辑库": String(queue.length) } });
 
   const addNode = (node: Omit<GraphNode, "index" | "degree">) => {
     const result = { ...node, index: nodes.length, degree: 0 };
@@ -283,7 +303,6 @@ export async function addDatabaseGraph(
       provenance: [provenance],
     });
   };
-  let missingBindings = 0;
   for (const database of databases) {
     signal.throwIfAborted();
     const databaseEmbeddings = embeddings.get(database.id) ?? [];
@@ -343,10 +362,14 @@ export async function addDatabaseGraph(
           fieldId: database.primaryFieldId,
           fieldName: database.primaryFieldName,
         });
-      else if (item.boundBlockId) missingBindings++;
+      else if (item.boundBlockId) issues.add("database-bindings", {
+        fields: { "数据库": database.name, "数据库 ID": database.id, "条目": item.label, "条目 ID": item.id,
+          "绑定块 ID": item.boundBlockId, "主键字段": database.primaryFieldName, "字段 ID": database.primaryFieldId,
+          "原因": "该条目声明了绑定块，但本次读取的块索引中没有该 ID" },
+        openBlockId, openLabel: "打开数据库来源",
+      });
     }
   }
-  let missingRelations = 0;
   for (const database of databases) {
     signal.throwIfAborted();
     for (const relation of database.relations) {
@@ -355,7 +378,13 @@ export async function addDatabaseGraph(
         itemNodeId(relation.targetDatabaseId, relation.targetItemId),
       );
       if (!source || !target) {
-        missingRelations++;
+        issues.add("database-relations", {
+          fields: { "数据库": database.name, "数据库 ID": database.id, "关联字段": relation.fieldName, "字段 ID": relation.fieldId,
+            "来源条目 ID": relation.sourceItemId, "目标数据库 ID": relation.targetDatabaseId, "目标条目 ID": relation.targetItemId,
+            "缺失端点": [!source ? "来源条目" : "", !target ? "目标条目" : ""].filter(Boolean).join("、"),
+            "原因": "关联字段指向的条目未出现在本次成功读取的逻辑库中" },
+          openBlockId: embeddings.get(database.id)?.[0]?.id, openLabel: "打开数据库来源",
+        });
         continue;
       }
       addEdge(source, target, {
@@ -368,18 +397,10 @@ export async function addDatabaseGraph(
       });
     }
   }
-  if (missingBindings)
-    warnings.push(
-      `${missingBindings.toLocaleString()} 个数据库条目的绑定块不在当前读取范围内，已保留真实条目并省略不可用的绑定连接。`,
-    );
-  if (missingRelations)
-    warnings.push(
-      `${missingRelations.toLocaleString()} 条数据库字段关联的实际条目端点不可用，已省略这些连接；数据库关系可能不完整。`,
-    );
   for (const node of nodes) node.degree = 0;
   for (const edge of edges) {
     nodes[edge.source].degree++;
     nodes[edge.target].degree++;
   }
-  return { nodes, edges, warnings };
+  return { nodes, edges, warnings: issues.finish() };
 }

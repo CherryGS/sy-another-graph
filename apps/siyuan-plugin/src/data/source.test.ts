@@ -531,7 +531,7 @@ describe("SiYuan keyset pagination through the API", () => {
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(pages).toBe(6);
     expect(graph.nodes).toHaveLength(101);
-    expect(graph.warnings.some((warning) => warning.includes("发生变化"))).toBe(
+    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(
       true,
     );
   });
@@ -550,7 +550,7 @@ describe("SiYuan keyset pagination through the API", () => {
     });
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(6000);
-    expect(graph.warnings.some((warning) => warning.includes("发生变化"))).toBe(
+    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(
       true,
     );
   });
@@ -567,11 +567,17 @@ describe("SiYuan keyset pagination through the API", () => {
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(3);
     expect(graph.skippedReferences).toBe(2);
+    expect(graph.warnings.find(issue => issue.code === "reference-endpoints")).toMatchObject({
+      count: 2, detailCount: 2, details: [
+        { fields: { "来源块 ID": "（空字符串）", "目标块 ID": documentId(0), "缺失端点": "来源" }, openBlockId: documentId(0) },
+        { fields: { "来源块 ID": "missing", "目标块 ID": documentId(1) }, openBlockId: documentId(1) },
+      ],
+    });
     expect(graph.edges).toMatchObject([
       { source: 0, target: 0, kind: "reference", weight: 1 },
     ]);
     expect(
-      graph.warnings.some((warning) => warning.includes("端点不可用")),
+      graph.warnings.some((warning) => warning.summary.includes("端点不可用")),
     ).toBe(true);
   });
 
@@ -811,8 +817,12 @@ describe("SiYuan request failure and cancellation", () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     fetch.mockResolvedValueOnce(new Response("", { status: 503 }));
-    await expect(api("/api/query/sql", {})).rejects.toThrow("HTTP 503");
+    await expect(api("/api/query/sql", {})).rejects.toMatchObject({ message: "思源接口返回 HTTP 503", fields: { "接口": "/api/query/sql", "HTTP 状态": "503" } });
     fetch.mockResolvedValueOnce(Response.json({ data: [] }));
     await expect(api("/api/query/sql", {})).rejects.toThrow("无效数据");
+    fetch.mockResolvedValueOnce(Response.json({ code: -7, msg: "Database unavailable" }));
+    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({ fields: { "接口": "/api/av/getAttributeView", "错误码": "-7", "接口消息": "Database unavailable" } });
+    fetch.mockResolvedValueOnce(new Response("{broken"));
+    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({ message: "思源接口返回了无法解析的 JSON", fields: { "接口": "/api/av/getAttributeView" } });
   });
 });

@@ -307,9 +307,9 @@ describe("complete logical database acquisition", () => {
           edge.kind === "database-binding" || edge.kind === "database-relation",
       ),
     ).toBe(false);
-    expect(graph.warnings.join("\n")).toContain(`数据库 ${AV_B} 未能完整读取`);
-    expect(graph.warnings.join("\n")).toContain("绑定块不在当前读取范围");
-    expect(graph.warnings.join("\n")).toContain("实际条目端点不可用");
+    expect(JSON.stringify(graph.warnings)).toContain(AV_B);
+    expect(JSON.stringify(graph.warnings)).toContain("绑定块不在当前读取范围");
+    expect(JSON.stringify(graph.warnings)).toContain("实际条目端点不可用");
   });
 
   it("does not invent items from dangling relation values, even when target display content exists", async () => {
@@ -324,7 +324,7 @@ describe("complete logical database acquisition", () => {
     expect(
       graph.edges.filter((edge) => edge.kind === "database-relation"),
     ).toHaveLength(0);
-    expect(graph.warnings.join("\n")).toContain("实际条目端点不可用");
+    expect(JSON.stringify(graph.warnings)).toContain("实际条目端点不可用");
   });
 
   it("accepts omitted empty values and ignores unconfigured relation columns", async () => {
@@ -347,6 +347,36 @@ describe("complete logical database acquisition", () => {
     expect(graph.warnings).toEqual([]);
   });
 
+  it("accepts opaque imported field IDs, including the primary and paired relation keys", async () => {
+    const relation = relationField();
+    relation.key.id = "mcq1ziy5-related";
+    relation.key.relation.backKeyID = "legacy-back-key";
+    mockDatabases({
+      [AV_A]: database(AV_A, "mcq1ziy5-primary", [primary(ITEM_A)], [relation, { key: { id: "imported-url-key", type: "url" } }]),
+      [AV_B]: database(AV_B, "legacy-primary", [primary(ITEM_B)]),
+    });
+    const graph = await acquire([embedding()]);
+    expect(graph.warnings).toEqual([]);
+    expect(graph.edges.find(edge => edge.kind === "database-relation")?.provenance?.[0]).toMatchObject({ fieldId: "mcq1ziy5-related", pairedFieldId: "legacy-back-key" });
+    expect(graph.edges.find(edge => edge.kind === "database-membership")?.provenance?.[0].fieldId).toBe("mcq1ziy5-primary");
+  });
+
+  it("reports the exact invalid native binding location, actual value, database and available source", async () => {
+    mockDatabases({ [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, "not-a-block-id")]) });
+    const graph = await acquire([embedding()]);
+    expect(graph.warnings[0]).toMatchObject({ code: "database-read", count: 1, details: [{
+      fields: { "数据库 ID": AV_A, "接口": "/api/av/getAttributeView", "位置": "av.keyValues[0].values[0].block.id", "实际值": "not-a-block-id" },
+      openBlockId: EMBEDDING_A,
+    }] });
+  });
+
+  it("retains endpoint identities and the binding impact in read diagnostics", async () => {
+    mockDatabases({ [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, BOUND_BLOCK)], [relationField()]) });
+    const graph = await acquire([embedding()]);
+    expect(graph.warnings.find(issue => issue.code === "database-bindings")?.details[0].fields).toMatchObject({ "条目 ID": ITEM_A, "绑定块 ID": BOUND_BLOCK });
+    expect(graph.warnings.find(issue => issue.code === "database-relations")?.details[0].fields).toMatchObject({ "来源条目 ID": ITEM_A, "目标条目 ID": ITEM_B, "目标数据库 ID": AV_B });
+  });
+
   it("reports an invalid logical payload and continues with another independent database", async () => {
     mockDatabases({
       [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A), primary(ITEM_A)]),
@@ -358,7 +388,7 @@ describe("complete logical database acquisition", () => {
     ]);
     expect(graph.nodes.some((node) => node.id === `av:${AV_A}`)).toBe(false);
     expect(graph.nodes.some((node) => node.itemId === ITEM_B)).toBe(true);
-    expect(graph.warnings.join("\n")).toContain("重复条目标识");
+    expect(JSON.stringify(graph.warnings)).toContain("重复条目标识");
   });
 
   it("recognizes formatter attributes without confusing bindings or quoted attribute content", async () => {
@@ -378,7 +408,7 @@ describe("complete logical database acquisition", () => {
     const fetchMock = mockDatabases({ [AV_B]: database(AV_B, FIELD_B, []) });
     const graph = await acquire(blocks);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(graph.warnings.join("\n")).toContain("无法识别 1 个数据库块");
+    expect(JSON.stringify(graph.warnings)).toContain("无法识别 1 个数据库块");
     expect(
       graph.nodes.find((node) => node.id === BOUND_BLOCK)?.databaseId,
     ).toBeUndefined();
@@ -416,7 +446,7 @@ describe("complete logical database acquisition", () => {
     expect(
       graph.nodes.filter((node) => node.entity === "database"),
     ).toHaveLength(4096);
-    expect(graph.warnings.join("\n")).toContain("逻辑库的上限");
-    expect(graph.warnings.join("\n")).toContain("不完整");
+    expect(JSON.stringify(graph.warnings)).toContain("逻辑库的上限");
+    expect(JSON.stringify(graph.warnings)).toContain("不完整");
   });
 });

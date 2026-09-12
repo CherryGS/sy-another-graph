@@ -30,6 +30,7 @@ import { FilterPresetMenu } from "./FilterPresetMenu";
 import { GraphSearch } from "./GraphSearch";
 import { GraphActions } from "./GraphActions";
 import { GraphNotices } from "./GraphNotices";
+import { ReadDiagnostics } from "./ReadDiagnostics";
 import { NodeInspector } from "./NodeInspector";
 import { EdgeInspector } from "./EdgeInspector";
 import { MentionNotice } from "./MentionNotice";
@@ -186,6 +187,7 @@ export function ExplorePage({ active }: { active: boolean }) {
       )}
       <div className={cn("explore-layout", hasInspector && "has-inspector")}>
         <section className="graph-stage" aria-label="图谱画布区域">
+          <ReadDiagnostics state={state} />
           {data && (
             <CosmographCanvas
               nodes={view.nodes}

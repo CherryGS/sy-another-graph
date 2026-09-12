@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { addDatabaseGraph } from "./database-source";
+import { ReadIssueCollector } from "./read-issues";
 import {
   PALETTE,
   type GraphDataset,
@@ -137,7 +138,7 @@ export function normalizeGraph(
   notebooks: Notebook[],
 ): Pick<
   GraphDataset,
-  "nodes" | "edges" | "referenceCount" | "skippedReferences"
+  "nodes" | "edges" | "referenceCount" | "skippedReferences" | "warnings"
 > {
   const notebookColors = new Map(
     notebooks.map((book) => [book.id, book.color]),
@@ -191,6 +192,7 @@ export function normalizeGraph(
   const edges: GraphEdge[] = [];
   let referenceCount = 0;
   let skippedReferences = 0;
+  const issues = new ReadIssueCollector();
   for (const reference of references) {
     const source = byId.get(reference.source);
     const target = byId.get(reference.target);
@@ -198,6 +200,19 @@ export function normalizeGraph(
     referenceCount += weight;
     if (source === undefined || target === undefined) {
       skippedReferences += weight;
+      const available = source !== undefined ? nodes[source] : target !== undefined ? nodes[target] : undefined;
+      issues.add("reference-endpoints", {
+        fields: {
+          "来源块 ID": reference.source,
+          "目标块 ID": reference.target,
+          "缺失端点": [source === undefined ? "来源" : "", target === undefined ? "目标" : ""].filter(Boolean).join("、"),
+          "原因": !reference.source || !reference.target ? "引用索引中包含空端点 ID" : "端点不在本次读取的块索引中",
+          "引用记录数": String(weight),
+          ...(available ? { "可用端点": available.label, "所属文档": available.documentLabel ?? "", "来源位置": available.humanPath || available.path } : {}),
+        },
+        openBlockId: available?.id,
+        openLabel: source !== undefined ? "打开引用来源" : "打开可用目标",
+      }, weight);
       continue;
     }
     edges.push({
@@ -239,7 +254,7 @@ export function normalizeGraph(
     nodes[edge.source].degree++;
     nodes[edge.target].degree++;
   }
-  return { nodes, edges, referenceCount, skippedReferences };
+  return { nodes, edges, referenceCount, skippedReferences, warnings: issues.finish() };
 }
 
 function blockLabel(block: BlockRow): string {
@@ -405,7 +420,7 @@ async function loadSnapshot(
     referenceState(signal),
   ]);
   signal.throwIfAborted();
-  const warnings: string[] = [];
+  const issues = new ReadIssueCollector();
   const blocksChanged =
     initialBlocks.total !== finalBlocks.total ||
     initialBlocks.last !== finalBlocks.last;
@@ -419,17 +434,17 @@ async function loadSnapshot(
   if (!referencesChanged && rawReferences !== initialReferences.total)
     throw new Error("引用分页结果不完整，请刷新后重试");
   if (blocksChanged || referencesChanged)
-    warnings.push(
-      "读取期间块或引用发生变化，当前分页结果可能不完整，请刷新图谱获取最新数据。",
-    );
+    issues.add("snapshot-changed", { fields: {
+      "块总数（开始 → 结束）": `${initialBlocks.total} → ${finalBlocks.total}`,
+      "块分页边界（开始 → 结束）": `${initialBlocks.last} → ${finalBlocks.last}`,
+      "实际读取块数": String(blocks.length),
+      "引用总数（开始 → 结束）": `${initialReferences.total} → ${finalReferences.total}`,
+      "引用分页边界（开始 → 结束）": `${initialReferences.high} → ${finalReferences.high}`,
+      "实际读取引用数": String(rawReferences),
+    } });
   const graph = normalizeGraph(blocks, [...referencePairs.values()], notebooks);
-  if (graph.skippedReferences > 0)
-    warnings.push(
-      `已省略 ${graph.skippedReferences.toLocaleString()} 条端点不可用的引用。`,
-    );
   const databaseGraph = await addDatabaseGraph(graph, blocks, signal, progress);
   signal.throwIfAborted();
-  warnings.push(...databaseGraph.warnings);
   return {
     ...graph,
     nodes: databaseGraph.nodes,
@@ -447,6 +462,6 @@ async function loadSnapshot(
         ? block.markdown : null,
     })),
     loadMs: performance.now() - started,
-    warnings,
+    warnings: [...issues.finish(), ...graph.warnings, ...databaseGraph.warnings],
   };
 }
