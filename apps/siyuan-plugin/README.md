@@ -1,24 +1,57 @@
-# SiYuan graph workbench
+# Plugin development
 
-The CommonJS entry re-exports the host adapter from `src/plugin.ts`. It registers
-a graph tab and creates one retained `ui/index.html` browsing context from the
-plugin's local assets. `src/host/` positions this application-owned iframe over
-the active tab anchor; tab closure does not disconnect it.
+[Project overview](../../README.md) · [User guide](public/README.md)
 
-The ESM workbench lives in `src/app/`; data acquisition and normalization are in
-`src/data/`, the Rust Worker adapter is in `src/engine/`, and the Cosmograph
-resource lifecycle is in `src/graph/`. The graph stays mounted across TanStack
-routes; host and route visibility only pause/resume it. Plugin unload releases
-the retained resources.
+## Setup and commands
 
-Run commands from the repository root. `pnpm build` or `pnpm release` builds,
-validates, and installs the plugin in the configured personal workspace at
-`E:/Data/Siyuan`. This is a local installation without marketplace registration.
+Requires Node.js 24+, pnpm 11.21.0, Rust with the `wasm32-unknown-unknown` target,
+wasm-pack, and the wasm-bindgen helper matching `Cargo.lock`. WASM builds use
+`no-install` mode, so provision those tools before building.
 
-Use `pnpm check` for validation, or `pnpm build:artifacts` for an artifact-only
-build; neither deploys. `pnpm deploy:test <workspace>` copies built artifacts
-into an explicitly selected test workspace. `pnpm dev` watches the host adapter
-and `pnpm dev:ui` watches the workbench without automatic deployment.
+Run commands from the repository root:
 
-The generated `wasm/` directory is produced by the root WASM build and is
-untracked. All runtime WASM/worker assets are included in `dist/ui/assets/`.
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | Install locked dependencies and apply the tracked dependency patches. |
+| `pnpm check` | Validate dependencies, deployment guards, Rust, WASM, TypeScript, tests, and built artifacts. |
+| `pnpm build:artifacts` | Build the plugin into `apps/siyuan-plugin/dist/`. |
+| `pnpm deploy:test <workspace>` | Install built artifacts into an explicitly selected workspace. |
+| `pnpm build` / `pnpm release` | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`. |
+| `pnpm deploy:release` | Validate and install existing artifacts into the personal workspace. |
+| `pnpm dev` / `pnpm dev:ui` | Watch the host adapter / React workbench in separate terminals. |
+
+Checks, artifact-only builds, and watchers do not deploy. Deployment replaces
+managed plugin files while preserving unrelated files, and rejects linked
+targets or unmanaged collisions. Reload the plugin after installation.
+The configured test workspace is `E:/Data/SYTest`, served on port 6806.
+
+## Source layout
+
+| Path | Responsibility |
+| --- | --- |
+| `src/plugin.ts`, `src/host/` | CommonJS SiYuan adapter and retained graph iframe. |
+| `src/app/` | React workbench with shadcn/ui and TanStack Router. |
+| `src/data/` | Read-only acquisition, normalization, scope, and projection. |
+| `src/graph/` | Cosmograph rendering, interaction, and resource lifecycle. |
+| `src/engine/` | Rust WASM worker adapter. |
+| `../../crates/graph-core/` | Graph algorithms and Rust tests. |
+| `../../patches/` | Versioned Cosmograph/Cosmos changes applied by pnpm. |
+
+The host retains one iframe across tab switches and close/reopen. Plugin unload
+releases its resources. Runtime assets are bundled locally; requests stay on the
+current SiYuan origin. Generated `wasm/` and `dist/` output is untracked.
+
+Scope and exclusions apply before type projection and traversal. Displayed
+relationships retain source evidence; temporary search identities stay outside
+saved presets. The worker uses revision-scoped numeric topology with persistent
+native IDs and rejects stale responses. Appearance settings are browser-local;
+JSON export creates a temporary workspace file.
+
+## Further reading
+
+- [Implementation rules](../../rules/implementation.md)
+- [Workspace pressure fixture](../../scripts/stress-fixture.md)
+- [Rust benchmarks](../../crates/graph-core/README.md)
+
+The package/storage ID is `sy-another-graph`. `project-doc/` is a separate,
+local-only documentation repository excluded from the delivery repository.
