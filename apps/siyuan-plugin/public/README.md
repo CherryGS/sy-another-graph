@@ -28,16 +28,18 @@ it uses the final query and filters after HZ translates its commands. Keyword,
 query-syntax, regular-expression, and compatible read-only SQL searches are
 supported. Grouping by document does not add context documents to the matches.
 
-A search starts with all matched block types visible. It does not automatically
-include descendants or select every node. Existing filters can further narrow
-the result boundary; neighborhood and path operations stay inside it.
-With containment enabled, matched ancestors and descendants remain connected
-through omitted parent containers; those containers are retained as edge evidence.
+A search includes all matched blocks and their native ancestor chains, through
+parent documents up to each notebook's top-level documents. The menu distinguishes
+original matches from added ancestor nodes. All types and containment relations
+start enabled, so the surrounding structure is connected immediately.
+Filters can further narrow this scope; neighborhood and path operations stay
+inside it. Resetting a temporary search restores these search-specific defaults.
 
 Open **Filter** to edit the temporary preset or **Return to original configuration**.
 Your previous preset and its unsaved filter changes are retained. The temporary
 entry can be reopened during the session; a new search replaces it. Search
 snapshots are not saved to disk, rerun on refresh, or restored after plugin reload.
+Refreshing graph data recomputes ancestry around the same original matched IDs.
 Changes to the search page take effect in the graph only after building again.
 
 Reading progress appears on the search button; click it again to cancel. A new

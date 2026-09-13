@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import type { GraphDataset } from "../data/types";
 import { getGraphLookups } from "../data/graph-lookups";
+import { searchAncestorIds } from "../data/graph-model";
 import { FilterSessions } from "../search/filter-sessions";
 import { readSearchSnapshot } from "../search/model";
 import { useFilterPresets } from "./use-filter-presets";
@@ -14,6 +15,8 @@ export function useWorkbenchFilters(data: GraphDataset | null, dataRef: RefObjec
   const temporary = state.active ? state.temporary : null;
   const search = temporary?.snapshot;
   const filters = temporary?.filters ?? state.normal;
+  const matchedIds = temporary?.ids;
+  const searchIds = useMemo(() => data && matchedIds ? searchAncestorIds(data, matchedIds) : matchedIds, [data, matchedIds]);
   const missing = useMemo(() => {
     if (!search || !data) return [];
     const source = getGraphLookups(data).byId;
@@ -50,8 +53,9 @@ export function useWorkbenchFilters(data: GraphDataset | null, dataRef: RefObjec
   return {
     filters,
     setFilters: sessions.setFilters,
-    searchIds: temporary?.ids,
-    searchScope: temporary ? `搜索 ${temporary.snapshot.ids.length.toLocaleString()} 个命中` : undefined,
+    resetFilters: sessions.reset,
+    searchIds,
+    searchScope: temporary ? `搜索 ${temporary.ids.size.toLocaleString()} 个命中及上级` : undefined,
     filterPresets: {
       ...normal,
       activeId: temporary ? null : normal.activeId,
@@ -59,6 +63,7 @@ export function useWorkbenchFilters(data: GraphDataset | null, dataRef: RefObjec
       modified: temporary ? false : normal.modified,
       temporary: state.temporary,
       temporaryActive: !!temporary,
+      searchAncestorCount: searchIds && matchedIds ? searchIds.size - matchedIds.size : 0,
       missingSearchIds: missing,
       resumeSearch: () => { sessions.resume(); onEntry(); },
       leaveSearch: () => { sessions.leave(); onEntry(); },

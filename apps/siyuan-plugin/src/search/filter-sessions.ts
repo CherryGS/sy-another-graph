@@ -4,8 +4,10 @@ import type { SearchGraphSnapshot } from "./model";
 
 type FilterAction = GraphFilters | ((previous: GraphFilters) => GraphFilters);
 const defaults = (): GraphFilters => ({ ...DEFAULT_FILTERS, excludeIds: [], hiddenTypes: [] });
+const searchDefaults = (): GraphFilters => ({ ...defaults(), documentsOnly: false, hierarchy: true });
 export interface TemporarySearch {
   snapshot: SearchGraphSnapshot;
+  /** Original hits; ancestor context is derived from the current source data. */
   ids: ReadonlySet<string>;
   filters: GraphFilters;
 }
@@ -39,8 +41,9 @@ export class FilterSessions {
   search = (snapshot: SearchGraphSnapshot) => {
     if (this.state.temporary?.snapshot.requestId === snapshot.requestId) return;
     this.generation++;
-    this.publish({ temporary: { snapshot, ids: new Set(snapshot.ids), filters: { ...defaults(), documentsOnly: false } }, active: true });
+    this.publish({ temporary: { snapshot, ids: new Set(snapshot.ids), filters: searchDefaults() }, active: true });
   };
+  reset = () => this.setFilters(this.state.active ? searchDefaults() : defaults());
   resume = () => {
     if (!this.state.temporary) return;
     this.generation++; this.publish({ active: true });

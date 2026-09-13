@@ -22,7 +22,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { CosmographCanvas } from "../graph/CosmographCanvas";
 import { GraphLegend } from "../graph/GraphLegend";
-import { DEFAULT_FILTERS } from "../data/types";
 import type { GraphDirection } from "../engine/types";
 import { useWorkbench } from "./state";
 import { usePanelScrolling } from "./use-panel-scrolling";
@@ -248,13 +247,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <EmptyContent>
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    state.setFilters({
-                      ...DEFAULT_FILTERS,
-                      excludeIds: [...DEFAULT_FILTERS.excludeIds],
-                      hiddenTypes: [...DEFAULT_FILTERS.hiddenTypes],
-                    })
-                  }
+                  onClick={state.resetFilters}
                 >
                   清除筛选
                 </Button>

@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { WorkbenchState } from "./state";
-import { DEFAULT_FILTERS } from "../data/types";
 import { getNodeTypeCounts } from "../data/graph-summary";
 import { isTypeHidden } from "../data/filter-types";
 import { NODE_TYPE_LABELS } from "../data/labels";
@@ -89,7 +88,7 @@ export function GraphFiltersPanel({
           </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {state.filterPresets.temporaryActive ? "临时搜索范围固定为全部命中节点，以下筛选可进一步缩小范围。" : "筛选自动生效，节点选择与邻域操作位于工具栏。"}
+          {state.filterPresets.temporaryActive ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。" : "筛选自动生效，节点选择与邻域操作位于工具栏。"}
         </p>
       </div>
       <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
@@ -301,13 +300,7 @@ export function GraphFiltersPanel({
         <Button
           variant="outline"
           className="w-full"
-          onClick={() =>
-            setFilters({
-              ...DEFAULT_FILTERS,
-              excludeIds: [...DEFAULT_FILTERS.excludeIds],
-              hiddenTypes: [...DEFAULT_FILTERS.hiddenTypes],
-            })
-          }
+          onClick={state.resetFilters}
         >
           重置筛选
         </Button>

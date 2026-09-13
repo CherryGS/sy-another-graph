@@ -36,8 +36,10 @@ translated by [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simpl
 It shows progress and supports cancellation. Open **Filter** to adjust the
 temporary graph or return to the previous configuration.
 
-Search scope contains the matched nodes, without automatically adding their
-descendants. Semantic search, encrypted notebooks, and SQL that cannot be
+Search scope contains matched nodes and their complete ancestor chains, including
+parent documents up to the top level. Containment starts enabled, and the menu
+counts original matches and added ancestors separately. Semantic search,
+encrypted notebooks, and SQL that cannot be
 completely paginated are currently unsupported. Limits and errors are explicit;
 see the [search guide](apps/siyuan-plugin/public/README.md#turn-a-search-into-a-graph).
 

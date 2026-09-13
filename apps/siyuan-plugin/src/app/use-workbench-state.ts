@@ -179,7 +179,7 @@ export function useWorkbenchState() {
     setFitRequest(value => value + 1);
     window.location.hash = "#/";
   }, []);
-  const { filters, setFilters, filterPresets, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
+  const { filters, setFilters, resetFilters, filterPresets, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
   const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified, searchScope);
 
   const {
@@ -525,6 +525,7 @@ export function useWorkbenchState() {
     load,
     filters,
     setFilters,
+    resetFilters,
     filterPresets,
     graphTabState,
     mentionState,

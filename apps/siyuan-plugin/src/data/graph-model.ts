@@ -131,6 +131,29 @@ export function containedIds(
   );
 }
 
+/** Add the native parent chain of each search hit, including document-tree
+ * parents up to the top-level document. Shared ancestors are visited once;
+ * siblings, descendants and logical database entities are never expanded. */
+export function searchAncestorIds(data: GraphLike, matchedIds: ReadonlySet<string>): Set<string> {
+  const result = new Set<string>();
+  if (!matchedIds.size) return result;
+  const { byId, parents } = containmentIndex(data);
+  for (let id of matchedIds) {
+    while (!result.has(id)) {
+      // Keep unavailable original hits so their existing diagnostic remains
+      // meaningful; missing parents are not invented as placeholder nodes.
+      result.add(id);
+      const node = byId.get(id);
+      const parentId = parents.get(id);
+      const parent = parentId ? byId.get(parentId) : undefined;
+      if (!node || !isBlock(node) || !parent || !isBlock(parent) ||
+          node.notebook !== parent.notebook) break;
+      id = parent.id;
+    }
+  }
+  return result;
+}
+
 function provenanceOf(
   edge: GraphEdge,
   byIndex: ReadonlyMap<number, GraphNode>,

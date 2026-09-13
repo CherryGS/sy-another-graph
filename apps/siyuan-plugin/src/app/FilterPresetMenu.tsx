@@ -104,7 +104,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       {presets.temporaryActive && presets.temporary && (
         <Alert role="status">
           <AlertDescription className="flex flex-col gap-2">
-            <p>临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中节点。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。</p>
+            <p>临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中 + {presets.searchAncestorCount.toLocaleString()} 个上级节点。沿包含关系上溯至顶层文档。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。</p>
             <p className="break-words">搜索：{presets.temporary.snapshot.label}</p>
             {presets.missingSearchIds.length > 0 && (
               <p>当前图谱数据缺少 {presets.missingSearchIds.length.toLocaleString()} 个命中块，图谱不完整。请重新读取数据；已删除、加密或未能读取的块无法显示。缺失 ID 示例：{presets.missingSearchIds.slice(0, 5).join("、")}</p>

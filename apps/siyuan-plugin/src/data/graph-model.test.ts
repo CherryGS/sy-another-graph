@@ -8,6 +8,7 @@ import {
   resolveOpenBlock,
   scopeBackground,
   scopeGraph,
+  searchAncestorIds,
   type GraphView,
 } from "./graph-model";
 import {
@@ -111,6 +112,89 @@ describe("temporary search result boundaries", () => {
     expect(projectGraph(data, filters(), new Set()).nodes).toEqual([]);
     expect(projectGraph(data, filters({ excludeIds: ["A"] }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["B"]);
     expect(projectGraph(data, filters({ scopeId: "A" }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["hit"]);
+  });
+});
+
+describe("search ancestor context", () => {
+  const tree = () => dataset([
+    node("top", 0), node("D", 1, { parentId: "top" }),
+    block("heading", 2, "h", "D"), block("list", 3, "l", "D", "heading"),
+    block("item", 4, "i", "D", "list"), block("hitA", 5, "p", "D", "item"),
+    node("D2", 6, { parentId: "top" }), block("hitB", 7, "p", "D2"),
+    block("sibling", 8, "p", "D", "heading"), node("unrelated", 9),
+  ], [["hitA", "hitB"], ["sibling", "hitB"], ["list", "unrelated"]]);
+
+  it("adds complete block and document ancestry without expanding siblings or descendants", () => {
+    const data = tree();
+    const hits = new Set(["hitA", "hitB", "heading"]);
+    const context = searchAncestorIds(data, hits);
+    expect(context).toEqual(new Set(["hitA", "hitB", "heading", "item", "list", "D", "D2", "top"]));
+    expect(hits).toEqual(new Set(["hitA", "hitB", "heading"]));
+    expect(searchAncestorIds(data, new Set(["D"]))).toEqual(new Set(["D", "top"]));
+    expect(searchAncestorIds(data, new Set())).toEqual(new Set());
+  });
+
+  it("joins hits through shared ancestors in the actual traversal topology", () => {
+    const data = tree();
+    const context = searchAncestorIds(data, new Set(["hitA", "hitB"]));
+    const graph = projectGraph(data, filters({ hierarchy: true }), context);
+    expect(graph.sourceIds).toEqual(context);
+    expect(new Set(ids(graph))).toEqual(context);
+    expect(pairs(graph, "hierarchy")).toEqual(["D2>hitB", "D>heading", "heading>list", "item>hitA", "list>item", "top>D", "top>D2"]);
+    expect(pairs(graph, "reference")).toEqual(["hitA>hitB"]);
+    expect(shortestPath(graph, "top", "hitA", "out")).toEqual(["top", "D", "heading", "list", "item", "hitA"]);
+    expect(reached(graph, ["top"], 8)).toEqual(new Set(graph.nodes.map(node => node.index)));
+    expect(resolveOpenBlock("item", data, graph)).toBe("item");
+    expect(resolveOpenBlock("sibling", data, graph)).toBeNull();
+    const background = scopeBackground(data, graph, "", true);
+    expect(ids(scopeGraph(graph, background, new Set(["hitA"]), new Set([5]), false))).toEqual(ids(graph));
+  });
+
+  it("keeps expanded context subject to ordinary scope, exclusions and type filters", () => {
+    const data = tree();
+    const context = searchAncestorIds(data, new Set(["hitA", "hitB"]));
+    expect(ids(projectGraph(data, filters({ scopeId: "D" }), context))).toEqual(["D", "heading", "hitA", "item", "list"]);
+    expect(ids(projectGraph(data, filters({ excludeIds: ["D"] }), context))).toEqual(["D2", "hitB", "top"]);
+    expect(ids(projectGraph(data, filters({ documentsOnly: true }), context))).toEqual(["D", "D2", "top"]);
+    const disabled = projectGraph(data, filters({ hierarchy: false }), context);
+    expect(new Set(ids(disabled))).toEqual(context);
+    expect(pairs(disabled, "hierarchy")).toEqual([]);
+  });
+
+  it("deduplicates cycles and stops at missing, non-native or cross-notebook parents", () => {
+    const data = dataset([
+      node("root", 0), block("leaf", 1, "p", "root", "missing"),
+      block("a", 2, "l", "root", "b"), block("b", 3, "i", "root", "a"),
+      block("cross", 4, "p", "root", "foreign"), node("foreign", 5, { notebook: "other" }),
+      block("carrier", 6, "av", "root", "database"), node("database", 7, { entity: "database" }),
+    ], []);
+    expect(searchAncestorIds(data, new Set(["leaf", "unavailable-hit", "a", "cross", "carrier"])))
+      .toEqual(new Set(["leaf", "unavailable-hit", "a", "b", "cross", "carrier"]));
+  });
+
+  it("recomputes context after source movement and does not share mutable result sets", () => {
+    const data = tree();
+    const hits = new Set(["hitA"]);
+    const before = searchAncestorIds(data, hits);
+    const moved = { ...data, nodes: data.nodes.map(node => node.id === "hitA" ? { ...node, parentId: "D2", rootId: "D2" } : node) };
+    expect(searchAncestorIds(moved, hits)).toEqual(new Set(["hitA", "D2", "top"]));
+    before.clear();
+    expect(searchAncestorIds(data, hits)).toEqual(new Set(["hitA", "item", "list", "heading", "D", "top"]));
+  });
+
+  it("visits a long shared ancestor chain once across thousands of matches", () => {
+    let notebookReads = 0;
+    const nodes = [node("root", 0)];
+    for (let i = 1; i <= 5_000; i++) nodes.push(block(`parent${i}`, i, "s", "root", i === 1 ? "root" : `parent${i - 1}`));
+    const hits = new Set<string>();
+    for (let i = 1; i <= 5_000; i++) {
+      const id = `hit${i}`;
+      nodes.push(block(id, nodes.length, "p", "root", "parent5000"));
+      hits.add(id);
+    }
+    for (const node of nodes) Object.defineProperty(node, "notebook", { get: () => { notebookReads++; return "book"; } });
+    expect(searchAncestorIds(dataset(nodes, []), hits).size).toBe(10_001);
+    expect(notebookReads).toBeLessThan(40_000);
   });
 });
 
