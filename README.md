@@ -1,223 +1,98 @@
-# Atlas · SiYuan Graph
+# 一个思源图谱
 
-A SiYuan graph workbench using Cosmograph, React, shadcn/ui, TanStack Router, and a Rust
-WASM graph engine. The plugin is named `sy-another-graph`.
+Explore connections between SiYuan notes, blocks, and search results in a local
+2D or 3D graph.
 
-## Features
+[简体中文使用说明](apps/siyuan-plugin/public/README_zh_CN.md) ·
+[User guide](apps/siyuan-plugin/public/README.md)
 
-- All indexed native block types, original block-reference endpoints, and native
-  containment. Graph-wide type controls project hidden block endpoints to their
-  owning documents while retaining source provenance.
-- Logical SiYuan databases, real bound and detached items, and explicit relation
-  fields, with distinct carrier, membership, binding, and item-relation edges.
-- Title/ID search, notebook and relation controls, contained document/block
-  scopes, subtree exclusions, and optional hiding of unchosen isolated nodes.
-- Equal chosen membership with persistent labels and fixed positions. Shift-click
-  toggles membership; ordinary dragging moves one node and Shift-drag from a
-  chosen node moves the chosen set together.
-- Automatic directional N-hop highlighting from the chosen set within the initial
-  scope, retaining that scope as background. A dedicated WASM
-  Worker reports when the 10,000-node neighborhood budget truncates a result.
-- Node type, readable document path, heading ancestry, and source excerpts in
-  hover/search/details. Edge inspection retains original source records and
-  opens eligible native blocks or database contexts.
-- Native document-title, document-tree, top-right More, and single-block menus
-  open a scoped graph. Source-change notifications refresh the retained workbench
-  while keeping valid choices, matching node positions, and the current camera across
-  data updates.
-- 2D and 3D views, node-type colors by default, and a separate display/force
-  settings panel with browser-local preferences. Branch/notebook/degree coloring
-  remains available. In 3D, drag blank space to orbit and Space-drag to pan;
-  Shift-drag retains chosen-set movement.
-- Type colors and node counts are available from the toolbar's collapsible
-  legend, keeping the graph canvas clear.
-- Saved filter/inspection views, existing path and insight tools, and local
-  export of the visible graph.
-- Locally bundled renderer/database resources, escaped graph labels, and an
-  iframe network policy that restricts connections to the current origin.
+## What it does
+
+- **Start from your content.** Open the graph from a document, block, or the
+  complete result set of a native or HZ Simple Search query.
+- **Keep useful scopes.** Save named filter presets. Search results use a separate
+  temporary preset, preserving the previous configuration and its unsaved edits.
+- **Follow connections.** Inspect references, containment, database relations,
+  and optional text mentions; explore directional neighborhoods and shortest paths.
+- **Check the evidence.** Inspect original endpoints, source passages, and
+  database fields, with native previews and links back to the source.
+- **Shape the view.** Switch 2D/3D, tune forces and labels, or cluster communities.
+  Optional 2D territories preserve the meaning of existing node colors.
+- **Understand incomplete data.** Reading issues appear in a compact toast with
+  an expandable, copyable diagnostic report. Export the visible graph as JSON.
+
+The default view shows documents and references. Filter controls can expose
+other block types and relations. Hidden native blocks can be represented by
+their document without importing unrelated source facts.
+
+## Open a graph
+
+Enable **一个思源图谱**, then use its toolbar icon or **Alt+Shift+G**. Document
+title, document tree, and block context menus also offer a graph entry.
+
+In the native search tab or dialog, click **Build graph from all results**. The
+button reads every page using the completed search query, including commands
+translated by [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search).
+It shows progress and supports cancellation. Open **Filter** to adjust the
+temporary graph or return to the previous configuration.
+
+Search scope contains the matched nodes, without automatically adding their
+descendants. Semantic search, encrypted notebooks, and SQL that cannot be
+completely paginated are currently unsupported. Limits and errors are explicit;
+see the [search guide](apps/siyuan-plugin/public/README.md#turn-a-search-into-a-graph).
 
 ## Build and verify
 
-Use Node.js 24+, pnpm 11.21.0, Rust with the `wasm32-unknown-unknown` target,
-wasm-pack, and its matching wasm-bindgen helper. The tested tools were Node
-24.18.0, Rust 1.97.0, and wasm-pack 0.15.0. The build uses wasm-pack's
-`no-install` mode, so tool provisioning is separate from routine builds.
+Requires Node.js 24+, pnpm 11.21.0, Rust with the
+`wasm32-unknown-unknown` target, wasm-pack, and its matching wasm-bindgen helper.
+WASM builds use `no-install` mode; provision those tools before building.
 
-Rust release builds use optimization level 3, Thin LTO, one codegen unit,
-aborting panics, and stripped output. Vite applies its production JavaScript
-and CSS minifiers and tree shaking. The measured release-profile comparison
-retained these settings: fat LTO produced identical WASM, while Binaryen O3 and
-SIMD compilation gave small, mixed runtime changes without improving the
-neighborhood workload. Routine builds therefore do not require Binaryen or
-additional WebAssembly target features.
+Run from the repository root:
 
-Run the following from the repository root for personal release installation:
+| Command | Result |
+| --- | --- |
+| `pnpm check` | Validate dependencies, deployment guards, Rust, WASM, TypeScript, tests, and built artifacts. |
+| `pnpm build:artifacts` | Build the plugin into `apps/siyuan-plugin/dist/`. |
+| `pnpm deploy:test E:/Data/SYTest` | Install built artifacts into the explicit test workspace. |
+| `pnpm release` | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`. |
+| `pnpm deploy:release` | Validate and install already built artifacts into the personal workspace. |
+| `pnpm dev` / `pnpm dev:ui` | Watch the host adapter / React workbench in separate terminals. |
 
-```sh
-pnpm release
-```
+`pnpm build` is equivalent to `pnpm release` and deploys to the personal workspace.
+Checks and artifact-only builds do not deploy. Deployment updates only managed
+files, preserves unrelated files, and rejects linked targets or unmanaged
+collisions. Reload the plugin after installation.
 
-`pnpm build` is equivalent: it tests deployment guards, builds release artifacts,
-validates the plugin, and automatically installs it into
-`E:/Data/Siyuan/data/plugins/sy-another-graph`. This workspace is configured in
-the root `deploy:release` script. No marketplace registration or upload is needed.
-Use `pnpm deploy:release` to validate and install already built artifacts.
+The package/storage ID remains `sy-another-graph`. No marketplace publication
+is required for the configured local installation. Runtime requests use the
+current SiYuan origin; the test workspace uses port 6806.
 
-Validation and artifact-only commands remain available:
+## Implementation
 
-```sh
-pnpm check
-pnpm build:artifacts
-pnpm deploy:test E:/Data/SYTest
-```
+The host adapter uses SiYuan's CommonJS plugin API. One retained same-origin iframe
+runs React, shadcn/ui, TanStack Router, Cosmograph, and the Rust WASM graph worker.
+Tab switches and close/reopen preserve the graph session; plugin unload releases
+its resources. Runtime rendering and database resources are bundled locally.
 
-`pnpm check` runs frozen dependency validation, deployment tests, Clippy, Rust
-tests, WASM build, Oxlint, TypeScript, Vitest, frontend/plugin builds, and artifact
-validation without deploying. `pnpm build:artifacts` only builds into
-`apps/siyuan-plugin/dist/`. Test deployment requires the explicit workspace shown
-above or another deliberately selected path.
+Acquisition reads indexed blocks, references, and database data without editing
+notes or relation fields. Scope and exclusions precede type projection and
+traversal; displayed relationships retain their source evidence. Temporary search
+identities remain outside the saved-preset schema. Source changes refresh the
+retained graph, with incomplete reads reported explicitly.
 
-Deployment records its managed files, updates those files, and removes obsolete
-managed assets while preserving unrelated files. It refuses unmanaged collisions
-and linked destinations. Windows directory junctions were not served reliably by
-the tested SiYuan version, so installed plugins use ordinary files.
+The WASM engine uses revision-scoped numeric topology while native IDs remain
+persistent identities. Stale worker responses are rejected. Appearance settings
+are browser-local; JSON export creates a temporary file in the workspace.
 
-Reload SiYuan, enable **Atlas Graph / Atlas 思源图谱** in downloaded plugins, and
-use the graph toolbar icon or **Alt+Shift+G**. The supplied test environment is
-`http://127.0.0.1:6806`. Runtime requests use the current SiYuan origin rather
-than a hardcoded port.
+`apps/siyuan-plugin/` contains the host, workbench, acquisition, and workers.
+`crates/graph-core/` contains Rust algorithms and tests.
+See [implementation rules](rules/implementation.md) and
+[plugin development notes](apps/siyuan-plugin/README.md).
+`project-doc/` is an independent local-only documentation repository, excluded
+from the delivery repository.
 
-Scoped graph entry is available from the document's title-icon menu, its
-top-right More menu, a single document's tree menu, and a single block's menu.
-Each entry uses that document or block as the initial contained scope.
-
-For frontend development, run these watchers in separate terminals, then
-redeploy and reload after changes:
-
-```sh
-pnpm dev
-pnpm dev:ui
-```
-
-Rebuild WASM with `pnpm build:wasm` after changing Rust.
-
-## Data and runtime behavior
-
-The host adapter is CommonJS. One same-origin iframe contains the ESM workbench
-and stays connected to the application document for the plugin's lifetime.
-Custom tabs provide positioning anchors. Closing a tab hides the retained
-workbench; plugin unload releases it. TanStack Router uses iframe-local hash
-history, and the graph route stays mounted beneath auxiliary views. Visibility
-changes pause/resume rendering without reloading notes or rebuilding tables.
-The bridge accepts only its own iframe/parent and origin.
-
-Graph indices are revision-local integers. Native blocks retain their SiYuan
-IDs; database and item graph identities use `av:<avID>` and
-`av-item:<avID>:<itemID>`. The current graph Q applies the initial document/block
-scope, notebook/content exclusions, type projection, and enabled relation kinds
-before traversal. Hidden block types
-do not hide their visible children. Hidden native endpoints use their owning
-documents without importing outside source facts; virtual containment connects
-the nearest visible ancestor within the source boundary and keeps
-the intervening source IDs.
-
-Only the explicit chosen set S supplies neighborhood origins. The contained
-scope B remains visible as background, while N controls hop highlighting within
-that scope. Out-of-scope nodes cannot appear or act as intermediate traversal
-steps, including paths that would leave the scope and re-enter it.
-N and traversal direction are directly editable in the wrapping graph toolbar
-and take effect automatically. Search and filter popovers anchor below the
-entire toolbar, including when its controls wrap onto additional rows.
-Changing N changes the reached highlight without treating all of B as origins.
-All chosen members have equal status; inspecting a different node during
-multi-selection does not change S. Hidden or excluded choices lose membership
-and their fixed position. Optional isolation hiding retains eligible S members.
-The document-scope control includes descendant documents by default and can
-exclude them from both display and traversal. With no initial scope root, Q
-contains all otherwise eligible content. Node and edge inspectors overlay the canvas.
-
-Traversal follows arrows, reverses them, or uses both directions. Every enabled
-relation costs one hop; disabled relations do not participate. Reference arrows
-point from citing block to cited block before projection, and containment points
-from ancestor to descendant. Database edges preserve their own meanings instead
-of becoming citations or shortcuts between notes. Neighborhoods and the existing
-path tool use Q without resetting notebook or relation settings.
-
-Supported native source events advance a host-side dirty version. Notifications
-are coalesced while the workbench is active; hidden changes wait until it becomes
-active, and visibility alone does not trigger a reload. Changes arriving during
-acquisition remain pending for another read. Manual refresh is also available.
-Source updates keep filters and valid identities. Renderer table updates restore
-coordinates for matching IDs and the captured 2D or 3D viewport; new nodes receive new
-initial positions. Only S is pinned against subsequent simulation. Ordinary tab
-and route transitions keep the existing graph and camera without rebuilding.
-
-The default link spring is Cosmograph's `0.4`; an earlier settings release
-accidentally persisted `1`. Preference migration corrects that legacy default
-while retaining other settings and later explicit custom values. Simulation
-cooling is measured in steps, not milliseconds, so elapsed settling time depends
-on the rate at which the renderer advances the simulation.
-
-Each renderer requests an 8,192-unit simulation space and retains that extent
-through later data and appearance updates. This is independent of the canvas's
-pixel size. Initial and newly generated positions use the effective extent
-supported by the device; Fit diagnostics report both requested and effective
-sizes. The existing center-gravity control attracts unpinned nodes toward the
-world center without moving chosen pins or resetting the camera.
-
-Lookup caches and stable view arrays avoid repeated whole-graph scans and
-renderer uploads for unchanged views. Filters, the legend, and Insights share
-cached summaries of immutable graph arrays; the top-eight hub summary avoids
-sorting the full node array. Panel scrolling briefly yields simulation work
-while preserving explicit user pause.
-
-Version-pinned pnpm patches for Cosmos and Cosmograph 2.5.1 transfer continuous
-label coordinates through a shared pixel pack buffer and GPU completion fence.
-Regular and temporary endpoint labels use a 50–250 ms adaptive cooldown after
-each completed read and flush final coordinates when simulation stops. Pinned
-chosen labels retain their coordinates, and camera changes immediately reproject
-cached positions. Hidden or empty label layers
-do not request coordinates. Replaced data, dimensions, pin changes, cancellation,
-and disposal invalidate pending snapshots. Explicit geometry operations such as
-Fit retain their synchronous API. These changes reduce main-thread blocking;
-they do not guarantee a frame rate. Patches and installed-vendor regression tests
-are checked in under `patches/` and `src/graph/vendor-*.test.ts` in the plugin sources.
-
-SharedArrayBuffer transport is enabled only in a supported cross-origin
-isolated context. The supplied SiYuan WebUI does not provide that context, so
-the verified path uses transferable buffers. Shared transport is not threaded
-WASM, and the JS/WASM boundary still involves copies.
-
-Source acquisition is read-only and bounded by initial scan high watermarks.
-Blocks use indexed keyset pagination and retain their encoded source path as
-well as SiYuan's readable `hpath` for display.
-References are aggregated within 4,096-row SQLite rowid windows and merged
-across windows, avoiding repeated full-table regrouping. Bounded batches are
-returned as a single JSON result so host row caps cannot silently drop groups.
-It detects many concurrent changes, but separate API calls cannot guarantee a
-transactionally consistent snapshot while notes are edited. Refresh after such
-a warning. Closed or unindexed notebook content is not promised by the indexed
-source scan.
-
-Database acquisition reads complete logical `getAttributeView` objects from
-native carriers and follows explicit relation targets; filtered display views
-do not define membership. It keeps actual item IDs separate from bound block
-IDs, includes detached items without inventing documents, and does not infer
-connections from ordinary field values or rollups. Limits of 4,096 logical
-databases, 500,000 items, and 1,000,000 field associations are reported when
-reached, as are unavailable databases or endpoints. Reads across logical
-databases have no shared snapshot revision. Unused databases are not independently
-enumerated.
-
-Saved views remain in the current browser, with a maximum of 50. They store
-filters and one inspected identity; they are not named coordinate arrangements
-or complete chosen-set snapshots. Author and repository metadata are unset
-because this is a local development build.
-
-JSON export uses SiYuan's export endpoint to create a file in the workspace's
-temporary export directory. Use the persistent **Download JSON** link to save
-the generated snapshot. The UI confirms file generation separately from the
-browser's download action; exporting does not alter notes.
+<details>
+<summary>Benchmarks and the developer pressure fixture</summary>
 
 ## Benchmarks
 
@@ -305,19 +180,12 @@ Validate the generator's deterministic plans without touching a workspace:
 node --test scripts/stress-fixture.test.mjs
 ```
 
-## Repository
+</details>
 
-- `apps/siyuan-plugin/`: host adapter, workbench, acquisition, and worker client.
-- `crates/graph-core/`: Rust graph algorithms and native tests.
-- `rules/implementation.md`: commands and repository rules.
-- `project-doc/`: independent local Git repository for intent, design decisions,
-  and verification evidence; ignored by the delivery repository.
+## Attribution
 
-## Third-party licensing
-
-Cosmograph attribution remains visible. Cosmograph 2.5.1 is distributed under
-CC BY-NC 4.0; commercial use has separate vendor licensing. See the
-[official licensing information](https://cosmograph.app/docs-general/citing-and-licensing/).
-React, TanStack Router, DuckDB-WASM, Apache Arrow, and other bundled dependencies
-retain their respective licenses. This repository has not been published to a
-marketplace.
+Visualization by [Cosmograph](https://cosmograph.app/). Cosmograph 2.5.1 uses
+[CC BY-NC 4.0 / separate commercial terms](https://cosmograph.app/docs-general/citing-and-licensing/);
+its attribution remains visible. Other bundled dependencies retain their
+respective licenses. See the [text-mention notices](apps/siyuan-plugin/public/third-party-mentions.txt)
+and [community notices](apps/siyuan-plugin/public/third-party-communities.txt).

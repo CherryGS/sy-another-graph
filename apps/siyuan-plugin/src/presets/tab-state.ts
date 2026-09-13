@@ -19,10 +19,10 @@ const short = (value: string, length: number) => {
 
 /** A semantic summary of filter rules; transient selection and runtime counts
  * never determine the native tab title. */
-export function graphTabState(filters: GraphFilters, data: GraphDataset | null, name: string, modified: boolean) {
+export function graphTabState(filters: GraphFilters, data: GraphDataset | null, name: string, modified: boolean, searchScope?: string) {
   const source = data ? getGraphLookups(data).byId : null;
   const notebook = filters.notebook ? data?.notebooks.find(book => book.id === filters.notebook)?.name ?? "指定笔记本" : "全部";
-  const scope = filters.scopeId ? source?.get(filters.scopeId)?.label || "指定范围" : notebook;
+  const scope = searchScope ?? (filters.scopeId ? source?.get(filters.scopeId)?.label || "指定范围" : notebook);
   const preset = clean(name) || "自定义";
   const title = `图谱 · ${short(scope, 28)} · ${short(preset, 28)}${modified ? "*" : ""}`;
   const relations = [filters.references && "引用", filters.hierarchy && "包含关系", filters.databases && "数据库关系"].filter(Boolean);

@@ -90,6 +90,30 @@ const filters = (overrides: Partial<GraphFilters> = {}): GraphFilters => ({
   ...overrides,
 });
 
+describe("temporary search result boundaries", () => {
+  const data = dataset([node("A", 0), node("B", 1), block("hit", 2, "p", "A"), block("outside", 3, "p", "A")],
+    [["hit", "B"], ["outside", "B"], ["A", "B"]]);
+  it("keeps only matched sources and their actual relationships", () => {
+    const graph = projectGraph(data, filters(), new Set(["hit", "B"]));
+    expect([...graph.sourceIds].sort()).toEqual(["B", "hit"]);
+    expect(graph.nodes.map(node => node.id).sort()).toEqual(["B", "hit"]);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0].provenance?.map(item => item.sourceId)).toEqual(["hit"]);
+  });
+  it("does not admit document siblings through document-only projection", () => {
+    const graph = projectGraph(data, filters({ documentsOnly: true }), new Set(["hit", "B"]));
+    expect(graph.nodes.map(node => node.id).sort()).toEqual(["A", "B"]);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0].provenance?.map(item => item.sourceId)).toEqual(["hit"]);
+    expect(graph.sourceIds.has("outside")).toBe(false);
+  });
+  it("intersects scope and exclusions and treats an empty snapshot as empty", () => {
+    expect(projectGraph(data, filters(), new Set()).nodes).toEqual([]);
+    expect(projectGraph(data, filters({ excludeIds: ["A"] }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["B"]);
+    expect(projectGraph(data, filters({ scopeId: "A" }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["hit"]);
+  });
+});
+
 describe("source containment index reuse", () => {
   it("shares the native parent index between scope membership and background projection", () => {
     let parentReads = 0;

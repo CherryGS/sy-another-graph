@@ -1,5 +1,6 @@
 import { isNativeBlockId } from "./scope-menu";
 import { NativeBlockPreview } from "./native-preview";
+import { readSearchSnapshot, type SearchGraphSnapshot } from "../search/model";
 
 export const WORKBENCH_CHANNEL = "sy-another-graph";
 
@@ -21,6 +22,7 @@ export class PersistentWorkbench {
   private disposed = false;
   private bounds = "";
   private pendingScopeId: string | null = null;
+  private pendingSearch: SearchGraphSnapshot | null = null;
   private sourceVersion = 0;
   private preview: NativeBlockPreview | null = null;
 
@@ -68,7 +70,21 @@ export class PersistentWorkbench {
   requestScope(id: string): void {
     if (this.disposed || !isNativeBlockId(id)) return;
     this.pendingScopeId = id;
+    this.pendingSearch = null;
     this.postScope();
+  }
+
+  requestSearch(value: SearchGraphSnapshot): void {
+    if (this.disposed) return;
+    const snapshot = readSearchSnapshot(value);
+    if (!snapshot) return;
+    this.pendingScopeId = null;
+    this.pendingSearch = snapshot;
+    this.postSearch();
+  }
+
+  acknowledgeSearch(requestId: string): void {
+    if (this.pendingSearch?.requestId === requestId) this.pendingSearch = null;
   }
 
   acknowledgeScope(id: string): void {
@@ -89,6 +105,7 @@ export class PersistentWorkbench {
     this.synchronize();
     this.postVisibility();
     this.postScope();
+    this.postSearch();
     this.postSourceVersion();
   }
 
@@ -106,6 +123,7 @@ export class PersistentWorkbench {
     this.preview?.clear();
     this.preview = null;
     this.pendingScopeId = null;
+    this.pendingSearch = null;
     if (this.scheduled !== null) window.cancelAnimationFrame(this.scheduled);
     this.scheduled = null;
     this.resizeObserver.disconnect();
@@ -136,7 +154,7 @@ export class PersistentWorkbench {
       "position:fixed;left:0;top:0;width:1px;height:1px;z-index:1;overflow:hidden;visibility:hidden;pointer-events:none;background:#11121a;";
     const frame = document.createElement("iframe");
     frame.src = `/plugins/${encodeURIComponent(this.pluginName)}/ui/index.html?session=${this.sessionId}#/`;
-    frame.title = "Atlas 思源图谱";
+    frame.title = "一个思源图谱";
     frame.dataset.atlasSession = this.sessionId;
     frame.dataset.atlasActive = "false";
     frame.dataset.atlasLoadCount = "0";
@@ -283,5 +301,12 @@ export class PersistentWorkbench {
       },
       window.location.origin,
     );
+  }
+
+  private postSearch(): void {
+    if (!this.pendingSearch) return;
+    this.frame?.contentWindow?.postMessage({
+      channel: WORKBENCH_CHANNEL, type: "search-graph", snapshot: this.pendingSearch,
+    }, window.location.origin);
   }
 }

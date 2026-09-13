@@ -32,7 +32,7 @@ for (const file of [
   "index.css",
   "third-party-mentions.txt",
   "third-party-communities.txt",
-  manifest.readme.default,
+  ...Object.values(manifest.readme),
   "ui/index.html",
 ]) {
   assert.ok(

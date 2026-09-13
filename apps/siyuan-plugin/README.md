@@ -1,7 +1,7 @@
 # SiYuan graph workbench
 
 The CommonJS entry re-exports the host adapter from `src/plugin.ts`. It registers
-an Atlas tab and creates one retained `ui/index.html` browsing context from the
+a graph tab and creates one retained `ui/index.html` browsing context from the
 plugin's local assets. `src/host/` positions this application-owned iframe over
 the active tab anchor; tab closure does not disconnect it.
 

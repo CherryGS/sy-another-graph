@@ -69,7 +69,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
     if (editable && request === editRequest.current) setDetails(true);
   }
 
-  const saveActions = (presets.modified || !presets.activeId) && (
+  const saveActions = !presets.temporaryActive && (presets.modified || !presets.activeId) && (
     <div className="flex flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
         <span className="truncate text-xs text-muted-foreground">
@@ -101,6 +101,18 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
 
   const feedback = (
     <>
+      {presets.temporaryActive && presets.temporary && (
+        <Alert role="status">
+          <AlertDescription className="flex flex-col gap-2">
+            <p>临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中节点。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。</p>
+            <p className="break-words">搜索：{presets.temporary.snapshot.label}</p>
+            {presets.missingSearchIds.length > 0 && (
+              <p>当前图谱数据缺少 {presets.missingSearchIds.length.toLocaleString()} 个命中块，图谱不完整。请重新读取数据；已删除、加密或未能读取的块无法显示。缺失 ID 示例：{presets.missingSearchIds.slice(0, 5).join("、")}</p>
+            )}
+            <Button variant="outline" size="sm" onClick={presets.leaveSearch}>返回原配置</Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {presets.error && (
         <Alert variant="destructive">
           <AlertDescription className="flex flex-col gap-2">
@@ -183,7 +195,26 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                 </div>
               ) : (
                 <ul className="flex flex-col gap-1" aria-label="筛选预设列表">
-                  {!presets.activeId && (
+                  {presets.temporary && (
+                    <li className="flex min-w-0 items-center gap-1">
+                      <Button
+                        variant={presets.temporaryActive ? "secondary" : "ghost"}
+                        className="min-w-0 flex-1 justify-start"
+                        aria-pressed={presets.temporaryActive}
+                        title={presets.temporary.snapshot.label}
+                        onClick={() => { presets.resumeSearch(); state.setFiltersOpen(false); }}
+                      >
+                        {presets.temporaryActive && <Check data-icon="inline-start" />}
+                        <span className="truncate">搜索：{presets.temporary.snapshot.label}</span>
+                        <Badge variant="outline">临时</Badge>
+                      </Button>
+                      <PresetAction
+                        label="编辑临时搜索筛选" hint="编辑筛选" icon={SlidersHorizontal} disabled={false}
+                        onClick={() => { if (!presets.temporaryActive) presets.resumeSearch(); setDetails(true); }}
+                      />
+                    </li>
+                  )}
+                  {!presets.activeId && !presets.temporaryActive && (
                     <li className="flex min-w-0 items-center gap-1">
                       <Button
                         variant="secondary"

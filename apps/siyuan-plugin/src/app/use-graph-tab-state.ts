@@ -3,8 +3,8 @@ import type { GraphDataset, GraphFilters } from "../data/types";
 import { graphTabState } from "../presets/tab-state";
 import { WORKBENCH_PRESET_CHANNEL, type GraphTabStateMessage } from "../presets/host-protocol";
 
-export function useGraphTabState(filters: GraphFilters, data: GraphDataset | null, name: string, modified: boolean) {
-  const state = useMemo(() => graphTabState(filters, data, name, modified), [filters, data, name, modified]);
+export function useGraphTabState(filters: GraphFilters, data: GraphDataset | null, name: string, modified: boolean, searchScope?: string) {
+  const state = useMemo(() => graphTabState(filters, data, name, modified, searchScope), [filters, data, name, modified, searchScope]);
   const { title, description } = state;
   useEffect(() => {
     if (window.parent === window) return;

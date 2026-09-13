@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type SetStateAction,
 } from "react";
 import { loadSiYuanGraph } from "../data/source";
 import { prepareGraphExport, type ExportFile } from "../data/export";
@@ -13,7 +12,6 @@ import {
   DEFAULT_FILTERS,
   type GraphDataset,
   type GraphEdge,
-  type GraphFilters,
 } from "../data/types";
 import {
   projectGraph,
@@ -36,9 +34,8 @@ import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
 import { getGraphLookups, searchGraphNodes } from "../data/graph-lookups";
 import { withMentionEdges } from "../mentions/graph-integration";
 import { useMentions } from "./use-mentions";
-import { useFilterPresets } from "./use-filter-presets";
+import { useWorkbenchFilters } from "./use-workbench-filters";
 import { useGraphTabState } from "./use-graph-tab-state";
-import { samePresetFilters } from "../presets/model";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -69,13 +66,6 @@ export function useWorkbenchState() {
   const [loading, setLoading] = useState("正在连接思源…");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [filters, setFiltersState] = useState<GraphFilters>(() => ({
-    ...DEFAULT_FILTERS,
-    excludeIds: [],
-    hiddenTypes: [],
-  }));
-  const filtersRef = useRef(filters);
-  const filterRuleRevision = useRef(0);
   const [selection, setSelection] = useState({ ...EMPTY_SELECTION });
   const [inspectedEdge, setInspectedEdge] = useState<{
     graph: CurrentGraph;
@@ -180,16 +170,17 @@ export function useWorkbenchState() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const setFilters = useCallback((action: SetStateAction<GraphFilters>) => {
-    const previous = filtersRef.current;
-    const next = typeof action === "function" ? action(previous) : action;
-    if (next === previous) return;
-    if (!samePresetFilters(previous, next)) filterRuleRevision.current++;
-    filtersRef.current = next;
-    setFiltersState(next);
+  const enterGraph = useCallback(() => {
+    requests.current.cancel();
+    setSelection({ ...EMPTY_SELECTION });
+    setInspectedEdge(null);
+    setExploration(null);
+    setBusy(false);
+    setFitRequest(value => value + 1);
+    window.location.hash = "#/";
   }, []);
-  const filterPresets = useFilterPresets(filters, filtersRef, filterRuleRevision, data, dataRef, setFilters);
-  const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified);
+  const { filters, setFilters, filterPresets, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
+  const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified, searchScope);
 
   const {
     notebook,
@@ -216,7 +207,7 @@ export function useWorkbenchState() {
             databases,
             scopeId,
             includeChildDocuments,
-          })
+          }, searchIds)
         : null,
     [
       data,
@@ -229,6 +220,7 @@ export function useWorkbenchState() {
       databases,
       scopeId,
       includeChildDocuments,
+      searchIds,
     ],
   );
   const availableSelection = useMemo(
@@ -499,40 +491,6 @@ export function useWorkbenchState() {
     const node = sourceLookups?.byId.get(id);
     openNativeBlock(node?.entity === "block" ? node.id : null);
   };
-
-  useEffect(() => {
-    const handleScope = (event: MessageEvent) => {
-      if (
-        event.origin !== window.location.origin ||
-        event.source !== window.parent ||
-        window.parent === window
-      )
-        return;
-      const message = event.data as {
-        channel?: string;
-        type?: string;
-        id?: unknown;
-      } | null;
-      if (
-        message?.channel !== CHANNEL ||
-        message.type !== "scope-graph" ||
-        typeof message.id !== "string" ||
-        !NATIVE_ID.test(message.id)
-      )
-        return;
-      const id = message.id;
-      setFilters((previous) => ({ ...previous, scopeId: id }));
-      setSelection({ ...EMPTY_SELECTION });
-      setInspectedEdge(null);
-      window.location.hash = "#/";
-      window.parent.postMessage(
-        { channel: CHANNEL, type: "scope-applied", id },
-        window.location.origin,
-      );
-    };
-    window.addEventListener("message", handleScope);
-    return () => window.removeEventListener("message", handleScope);
-  }, [setFilters]);
 
   const exportGraph = async () => {
     if (!data || exporting) return;

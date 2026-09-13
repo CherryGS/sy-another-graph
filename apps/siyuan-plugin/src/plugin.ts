@@ -1,4 +1,4 @@
-import { Plugin, openTab, type Custom } from "siyuan";
+import { Plugin, openTab, showMessage, type Custom } from "siyuan";
 import {
   PersistentWorkbench,
   WORKBENCH_CHANNEL,
@@ -7,6 +7,7 @@ import { isNativeBlockId, registerScopeMenus } from "./host/scope-menu";
 import { registerSourceChanges } from "./host/source-events";
 import { PresetStorage } from "./host/preset-storage";
 import { GraphTabTitle, DEFAULT_GRAPH_TAB_TITLE } from "./host/graph-tab-title";
+import { registerSearchGraphs } from "./host/search-graphs";
 
 const TAB_TYPE = "atlas";
 
@@ -16,6 +17,7 @@ export default class SiYuanGraphPlugin extends Plugin {
   private unloaded = false;
   private removeScopeMenus: (() => void) | null = null;
   private removeSourceChanges: (() => void) | null = null;
+  private removeSearchGraphs: (() => void) | null = null;
   private presetStorage: PresetStorage | null = null;
   private graphTitle: GraphTabTitle | null = null;
 
@@ -55,7 +57,7 @@ export default class SiYuanGraphPlugin extends Plugin {
     });
     this.addTopBar({
       icon: "iconAtlasGraph",
-      title: "Atlas 思源图谱",
+      title: "一个思源图谱",
       position: "right",
       callback: () => {
         void this.openGraph();
@@ -63,7 +65,7 @@ export default class SiYuanGraphPlugin extends Plugin {
     });
     this.addCommand({
       langKey: "openAtlasGraph",
-      langText: "打开 Atlas 思源图谱",
+      langText: "打开一个思源图谱",
       hotkey: "⌥⇧G",
       callback: () => {
         void this.openGraph();
@@ -78,6 +80,16 @@ export default class SiYuanGraphPlugin extends Plugin {
     });
     this.removeSourceChanges = registerSourceChanges(this.eventBus, () => {
       if (!this.unloaded) workbench.markSourceChanged();
+    });
+    this.removeSearchGraphs = registerSearchGraphs(this.eventBus, async snapshot => {
+      if (this.unloaded) return;
+      workbench.requestSearch(snapshot);
+      await this.openGraph();
+    }, message => {
+      // showMessage accepts HTML; search and server error text must stay literal.
+      const text = document.createElement("span");
+      text.textContent = message;
+      showMessage(text.innerHTML, 10_000, "error");
     });
   }
 
@@ -133,9 +145,16 @@ export default class SiYuanGraphPlugin extends Plugin {
       channel?: string;
       type?: string;
       id?: unknown;
+      requestId?: unknown;
     };
     if (data?.channel === WORKBENCH_CHANNEL && data.type === "native-preview") {
       this.workbench.previewBlock(event);
+      return;
+    }
+    if (
+      data?.channel === WORKBENCH_CHANNEL && data.type === "search-applied" && typeof data.requestId === "string"
+    ) {
+      this.workbench.acknowledgeSearch(data.requestId);
       return;
     }
     if (
@@ -174,6 +193,8 @@ export default class SiYuanGraphPlugin extends Plugin {
     this.removeScopeMenus = null;
     this.removeSourceChanges?.();
     this.removeSourceChanges = null;
+    this.removeSearchGraphs?.();
+    this.removeSearchGraphs = null;
     this.presetStorage?.dispose();
     this.presetStorage = null;
     this.graphTitle?.dispose();

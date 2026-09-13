@@ -157,6 +157,7 @@ function provenanceOf(
 export function projectGraph(
   data: GraphDataset,
   filters: GraphFilters,
+  searchIds?: ReadonlySet<string>,
 ): CurrentGraph {
   const { byId, byIndex } = getGraphLookups(data);
   const containment =
@@ -173,6 +174,7 @@ export function projectGraph(
     : new Set<string>();
   const candidates = new Set<string>();
   for (const node of data.nodes) {
+    if (searchIds && !searchIds.has(node.id)) continue;
     if (excludedIds.has(node.id) || (scopeIds && !scopeIds.has(node.id))) continue;
     if (isBlock(node)) {
       if (!filters.notebook || node.notebook === filters.notebook)

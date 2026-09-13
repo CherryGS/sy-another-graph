@@ -193,6 +193,30 @@ function harness() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("plugin-lifetime workbench browsing context", () => {
+  it("replays only the latest search/scope request until its matching acknowledgement", () => {
+    const h = harness();
+    const first = { requestId: "first", label: "First", query: "first", ids: ["20260913000000-0000001"] };
+    const second = { ...first, requestId: "second" };
+    h.session.requestSearch(first);
+    h.session.requestSearch(second);
+    h.attach(h.placeholder());
+    h.session.announceVisibility();
+    expect(h.iframe().contentWindow.postMessage).toHaveBeenCalledWith({ channel: WORKBENCH_CHANNEL, type: "search-graph", snapshot: second }, h.window.location.origin);
+    h.session.acknowledgeSearch("first");
+    h.iframe().contentWindow.postMessage.mockClear();
+    h.session.announceVisibility();
+    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph")).toBe(true);
+    h.session.requestScope(first.ids[0]);
+    h.iframe().contentWindow.postMessage.mockClear();
+    h.session.announceVisibility();
+    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph")).toBe(false);
+    h.session.requestSearch(first);
+    h.session.acknowledgeSearch("first");
+    h.iframe().contentWindow.postMessage.mockClear();
+    h.session.announceVisibility();
+    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => ["search-graph", "scope-graph"].includes(message.type))).toBe(false);
+    h.session.dispose();
+  });
   it("admits preview messages only from its visible owned frame and clears them on layout changes", () => {
     const handle = vi.spyOn(NativeBlockPreview.prototype, "handle").mockImplementation(() => {});
     const clear = vi.spyOn(NativeBlockPreview.prototype, "clear").mockImplementation(() => {});

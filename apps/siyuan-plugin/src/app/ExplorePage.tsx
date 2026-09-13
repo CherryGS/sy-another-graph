@@ -83,6 +83,11 @@ export function ExplorePage({ active }: { active: boolean }) {
                   >
                     <span className="truncate">筛选：{state.filterPresets.activeName}</span>
                     {state.filterPresets.modified && <span aria-hidden="true">*</span>}
+                    {state.filterPresets.temporaryActive && (
+                      <Badge variant={state.filterPresets.missingSearchIds.length && !state.loading ? "destructive" : "secondary"}>
+                        {state.filterPresets.missingSearchIds.length && !state.loading ? `缺失 ${state.filterPresets.missingSearchIds.length}` : "临时"}
+                      </Badge>
+                    )}
                     <ChevronDown data-icon="inline-end" />
                   </Button>
                 </PopoverTrigger>

@@ -7,14 +7,15 @@
   "backends": ["windows", "linux", "darwin"],
   "frontends": ["desktop", "desktop-window", "browser-desktop"],
   "displayName": {
-    "default": "Atlas Graph",
-    "zh-CN": "Atlas 思源图谱"
+    "default": "一个思源图谱",
+    "zh_CN": "一个思源图谱"
   },
   "description": {
-    "default": "Explore SiYuan knowledge graphs with Cosmograph, a Rust WASM engine, and a React workbench.",
-    "zh-CN": "基于 Cosmograph、Rust WASM 与 React 的思源知识图谱工作台。"
+    "default": "Explore connections between SiYuan notes, blocks, and search results with filter presets and 2D/3D graphs.",
+    "zh_CN": "从笔记、块或搜索结果出发，探索引用与关联，支持筛选预设、邻域追踪和 2D / 3D 图谱。"
   },
   "readme": {
-    "default": "README.md"
+    "default": "README.md",
+    "zh_CN": "README_zh_CN.md"
   }
 }

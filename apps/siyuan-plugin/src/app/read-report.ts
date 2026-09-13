@@ -1,7 +1,7 @@
 import type { GraphDataset } from "../data/types";
 
 export function readReport(data: GraphDataset): string {
-  const lines = ["Atlas graph read diagnostics", `Read at: ${data.loadedAt}`, `Read time: ${data.loadMs.toFixed(1)} ms`,
+  const lines = ["一个思源图谱 — read diagnostics", `Read at: ${data.loadedAt}`, `Read time: ${data.loadMs.toFixed(1)} ms`,
     `Nodes: ${data.nodes.length}; relationships: ${data.edges.length}; source references: ${data.referenceCount}`,
     `Issue categories: ${data.warnings.length}`, "", "Details refer to the acquired workspace index, before graph display filters."];
   for (const issue of data.warnings) {

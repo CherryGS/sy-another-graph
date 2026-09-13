@@ -12,5 +12,5 @@ const target = deployPlugin({
 });
 console.log(`Plugin deployed: ${target}`);
 console.log(
-  "Reload SiYuan and enable Atlas Graph in the downloaded plugins list.",
+  "Reload SiYuan and enable 一个思源图谱 in the downloaded plugins list.",
 );
