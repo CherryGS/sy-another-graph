@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { projectGraph, searchAncestorIds } from "../data/graph-model";
 import { DEFAULT_FILTERS, type GraphDataset, type GraphFilters } from "../data/types";
-import { buildSearchOrigins, searchNodeOrigin, searchOriginDescription, searchDisplayLabel } from "./origins";
+import { buildSearchOrigins, searchNodeOrigin, searchOriginDescription } from "./origins";
 
 const data: GraphDataset = {
   nodes: [
@@ -54,9 +54,6 @@ describe("search origin identity", () => {
   it("adds no search identity in ordinary preset mode and leaves source text unchanged", () => {
     expect(searchNodeOrigin("doc")).toBeUndefined();
     expect(searchOriginDescription("doc")).toBeUndefined();
-    expect(searchDisplayLabel("Title")).toBe("Title");
-    expect(searchDisplayLabel("Title", "ancestor")).toBe("Title");
-    expect(searchDisplayLabel("Title", "match")).toBe("◆ 命中 · Title");
     expect(data.nodes.every(node => node.label === "Same title")).toBe(true);
   });
 });

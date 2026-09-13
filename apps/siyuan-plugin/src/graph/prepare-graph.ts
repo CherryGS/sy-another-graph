@@ -2,7 +2,7 @@ import { Table, tableFromArrays, vectorFromArray, Utf8 } from "apache-arrow";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { CanvasEdge, CanvasNode } from "./types";
 import { nodeColor } from "./node-colors";
-import { searchNodeOrigin, searchDisplayLabel, type SearchOrigins } from "../search/origins";
+import { searchNodeOrigin, SEARCH_MATCH_RING_COLOR, type SearchOrigins } from "../search/origins";
 
 const CHUNK_SIZE = 8192;
 const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
@@ -60,7 +60,7 @@ export async function prepareGraph(
   const typeColor = new Array<string>(nodes.length);
   const index = new Uint32Array(nodes.length);
   const degree = new Float32Array(nodes.length);
-  const searchShape = new Uint8Array(nodes.length);
+  const accentedPointIndices: number[] = [];
   const labelWeight = new Float32Array(nodes.length);
   let maximumDegree = 0;
   const originalToDense = new Map<number, number>();
@@ -89,10 +89,8 @@ export async function prepareGraph(
       // Preserve note titles as literal text; even a sanitized <img> can make a network request.
       indexToLabel[position] = node.label || node.id;
       const origin = searchNodeOrigin(node.id, searchOrigins);
-      // Native Cosmograph PointShape values: Circle=0, Diamond=3. This is
-      // a GPU point attribute, separate from the chosen outline/highlight masks.
-      searchShape[position] = origin === "match" || origin === "projected-match" ? 3 : 0;
-      label[position] = searchDisplayLabel(indexToLabel[position], origin).replace(
+      if (origin === "match" || origin === "projected-match") accentedPointIndices.push(position);
+      label[position] = indexToLabel[position].replace(
         /[&<>"']/g,
         (character) => HTML_ENTITIES[character],
       );
@@ -157,8 +155,8 @@ export async function prepareGraph(
   signal.throwIfAborted();
   // Prefer matched labels when nearby labels compete for space. Chosen labels
   // remain separately owned; degree/size/color semantics are unchanged.
-  for (let position = 0; position < nodes.length; position++)
-    labelWeight[position] = degree[position] + (searchShape[position] === 3 ? maximumDegree + 1 : 0);
+  labelWeight.set(degree);
+  for (const position of accentedPointIndices) labelWeight[position] += maximumDegree + 1;
   const points = tableFromArrays({
     id,
     label,
@@ -169,7 +167,6 @@ export async function prepareGraph(
     typeColor,
     index,
     degree,
-    searchShape,
     labelWeight,
   });
   // Keep a typed source even with no edges: Cosmograph's zero-link transition still queries it.
@@ -191,7 +188,8 @@ export async function prepareGraph(
       pointIndexBy: "index",
       pointLabelBy: "label",
       pointLabelWeightBy: "labelWeight",
-      pointShapeBy: "searchShape",
+      accentedPointIndices,
+      accentedPointRingColor: SEARCH_MATCH_RING_COLOR,
       pointColorBy: "typeColor",
       pointColorStrategy: "direct",
       pointSizeBy: "degree",

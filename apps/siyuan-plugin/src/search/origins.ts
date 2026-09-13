@@ -7,6 +7,7 @@ export interface SearchOrigins {
   /** Visible representatives and the number of hidden original hits they carry. */
   projected: ReadonlyMap<string, number>;
 }
+export const SEARCH_MATCH_RING_COLOR = "#ff4fd8";
 export const SEARCH_ORIGIN_LABELS: Record<SearchOrigin, string> = {
   match: "直接命中",
   "projected-match": "命中投影",
@@ -40,10 +41,4 @@ export function searchOriginDescription(id: string, origins?: SearchOrigins): st
   if (origin === "ancestor") return "上级节点：为补齐搜索结果的祖先链加入。";
   if (origin === "projected-match") return `命中投影：${count} 个隐藏的命中块由此文档表示；该文档本身未直接命中当前搜索范围。`;
   return count ? `直接命中搜索，同时承载 ${count} 个隐藏命中块。` : "直接命中：来自原始搜索结果。";
-}
-
-/** Prefix only matches, keeping ancestor context labels compact. */
-export function searchDisplayLabel(label: string, origin?: SearchOrigin): string {
-  return origin === "match" ? `◆ 命中 · ${label}`
-    : origin === "projected-match" ? `◆ 命中投影 · ${label}` : label;
 }

@@ -1,3 +1,20 @@
+diff --git a/dist/config.d.ts b/dist/config.d.ts
+index 9aada332b9fea38b407a3edb8bb0877e34366014..ffe7ad5cf053c74e0ceb6a0edfc9faff7684e939 100644
+--- a/dist/config.d.ts
++++ b/dist/config.d.ts
+@@ -208,6 +208,12 @@ export interface GraphConfigInterface {
+      * Default value: `'white'`
+      */
+     outlinedPointRingColor: string | [number, number, number, number];
++    /** Decorative outer rings, independent of chosen outlines, focus and highlighting.
++     * Each ring is 2 CSS px thick, with a minimum outer diameter of 12 CSS px.
++     * Defaults to undefined; does not change point colors, size, or pinning. */
++    accentedPointIndices?: number[];
++    /** Color of the decorative outer rings. Default: '#ff4fd8'. */
++    accentedPointRingColor: string | [number, number, number, number];
+     /**
+      * Turns link rendering on / off.
+      * Default value: `true`
 diff --git a/dist/index.d.ts b/dist/index.d.ts
 index d1232d5454995e5bc20bc939cdb7cf797f7c679a..272422143d45d818b188315dabede73d0270f6ce 100644
 --- a/dist/index.d.ts
@@ -26,10 +43,19 @@ index d1232d5454995e5bc20bc939cdb7cf797f7c679a..272422143d45d818b188315dabede73d
       * Get current cluster coordinates.
       * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
 diff --git a/dist/index.js b/dist/index.js
-index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8fa93ef017 100644
+index c882ce202541233f37eb2513738d0eb758fde784..f48297a5433b680532775cada3bf41672bb8b1c1 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -4244,8 +4244,8 @@ void main() {
+@@ -747,6 +747,8 @@ const E = {
+   highlightedPointIndices: void 0,
+   outlinedPointIndices: void 0,
+   outlinedPointRingColor: "white",
++  accentedPointIndices: void 0,
++  accentedPointRingColor: "#ff4fd8",
+   // Links
+   renderLinks: !0,
+   linkDefaultColor: "#666666",
+@@ -4244,8 +4246,8 @@ void main() {
      // positioning points to custom cluster position or either to the center of mass;
      // the centermass texture holds [sum(x), sum(y), count, sum(z)] and the position
      // texture stores z in the alpha channel
@@ -40,7 +66,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
      vec3 centermass = vec3(centermassValues.rg, centermassValues.a) / centermassValues.b;
      vec3 clusterPositions;
      if (custom.x < 0.0 || custom.y < 0.0) {
-@@ -4265,9 +4265,9 @@ void main() {
+@@ -4265,9 +4267,9 @@ void main() {
      }
  #else
      // positioning points to custom cluster position or either to the center of mass
@@ -52,7 +78,161 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
        clusterPositions = centermassValues.xy / centermassValues.b;
      }
      vec4 clusterCustomCoeff = texture(clusterForceCoefficient, textureCoords);
-@@ -10270,7 +10270,7 @@ class hn {
+@@ -6224,6 +6226,7 @@ layout(std140) uniform drawFragmentUniforms {
+   float outlineWidth;
+   float renderMode;
+   float sphereShading;
++  vec4 accentColor;
+ } drawFragment;
+ 
+ #define greyoutOpacity drawFragment.greyoutOpacity
+@@ -6234,6 +6237,7 @@ layout(std140) uniform drawFragmentUniforms {
+ #define outlineWidth drawFragment.outlineWidth
+ #define renderMode drawFragment.renderMode
+ #define sphereShading drawFragment.sphereShading
++#define accentColor drawFragment.accentColor
+ #else
+ uniform float greyoutOpacity;
+ uniform float pointOpacity;
+@@ -6243,12 +6247,16 @@ uniform vec4 outlineColor;
+ uniform float outlineWidth;
+ uniform float renderMode;
+ uniform float sphereShading;
++uniform vec4 accentColor;
+ #endif
+ 
+ 
+ in float pointShape;
+ in float isGreyedOut;
+ in float isOutlined;
++in float isAccented;
++in float outlineSize;
++in float accentWidth;
+ in vec4 shapeColor;
+ in vec4 imageAtlasUV;
+ in float shapeSize;
+@@ -6492,7 +6500,7 @@ void main() {
+ 
+     // Render outline ring around the point
+     if (isOutlined > 0.0) {
+-        float r = length(pointCoord);
++        float r = length(pointCoord) * overallSize / max(outlineSize, 1e-6);
+         const float ringSmoothing = 1.025;
+         float rSafe = max(r, 1e-6);
+         float wSafe = max(outlineWidth, 1e-6);
+@@ -6536,6 +6544,22 @@ void main() {
+     // range computed per point in the vertex shader).
+     fragColor.rgb = mix(fragColor.rgb, backgroundColor.rgb, depthFadeVarying);
+ 
++    #endif
++
++    // Draw the accent after depth shading so its hue remains recognizable. It
++    // has its own status channel and never contributes to selection or pins.
++    if (isAccented > 0.0 && overallSize > 0.0) {
++        float radius = overallSize * 0.5;
++        float distancePx = length(pointCoord) * radius;
++        float aa = max(fwidth(distancePx), 0.5);
++        float ringAlpha = (1.0 - smoothstep(radius - aa, radius, distancePx))
++            * smoothstep(radius - accentWidth - aa, radius - accentWidth, distancePx);
++        coverage = max(coverage, ringAlpha);
++        float opacity = ringAlpha * accentColor.a * (isGreyedOut > 0.0 ? 0.5 : 1.0);
++        fragColor = vec4(mix(fragColor.rgb, accentColor.rgb, opacity), max(fragColor.a, opacity));
++    }
++
++    #ifdef SPACE_3D
+     // Depth writes are enabled in 3D: the transparent corners of the point sprite
+     // must not write depth, or they would punch invisible holes into points behind.
+     // Test geometric coverage, not final alpha — pointOpacity/greyoutOpacity and the
+@@ -6663,6 +6687,9 @@ uniform float pointDefaultSize;
+ out float pointShape;
+ out float isGreyedOut;
+ out float isOutlined;
++out float isAccented;
++out float outlineSize;
++out float accentWidth;
+ out vec4 shapeColor;
+ out vec4 imageAtlasUV;
+ out float shapeSize;
+@@ -6705,10 +6732,11 @@ vec4 resolveColor(vec4 color, float exitRamp) {
+ }
+ 
+ void main() {
+-  // Read point status texture: R = greyout, G = outlined
++  // Read point status texture: R = greyout, G = chosen outline, B = independent accent
+   vec4 status = texture(pointStatus, (pointIndices + 0.5) / pointsTextureSize);
+   isGreyedOut = status.r;
+   isOutlined = status.g;
++  isAccented = status.b;
+   float isHighlighted = (status.r == 0.0) ? 1.0 : 0.0;
+ 
+   // Discard point based on rendering mode
+@@ -6811,6 +6839,13 @@ void main() {
+     overallSizeValue = min(overallSizeValue, maxPointSize * ratio);
+   }
+ 
++  // Keep the chosen ring inside an independent, constant-pixel accent. Tiny
++  // nodes retain a 12 CSS px outer diameter and a 2 CSS px ring in both modes.
++  outlineSize = overallSizeValue;
++  accentWidth = 2.0 * ratio;
++  if (isAccented > 0.0 && overallSizeValue > 0.0) {
++    overallSizeValue = min(max(overallSizeValue + 8.0 * ratio, 12.0 * ratio), maxPointSize * ratio);
++  }
+   gl_PointSize = overallSizeValue;
+ 
+   // Pass size information to fragment shader
+@@ -7430,7 +7465,11 @@ void main() {
+   float shapeSizeValue = calculatePointSize(resolvedSize * sizeScale, pxPerUnit);
+   float imageSizeValue = calculatePointSize(imageSize * sizeScale, pxPerUnit);
+   // Device px → CSS px → picking-buffer px (the buffer is smaller than the screen)
+-  float spriteSize = max(shapeSizeValue, imageSizeValue) / ratio * pickingPixelRatio;
++  float spriteDiameter = max(shapeSizeValue, imageSizeValue);
++  if (greyoutStatus.g > 0.0) spriteDiameter = min(spriteDiameter * 1.3, maxPointSize * ratio);
++  if (greyoutStatus.b > 0.0 && spriteDiameter > 0.0)
++    spriteDiameter = min(max(spriteDiameter + 8.0 * ratio, 12.0 * ratio), maxPointSize * ratio);
++  float spriteSize = spriteDiameter / ratio * pickingPixelRatio;
+ 
+   float index = pointIndices.g * pointsTextureSize + pointIndices.r;
+   rgba = vec4(index, pointPosition.rg, pointPosition.a);
+@@ -8005,7 +8044,8 @@ class Oi extends W {
+           outlineColor: "vec4<f32>",
+           outlineWidth: "f32",
+           renderMode: "f32",
+-          sphereShading: "f32"
++          sphereShading: "f32",
++          accentColor: "vec4<f32>"
+         },
+         defaultUniforms: {
+           // -1 is a sentinel value for the shader: when greyoutOpacity is -1, the shader skips opacity override (i.e. "not set")
+@@ -8017,7 +8057,8 @@ class Oi extends W {
+           outlineColor: D(i.outlinedPointRingColor, [1, 1, 1, 1]),
+           outlineWidth: 0.9,
+           renderMode: 0,
+-          sphereShading: 0
++          sphereShading: 0,
++          accentColor: D(O(t.accentedPointRingColor), [1, 0.31, 0.85, 1])
+         }
+       }
+     })), this.drawCommand || (this.drawCommand = new b(e, {
+@@ -8502,6 +8543,8 @@ class Oi extends W {
+     if (a)
+       for (const d of s)
+         d >= 0 && d < i.pointsNumber && (l[d * 4 + 1] = 1);
++    for (const index of t.accentedPointIndices ?? [])
++      if (Number.isInteger(index) && index >= 0 && index < i.pointsNumber) l[index * 4 + 2] = 1;
+     const h = {
+       data: l,
+       bytesPerRow: y("rgba32float", n),
+@@ -8766,7 +8809,8 @@ class Oi extends W {
+       outlineColor: D(n.outlinedPointRingColor, [1, 1, 1, 1]),
+       outlineWidth: 0.9,
+       renderMode: 0,
+-      sphereShading: n.is3D && i.pointSphereShading ? 1 : 0
++      sphereShading: n.is3D && i.pointSphereShading ? 1 : 0,
++      accentColor: D(O(i.accentedPointRingColor), [1, 0.31, 0.85, 1])
+     }, r = {
+       positionsTexture: this.currentPositionTexture,
+       pointStatus: this.pointStatusTexture,
+@@ -10270,7 +10314,7 @@ class hn {
     */
    setPinnedPoints(e) {
      var t;
@@ -61,7 +241,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
    }
    /**
     * Renders the graph and starts rendering.
-@@ -10305,7 +10305,7 @@ class hn {
+@@ -10305,7 +10349,7 @@ class hn {
          void 0,
          o
        ) : this.fitView(s, o);
@@ -70,7 +250,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
      const h = (f = this.points) == null ? void 0 : f.currentPositionTexture;
      this.transition.isPending && (!h || h.destroyed) && this.transition.abort(), this.transition.start(), this._shouldForceHoverDetection = !0, this.requestRender(), this._isFirstRenderAfterInit = !1;
    }
-@@ -10372,6 +10372,15 @@ class hn {
+@@ -10372,6 +10416,15 @@ class hn {
    getZoomLevel() {
      return this._isDestroyed || this.warnIf3D("getZoomLevel") ? 0 : this.zoomInstance.eventTransform.k;
    }
@@ -86,7 +266,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
    /**
     * Get current point coordinates.
     * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
-@@ -10396,6 +10405,133 @@ class hn {
+@@ -10396,6 +10449,133 @@ class hn {
      }
      return n;
    }
@@ -220,7 +400,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
    /**
     * Get current cluster coordinates.
     * @param options Use `{ dimensions: 3 }` to return `[x, y, z]` coordinates.
-@@ -10712,7 +10848,7 @@ class hn {
+@@ -10712,7 +10892,7 @@ class hn {
      var t, i;
      if (this._isDestroyed) return;
      const e = this.store.isSimulationRunning || this.store.alpha > 0 || this.store.simulationProgress > 0;
@@ -229,7 +409,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
    }
    /**
     * Pause the simulation. When paused, the simulation stops running
-@@ -10721,7 +10857,7 @@ class hn {
+@@ -10721,7 +10901,7 @@ class hn {
     */
    pause() {
      var e, t;
@@ -238,7 +418,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
    }
    /**
     * Unpause the simulation. This method resumes a paused
-@@ -10742,6 +10878,7 @@ class hn {
+@@ -10742,6 +10922,7 @@ class hn {
     * Destroy this Cosmos instance.
     */
    destroy() {
@@ -246,7 +426,16 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
      var e, t, i, n, o, s, r, a, l, h, d, u, f, p;
      this._isDestroyed || (this._isDestroyed = !0, this.isReady = !1, this.transition.abort(), window.clearTimeout(this._fitViewOnInitTimeoutID), this.cancelLongPress(), this.stopFrames(), this.canvasD3Selection && this.canvasD3Selection.on(".cosmos", null).on(".drag", null).on(".zoom", null), _(document).on(`.${this.documentEventsNamespace}`, null), (e = this.zoomInstance) != null && e.behavior && this.zoomInstance.behavior.on("start.detect", null).on("zoom.detect", null).on("end.detect", null), (t = this.dragInstance) != null && t.behavior && this.dragInstance.behavior.on("start.detect", null).on("drag.detect", null).on("end.detect", null), (i = this.fpsMonitor) == null || i.destroy(), (n = this.points) == null || n.destroy(), (o = this.lines) == null || o.destroy(), (s = this.clusters) == null || s.destroy(), (r = this.forceGravity) == null || r.destroy(), (a = this.forceCenter) == null || a.destroy(), (l = this.forceManyBody) == null || l.destroy(), (h = this.forceLinkIncoming) == null || h.destroy(), (d = this.forceLinkOutgoing) == null || d.destroy(), (u = this.forceCollision) == null || u.destroy(), this.device && this.shouldDestroyDevice && (this.device.beginRenderPass({
        clearColor: this.store.backgroundColor,
-@@ -10814,10 +10951,11 @@ class hn {
+@@ -10801,7 +10982,7 @@ class hn {
+    */
+   updateStateFromConfig(e) {
+     var t, i, n, o, s, r, a, l, h, d, u, f, p, m, g, S, C;
+-    this.applyEnableSimulationConfigChange(e), e.pointDefaultColor !== this.config.pointDefaultColor && (this.graph.updatePointColor(), (t = this.points) == null || t.updateColor()), e.pointDefaultSize !== this.config.pointDefaultSize && (this.graph.updatePointSize(), (i = this.points) == null || i.updateSize()), e.pointDefaultShape !== this.config.pointDefaultShape && (this.graph.updatePointShape(), (n = this.points) == null || n.updateShape()), e.linkDefaultColor !== this.config.linkDefaultColor && (this.graph.updateLinkColor(), (o = this.lines) == null || o.updateColor()), e.linkDefaultWidth !== this.config.linkDefaultWidth && (this.graph.updateLinkWidth(), (s = this.lines) == null || s.updateWidth()), e.linkDefaultArrows !== this.config.linkDefaultArrows && (this.graph.updateArrows(), (r = this.lines) == null || r.updateArrow()), e.linkDefaultStyle !== this.config.linkDefaultStyle && (this.graph.updateLinkStyles(), (a = this.lines) == null || a.updateStyle()), e.linkColorInterpolateFromEndpoints !== this.config.linkColorInterpolateFromEndpoints && ((l = this.points) == null || l.updateColor()), e.linkBlending !== this.config.linkBlending && ((h = this.lines) == null || h.updateLinkBlending()), (e.curvedLinkSegments !== this.config.curvedLinkSegments || e.curvedLinks !== this.config.curvedLinks) && ((d = this.lines) == null || d.updateCurveLineGeometry()), e.backgroundColor !== this.config.backgroundColor && (this.store.backgroundColor = O(this.config.backgroundColor)), e.hoveredPointRingColor !== this.config.hoveredPointRingColor && this.store.setHoveredPointRingColor(this.config.hoveredPointRingColor), e.focusedPointRingColor !== this.config.focusedPointRingColor && this.store.setFocusedPointRingColor(this.config.focusedPointRingColor), e.pointGreyoutColor !== this.config.pointGreyoutColor && this.store.setGreyoutPointColor(this.config.pointGreyoutColor), e.hoveredLinkColor !== this.config.hoveredLinkColor && this.store.setHoveredLinkColor(this.config.hoveredLinkColor), e.focusedPointIndex !== this.config.focusedPointIndex && this.store.setFocusedPoint(this.config.focusedPointIndex), e.outlinedPointRingColor !== this.config.outlinedPointRingColor && this.store.setOutlinedPointRingColor(this.config.outlinedPointRingColor), e.highlightedPointIndices !== this.config.highlightedPointIndices && this.store.setHighlightedPointSet(this.config.highlightedPointIndices), e.outlinedPointIndices !== this.config.outlinedPointIndices && this.store.setOutlinedPointSet(this.config.outlinedPointIndices), (e.highlightedPointIndices !== this.config.highlightedPointIndices || e.outlinedPointIndices !== this.config.outlinedPointIndices) && ((u = this.points) == null || u.updatePointStatus()), e.highlightedLinkIndices !== this.config.highlightedLinkIndices && ((f = this.lines) == null || f.updateLinkStatus()), (e.simulationCollisionRadius !== this.config.simulationCollisionRadius || e.simulationCollisionPadding !== this.config.simulationCollisionPadding || (this.config.simulationCollisionRadius === void 0 || this.config.simulationCollisionRadius === 0) && e.pointDefaultSize !== this.config.pointDefaultSize) && (this.isForceCollisionReady = !1), e.pixelRatio !== this.config.pixelRatio && (p = this.device) != null && p.canvasContext && (this.device.canvasContext.setProps({ useDevicePixels: this.config.pixelRatio }), this.store.maxPointSize = we(this.device, this.config.pixelRatio)), e.spaceSize !== this.config.spaceSize && (this.store.adjustSpaceSize(this.config.spaceSize, ((m = this.device) == null ? void 0 : m.limits.maxTextureDimension2D) ?? 4096), this.isForceManyBodyUpdateNeeded = !0, this.resizeCanvas(!0), this.update(this.store.isSimulationRunning ? this.store.alpha : 0)), e.showFPSMonitor !== this.config.showFPSMonitor && (this.config.showFPSMonitor ? this.fpsMonitor = new _e(this.canvas) : ((g = this.fpsMonitor) == null || g.destroy(), this.fpsMonitor = void 0)), (e.enableZoom !== this.config.enableZoom || e.enableDrag !== this.config.enableDrag) && this.updateZoomDragBehaviors(), e.pointSamplingDistance !== this.config.pointSamplingDistance && ((S = this.points) == null || S.updateSampledPointsGrid()), e.linkSamplingDistance !== this.config.linkSamplingDistance && ((C = this.lines) == null || C.updateSampledLinksGrid()), e.spaceDimensions !== this.config.spaceDimensions && this.setSpaceDimensions(this.config.spaceDimensions), (e.cameraFov !== this.config.cameraFov || e.cameraNear !== this.config.cameraNear || e.cameraFar !== this.config.cameraFar) && this.store.is3D && this.camera.updateMatrices(), (e.onLinkClick !== this.config.onLinkClick || e.onLinkContextMenu !== this.config.onLinkContextMenu || e.onLinkMouseOver !== this.config.onLinkMouseOver || e.onLinkMouseOut !== this.config.onLinkMouseOut) && this.store.updateLinkHoveringEnabled(this.config), this.markPickingBuffersStale(), this.requestRender();
++    this.applyEnableSimulationConfigChange(e), e.pointDefaultColor !== this.config.pointDefaultColor && (this.graph.updatePointColor(), (t = this.points) == null || t.updateColor()), e.pointDefaultSize !== this.config.pointDefaultSize && (this.graph.updatePointSize(), (i = this.points) == null || i.updateSize()), e.pointDefaultShape !== this.config.pointDefaultShape && (this.graph.updatePointShape(), (n = this.points) == null || n.updateShape()), e.linkDefaultColor !== this.config.linkDefaultColor && (this.graph.updateLinkColor(), (o = this.lines) == null || o.updateColor()), e.linkDefaultWidth !== this.config.linkDefaultWidth && (this.graph.updateLinkWidth(), (s = this.lines) == null || s.updateWidth()), e.linkDefaultArrows !== this.config.linkDefaultArrows && (this.graph.updateArrows(), (r = this.lines) == null || r.updateArrow()), e.linkDefaultStyle !== this.config.linkDefaultStyle && (this.graph.updateLinkStyles(), (a = this.lines) == null || a.updateStyle()), e.linkColorInterpolateFromEndpoints !== this.config.linkColorInterpolateFromEndpoints && ((l = this.points) == null || l.updateColor()), e.linkBlending !== this.config.linkBlending && ((h = this.lines) == null || h.updateLinkBlending()), (e.curvedLinkSegments !== this.config.curvedLinkSegments || e.curvedLinks !== this.config.curvedLinks) && ((d = this.lines) == null || d.updateCurveLineGeometry()), e.backgroundColor !== this.config.backgroundColor && (this.store.backgroundColor = O(this.config.backgroundColor)), e.hoveredPointRingColor !== this.config.hoveredPointRingColor && this.store.setHoveredPointRingColor(this.config.hoveredPointRingColor), e.focusedPointRingColor !== this.config.focusedPointRingColor && this.store.setFocusedPointRingColor(this.config.focusedPointRingColor), e.pointGreyoutColor !== this.config.pointGreyoutColor && this.store.setGreyoutPointColor(this.config.pointGreyoutColor), e.hoveredLinkColor !== this.config.hoveredLinkColor && this.store.setHoveredLinkColor(this.config.hoveredLinkColor), e.focusedPointIndex !== this.config.focusedPointIndex && this.store.setFocusedPoint(this.config.focusedPointIndex), e.outlinedPointRingColor !== this.config.outlinedPointRingColor && this.store.setOutlinedPointRingColor(this.config.outlinedPointRingColor), e.highlightedPointIndices !== this.config.highlightedPointIndices && this.store.setHighlightedPointSet(this.config.highlightedPointIndices), e.outlinedPointIndices !== this.config.outlinedPointIndices && this.store.setOutlinedPointSet(this.config.outlinedPointIndices), (e.highlightedPointIndices !== this.config.highlightedPointIndices || e.outlinedPointIndices !== this.config.outlinedPointIndices || e.accentedPointIndices !== this.config.accentedPointIndices) && ((u = this.points) == null || u.updatePointStatus()), e.highlightedLinkIndices !== this.config.highlightedLinkIndices && ((f = this.lines) == null || f.updateLinkStatus()), (e.simulationCollisionRadius !== this.config.simulationCollisionRadius || e.simulationCollisionPadding !== this.config.simulationCollisionPadding || (this.config.simulationCollisionRadius === void 0 || this.config.simulationCollisionRadius === 0) && e.pointDefaultSize !== this.config.pointDefaultSize) && (this.isForceCollisionReady = !1), e.pixelRatio !== this.config.pixelRatio && (p = this.device) != null && p.canvasContext && (this.device.canvasContext.setProps({ useDevicePixels: this.config.pixelRatio }), this.store.maxPointSize = we(this.device, this.config.pixelRatio)), e.spaceSize !== this.config.spaceSize && (this.store.adjustSpaceSize(this.config.spaceSize, ((m = this.device) == null ? void 0 : m.limits.maxTextureDimension2D) ?? 4096), this.isForceManyBodyUpdateNeeded = !0, this.resizeCanvas(!0), this.update(this.store.isSimulationRunning ? this.store.alpha : 0)), e.showFPSMonitor !== this.config.showFPSMonitor && (this.config.showFPSMonitor ? this.fpsMonitor = new _e(this.canvas) : ((g = this.fpsMonitor) == null || g.destroy(), this.fpsMonitor = void 0)), (e.enableZoom !== this.config.enableZoom || e.enableDrag !== this.config.enableDrag) && this.updateZoomDragBehaviors(), e.pointSamplingDistance !== this.config.pointSamplingDistance && ((S = this.points) == null || S.updateSampledPointsGrid()), e.linkSamplingDistance !== this.config.linkSamplingDistance && ((C = this.lines) == null || C.updateSampledLinksGrid()), e.spaceDimensions !== this.config.spaceDimensions && this.setSpaceDimensions(this.config.spaceDimensions), (e.cameraFov !== this.config.cameraFov || e.cameraNear !== this.config.cameraNear || e.cameraFar !== this.config.cameraFar) && this.store.is3D && this.camera.updateMatrices(), (e.onLinkClick !== this.config.onLinkClick || e.onLinkContextMenu !== this.config.onLinkContextMenu || e.onLinkMouseOver !== this.config.onLinkMouseOver || e.onLinkMouseOut !== this.config.onLinkMouseOut) && this.store.updateLinkHoveringEnabled(this.config), this.markPickingBuffersStale(), this.requestRender();
+   }
+   /**
+    * Applies `enableSimulation` lifecycle changes triggered by config updates.
+@@ -10814,10 +10995,11 @@ class hn {
        return;
      }
      const t = this.store.isSimulationRunning || this.store.alpha > 0 || this.store.simulationProgress > 0;
@@ -259,7 +448,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
      var t;
      this.isPointPositionsUpdateNeeded = !0;
      const e = (t = this.points) == null ? void 0 : t.currentPositionTexture;
-@@ -10831,6 +10969,7 @@ class hn {
+@@ -10831,6 +11013,7 @@ class hn {
    setSpaceDimensions(e) {
      var t;
      if (this.store.spaceDimensions !== e) {
@@ -267,7 +456,7 @@ index c882ce202541233f37eb2513738d0eb758fde784..ed876c5f7d0733b8e82ac8fd2347fe8f
        if (this.store.spaceDimensions = e, this.isForceCollisionReady = !1, (t = this.forceManyBody) == null || t.create(), this.initPrograms(), e === 3) {
          const [i, n] = this.store.screenSize;
          i && n && this.camera.setViewport(i, n), this.handOffFramingTo3D() || this.maybeInitializeCamera();
-@@ -11091,7 +11230,7 @@ class hn {
+@@ -11091,7 +11274,7 @@ class hn {
     */
    end() {
      var e, t;

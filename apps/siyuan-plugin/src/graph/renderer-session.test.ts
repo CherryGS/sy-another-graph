@@ -1047,6 +1047,32 @@ describe("renderer lifetime", () => {
     await h.session.dispose();
   });
 
+  it("retains search accent rings through selection and dimension changes and clears them with the source", async () => {
+    const h = harness();
+    const prepared = data();
+    prepared.config.accentedPointIndices = [0, 1];
+    prepared.config.accentedPointRingColor = "#ff4fd8";
+    await h.session.update(prepared, { spaceDimensions: 2 });
+    expect(h.configurations.at(-1)!.accentedPointIndices).toEqual([0, 1]);
+    expect(h.session.getDiagnostics().outlinedCount).toBe(0);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([]);
+    h.session.controls("a", true, ["a"], ["a"]);
+    await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(1));
+    expect(h.configurations.at(-1)).toMatchObject({ accentedPointIndices: [0, 1], outlinedPointIndices: [0] });
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
+    await h.session.update(prepared, { spaceDimensions: 3 });
+    expect(h.configurations.at(-1)).toMatchObject({ spaceDimensions: 3, accentedPointIndices: [0, 1], accentedPointRingColor: "#ff4fd8" });
+    h.session.controls(null, true);
+    await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(0));
+    expect(h.configurations.at(-1)!.accentedPointIndices).toEqual([0, 1]);
+    const ordinary = data("next");
+    ordinary.config.accentedPointIndices = [];
+    await h.session.update(ordinary, { spaceDimensions: 2 });
+    expect(h.configurations.at(-1)!.accentedPointIndices).toEqual([]);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([]);
+    await h.session.dispose();
+  });
+
   it("applies only the latest chosen outline mask during an earlier visual update", async () => {
     const h = harness();
     await h.session.update(data(), {});

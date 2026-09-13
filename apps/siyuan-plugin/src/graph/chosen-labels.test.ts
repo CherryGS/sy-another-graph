@@ -135,9 +135,9 @@ describe("persistent chosen labels", () => {
     const data = prepared(3);
     data.searchOrigins = { matches: new Set(["id-0"]), projected: new Map([["id-1", 2]]) };
     h.labels.update(data, ["id-0", "id-2"], ["id-1"]);
-    expect(h.button("id-0").textContent).toBe("◆ 命中 · <img src='invalid'>");
+    expect(h.button("id-0").textContent).toBe("<img src='invalid'>");
     expect(h.button("id-0").attributes["aria-label"]).toContain("已选（直接命中）");
-    expect(h.button("id-1").textContent).toBe("◆ 命中投影 · Node 1");
+    expect(h.button("id-1").textContent).toBe("Node 1");
     expect(h.button("id-1").attributes["aria-label"]).toContain("关系端点（命中投影）");
     expect(h.button("id-2").attributes["aria-label"]).toContain("已选（上级节点）");
     h.labels.update(data, [], []);

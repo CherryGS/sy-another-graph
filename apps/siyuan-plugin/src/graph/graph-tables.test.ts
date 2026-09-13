@@ -87,8 +87,8 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     { id: "alpha", index: 0 },
     { id: "beta", index: 1 },
   ]);
-  expect(connection.query(`SELECT id, "searchShape", label FROM "${first.points}" ORDER BY "index"`).toArray().map(row => row.toJSON()))
-    .toEqual([{ id: "alpha", searchShape: 3, label: "◆ 命中 · Alpha" }, { id: "beta", searchShape: 0, label: "Beta" }]);
+  expect(connection.query(`SELECT id, label FROM "${first.points}" ORDER BY "index"`).toArray().map(row => row.toJSON()))
+    .toEqual([{ id: "alpha", label: "Alpha" }, { id: "beta", label: "Beta" }]);
   expect(
     connection
       .query(

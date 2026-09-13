@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import { getNodeTypeCounts } from "../data/graph-summary";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import {
@@ -19,7 +18,7 @@ import {
   nodeTypeColor,
 } from "./node-colors";
 import type { CanvasNode } from "./types";
-import { SEARCH_ORIGIN_LABELS, searchNodeOrigin, type SearchOrigin, type SearchOrigins } from "../search/origins";
+import { SEARCH_ORIGIN_LABELS, SEARCH_MATCH_RING_COLOR, searchNodeOrigin, type SearchOrigin, type SearchOrigins } from "../search/origins";
 
 export function GraphLegend({
   nodes,
@@ -80,14 +79,16 @@ export function GraphLegend({
                   {(["match", "projected-match", "ancestor"] as const).filter(origin => origin !== "projected-match" || origins[origin] > 0).map(origin => (
                     <div key={origin} className="flex items-center gap-3">
                       <dt className="flex flex-1 items-center gap-2">
-                        <span aria-hidden="true" className={cn("size-2.5 shrink-0 bg-foreground", origin === "ancestor" ? "rounded-full" : "rotate-45")} />
-                        {origin === "ancestor" ? "圆点" : "菱形"} · {SEARCH_ORIGIN_LABELS[origin]}
+                        <span aria-hidden="true" className="flex size-3.5 shrink-0 items-center justify-center rounded-full border-2" style={{ borderColor: origin === "ancestor" ? "transparent" : SEARCH_MATCH_RING_COLOR }}>
+                          <span className="size-1 rounded-full bg-foreground" />
+                        </span>
+                        {origin === "ancestor" ? "无色环" : "洋红色环"} · {SEARCH_ORIGIN_LABELS[origin]}
                       </dt>
                       <dd className="tabular-nums">{origins[origin].toLocaleString()}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className="text-xs leading-relaxed text-muted-foreground">菱形及“命中”标签标记搜索结果；命中投影表示隐藏的命中块由文档承载。外圈仍表示选中或查看状态，节点颜色沿用当前配色。数量以当前可见节点为准。</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">洋红色环标记搜索命中及其文档投影，小节点也保留可见环宽。节点颜色和标签沿用原样，选中与查看状态仍使用原有标记。数量以当前可见节点为准。</p>
                 <Separator />
               </>
             )}
