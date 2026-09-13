@@ -510,6 +510,65 @@ describe("source exclusion and current endpoint projection", () => {
 });
 
 describe("optional virtual containment", () => {
+  const searchTree = () => dataset([
+    node("D", 0), block("H", 1, "h", "D"),
+    block("list", 2, "l", "D", "H"), block("item", 3, "i", "D", "list"),
+    block("child", 4, "p", "D", "item"), node("target", 5),
+  ], [["list", "target"], ["item", "target"]]);
+
+  it("connects search hits through unmatched containers without importing their nodes or references", () => {
+    const data = searchTree();
+    const hits = new Set(["D", "H", "child", "target"]);
+    const disabled = projectGraph(data, filters(), hits);
+    const graph = projectGraph(data, filters({ hierarchy: true }), hits);
+    expect(ids(graph)).toEqual(ids(disabled));
+    expect(graph.sourceIds).toEqual(hits);
+    expect(pairs(graph, "reference")).toEqual([]);
+    expect(pairs(disabled, "hierarchy")).toEqual([]);
+    expect(pairs(graph, "hierarchy")).toEqual(["D>H", "H>child"]);
+    expect(graph.edges.find(edge => edge.target === 4)?.provenance).toEqual([
+      { sourceId: "H", targetId: "child", kind: "hierarchy", weight: 1, viaIds: ["list", "item"] },
+    ]);
+    expect(reached(graph, ["H"], 1)).toEqual(new Set([1, 4]));
+    expect(shortestPath(graph, "H", "child", "out")).toEqual(["H", "child"]);
+  });
+
+  it("stops at the nearest visible hit and composes with type-hidden matched containers", () => {
+    const data = searchTree();
+    const hits = new Set(["H", "list", "child"]);
+    const graph = projectGraph(data, filters({ hierarchy: true }), hits);
+    expect(pairs(graph, "hierarchy")).toEqual(["H>list", "list>child"]);
+    expect(graph.edges.find(edge => edge.target === 4)?.provenance?.[0]?.viaIds).toEqual(["item"]);
+    const hidden = projectGraph(data, filters({ hierarchy: true, hiddenTypes: ["l"] }), hits);
+    expect(pairs(hidden, "hierarchy")).toEqual(["H>child"]);
+    expect(hidden.edges[0].provenance?.[0]?.viaIds).toEqual(["list", "item"]);
+  });
+
+  it("keeps scope, child-document, notebook and exclusion boundaries while tracing unmatched ancestors", () => {
+    const data = searchTree();
+    const hits = new Set(["H", "child"]);
+    expect(pairs(projectGraph(data, filters({ hierarchy: true, scopeId: "list" }), hits), "hierarchy")).toEqual([]);
+    expect(ids(projectGraph(data, filters({ hierarchy: true, excludeIds: ["item"] }), hits))).toEqual(["H"]);
+    const otherNotebook = { ...data, nodes: data.nodes.map(node => node.id === "item" ? { ...node, notebook: "other" } : node) };
+    expect(pairs(projectGraph(otherNotebook, filters({ hierarchy: true, notebook: "book" }), hits), "hierarchy")).toEqual([]);
+    const documents = dataset([node("D", 0), node("subdoc", 1), block("child", 2, "p", "subdoc")], [["D", "subdoc", "hierarchy"]]);
+    expect(ids(projectGraph(documents, filters({ hierarchy: true, scopeId: "D", includeChildDocuments: false }), new Set(["D", "child"])))).toEqual(["D"]);
+  });
+
+  it("does not use an unmatched document representative as a containment source", () => {
+    const graph = projectGraph(searchTree(), filters({ hierarchy: true, hiddenTypes: ["p"] }), new Set(["H", "child"]));
+    expect(ids(graph)).toEqual(["D", "H"]);
+    expect(pairs(graph, "hierarchy")).toEqual([]);
+    expect(graph.sourceIds.has("D")).toBe(false);
+  });
+
+  it("terminates a cycle through unmatched parents without inventing a connection", () => {
+    const data = searchTree();
+    data.nodes.find(node => node.id === "list")!.parentId = "item";
+    const graph = projectGraph(data, filters({ hierarchy: true }), new Set(["H", "child"]));
+    expect(pairs(graph, "hierarchy")).toEqual([]);
+  });
+
   it("includes each parent-to-child edge as one hop only while containment is enabled", () => {
     const data = dataset(
       [

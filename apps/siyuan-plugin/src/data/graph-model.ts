@@ -294,10 +294,14 @@ export function projectGraph(
       const viaIds: string[] = [];
       while (ancestor && !visited.has(ancestor)) {
         visited.add(ancestor);
-        if (!candidates.has(ancestor)) break;
         const parent = byId.get(ancestor);
-        if (!parent) break;
-        if (eligibleIds.has(ancestor)) {
+        // Search results can omit structural containers between two hits.
+        // Trace those parents as evidence without admitting their source facts;
+        // explicit scope, notebook and exclusion boundaries still stop the walk.
+        if (!parent || !isBlock(parent) || excludedIds.has(ancestor) ||
+            (scopeIds && !scopeIds.has(ancestor)) ||
+            (filters.notebook && parent.notebook !== filters.notebook)) break;
+        if (candidates.has(ancestor) && eligibleIds.has(ancestor)) {
           const provenance: GraphProvenance = {
             sourceId: ancestor,
             targetId: node.id,

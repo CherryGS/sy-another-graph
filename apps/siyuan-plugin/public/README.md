@@ -31,6 +31,8 @@ supported. Grouping by document does not add context documents to the matches.
 A search starts with all matched block types visible. It does not automatically
 include descendants or select every node. Existing filters can further narrow
 the result boundary; neighborhood and path operations stay inside it.
+With containment enabled, matched ancestors and descendants remain connected
+through omitted parent containers; those containers are retained as edge evidence.
 
 Open **Filter** to edit the temporary preset or **Return to original configuration**.
 Your previous preset and its unsaved filter changes are retained. The temporary
