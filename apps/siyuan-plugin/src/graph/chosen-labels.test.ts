@@ -130,6 +130,20 @@ function harness(count = 2) {
 }
 
 describe("persistent chosen labels", () => {
+  it("keeps search origin visible in chosen and relationship labels without adding label owners", () => {
+    const h = harness(3);
+    const data = prepared(3);
+    data.searchOrigins = { matches: new Set(["id-0"]), projected: new Map([["id-1", 2]]) };
+    h.labels.update(data, ["id-0", "id-2"], ["id-1"]);
+    expect(h.button("id-0").textContent).toBe("◆ 命中 · <img src='invalid'>");
+    expect(h.button("id-0").attributes["aria-label"]).toContain("已选（直接命中）");
+    expect(h.button("id-1").textContent).toBe("◆ 命中投影 · Node 1");
+    expect(h.button("id-1").attributes["aria-label"]).toContain("关系端点（命中投影）");
+    expect(h.button("id-2").attributes["aria-label"]).toContain("已选（上级节点）");
+    h.labels.update(data, [], []);
+    expect(h.host.children[0].children).toHaveLength(0);
+    h.labels.dispose();
+  });
   it("keeps pinned coordinates through simulation, pause-control updates, and camera projection", async () => {
     const h = harness();
     const data = prepared(2);

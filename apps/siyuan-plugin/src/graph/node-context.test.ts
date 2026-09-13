@@ -1,6 +1,16 @@
 import { expect, it } from "vitest";
 import { nodeContext } from "./node-context";
 
+it("explains search origin separately from a node's type and source title", () => {
+  const node = { id: "doc", label: "Title", index: 0, degree: 1, color: "#fff", notebook: "", path: "", blockType: "d" };
+  const context = nodeContext(node, {}, { matches: new Set(), projected: new Map([["doc", 2]]) });
+  expect(context.title).toBe("Title");
+  expect(context.lines[0]).toBe("文档");
+  expect(context.lines[1]).toContain("命中投影：2 个隐藏的命中块");
+  expect(nodeContext(node, {}, { matches: new Set(["doc"]), projected: new Map() }).lines[1]).toContain("直接命中");
+  expect(nodeContext(node, {}, { matches: new Set(), projected: new Map() }).lines[1]).toContain("上级节点");
+});
+
 it("keeps distinguishing source context as literal text with a bounded excerpt", () => {
   const context = nodeContext(
     {

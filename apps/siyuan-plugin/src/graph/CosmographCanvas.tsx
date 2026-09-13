@@ -108,6 +108,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     chosenIds,
     highlightedIds,
     spotlightIds,
+    searchOrigins,
     active: visible = true,
     colorBy = "type",
     settings = DEFAULT_GRAPH_SETTINGS,
@@ -145,7 +146,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
   );
   const [error, setError] = useState<string | null>(null);
   const [hovered, setHovered] = useState<CanvasNode | null>(null);
-  const context = hovered ? nodeContext(hovered, props.notebookNames) : null;
+  const context = hovered ? nodeContext(hovered, props.notebookNames, searchOrigins) : null;
   const [retry, setRetry] = useState(0);
   useLayoutEffect(() => {
     latestProps.current = props;
@@ -389,7 +390,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     setPrepared(null);
     setError(null);
     setHovered(null);
-    void prepareGraph(nodes, edges, controller.signal)
+    void prepareGraph(nodes, edges, controller.signal, searchOrigins)
       .then((result) => {
         if (!controller.signal.aborted) {
           setPrepared(result);
@@ -403,7 +404,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
         }
       });
     return () => controller.abort();
-  }, [nodes, edges, retry]);
+  }, [nodes, edges, searchOrigins, retry]);
 
   useEffect(() => {
     if (!session || !prepared) return;

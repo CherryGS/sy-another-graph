@@ -17,6 +17,31 @@ function node(id: string, index: number): CanvasNode {
 }
 
 describe("prepareGraph", () => {
+  it("encodes search shapes and escaped display labels without changing colors, identities, or interactions", async () => {
+    const nodes = [{ ...node("ancestor", 30), degree: 500 }, { ...node("hit", 4), label: '<img src="https://invalid.example/pixel"> & Hit' }, node("projection", 90)];
+    const edges = [{ source: 30, target: 4, kind: "hierarchy" as const, weight: 1 }];
+    const origins = { matches: new Set(["hit"]), projected: new Map([["projection", 2]]) };
+    const marked = await prepareGraph(nodes, edges, new AbortController().signal, origins);
+    const ordinary = await prepareGraph(nodes, edges, new AbortController().signal);
+    const markedPoints = marked.config.points as Table;
+    const ordinaryPoints = ordinary.config.points as Table;
+    expect(marked.config.pointShapeBy).toBe("searchShape");
+    expect(Array.from(markedPoints.getChild("searchShape")!)).toEqual([0, 3, 3]);
+    expect(Array.from(ordinaryPoints.getChild("searchShape")!)).toEqual([0, 0, 0]);
+    expect(marked.config.pointLabelWeightBy).toBe("labelWeight");
+    expect(markedPoints.getChild("labelWeight")!.get(1)).toBeGreaterThan(markedPoints.getChild("labelWeight")!.get(0));
+    expect(Array.from(ordinaryPoints.getChild("labelWeight")!)).toEqual(Array.from(ordinaryPoints.getChild("degree")!));
+    expect(markedPoints.getChild("label")!.get(1)).toBe("◆ 命中 · &lt;img src=&quot;https://invalid.example/pixel&quot;&gt; &amp; Hit");
+    expect(markedPoints.getChild("label")!.get(2)).toBe("◆ 命中投影 · projection");
+    expect(marked.indexToLabel).toEqual(nodes.map(node => node.label));
+    expect(marked.indexToId).toEqual(ordinary.indexToId);
+    expect(marked.indexToEdge).toEqual(ordinary.indexToEdge);
+    for (const column of ["color", "branchColor", "degreeColor", "typeColor", "degree"])
+      expect(Array.from(markedPoints.getChild(column)!)).toEqual(Array.from(ordinaryPoints.getChild(column)!));
+    expect(marked.config.outlinedPointIndices).toBeUndefined();
+    expect(marked.searchOrigins).toBe(origins);
+    expect(ordinary.searchOrigins).toBeUndefined();
+  });
   it("remaps filtered stable indices to dense points and removes dangling links", async () => {
     const result = await prepareGraph(
       [node("gamma", 18), node("alpha", 3)],

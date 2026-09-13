@@ -95,6 +95,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             </Tooltip>
             <GraphLegend
               nodes={view.nodes}
+              searchOrigins={state.searchOrigins}
               anchorRef={toolbarRef}
             />
           </div>
@@ -201,6 +202,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               chosenIds={state.chosenIds}
               highlightedIds={highlightedIds}
               spotlightIds={state.spotlightIds}
+              searchOrigins={state.searchOrigins}
               active={active}
               colorBy={state.colorBy}
               settings={state.graphSettings}

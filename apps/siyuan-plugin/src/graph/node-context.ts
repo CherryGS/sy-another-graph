@@ -1,11 +1,13 @@
 import type { CanvasNode } from "./types";
 import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
+import { searchOriginDescription, type SearchOrigins } from "../search/origins";
 
 /** Context is rendered as text, never as source HTML or Markdown. */
 export function nodeContext(
   node: CanvasNode,
   notebookNames: Readonly<Record<string, string>> = {},
+  searchOrigins?: SearchOrigins,
 ) {
   const type = nodeType(node);
   const typeLabel = Object.hasOwn(NODE_TYPE_LABELS, type)
@@ -13,6 +15,8 @@ export function nodeContext(
     : type;
   const notebook = notebookNames[node.notebook];
   const lines = [notebook ? `${typeLabel} · ${notebook}` : typeLabel];
+  const origin = searchOriginDescription(node.id, searchOrigins);
+  if (origin) lines.push(origin);
   if (node.documentLabel && node.documentLabel !== node.label)
     lines.push(node.documentLabel);
   if (node.heading && node.heading !== node.label) lines.push(node.heading);

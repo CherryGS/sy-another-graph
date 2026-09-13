@@ -1,6 +1,7 @@
 import type { GraphColorMode } from "./node-colors";
 import type { GraphEdge, GraphNode } from "../data/types";
 import type { GraphSettings } from "./settings";
+import type { SearchOrigins } from "../search/origins";
 
 export type CanvasNode = GraphNode;
 export type CanvasEdge = GraphEdge;
@@ -26,6 +27,8 @@ export interface CosmographCanvasProps {
   chosenIds: readonly string[];
   highlightedIds?: readonly string[];
   spotlightIds?: readonly string[];
+  /** Search origin markings are independent of selection, focus, and pinning. */
+  searchOrigins?: SearchOrigins;
   active?: boolean;
   colorBy?: GraphColorMode;
   settings?: GraphSettings;

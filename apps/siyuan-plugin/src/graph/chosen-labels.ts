@@ -1,5 +1,6 @@
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasNode } from "./types";
+import { SEARCH_ORIGIN_LABELS, searchNodeOrigin, searchDisplayLabel } from "../search/origins";
 import { pointAt, projectPosition, type AsyncPointGeometry, type Dimensions, type PointPosition } from "./geometry";
 interface LabelScheduler {
   frame(callback: () => void): number;
@@ -131,10 +132,11 @@ export class ChosenLabels {
       label.className = chosen.has(id)
         ? "ag-canvas__chosen-label"
         : "ag-canvas__chosen-label ag-canvas__chosen-label--spotlight";
-      label.textContent = data!.indexToLabel[index];
+      const origin = searchNodeOrigin(id, data!.searchOrigins);
+      label.textContent = searchDisplayLabel(data!.indexToLabel[index], origin);
       label.setAttribute(
         "aria-label",
-        `${chosen.has(id) ? "已选" : "关系端点"}：${data!.indexToLabel[index]}`,
+        `${chosen.has(id) ? "已选" : "关系端点"}${origin ? `（${SEARCH_ORIGIN_LABELS[origin]}）` : ""}：${data!.indexToLabel[index]}`,
       );
     }
     this.refresh();

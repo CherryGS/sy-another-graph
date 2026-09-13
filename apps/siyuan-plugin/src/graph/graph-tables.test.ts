@@ -75,6 +75,7 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     ],
     [{ source: 4, target: 9, kind: "reference", weight: 2 }],
     new AbortController().signal,
+    { matches: new Set(["alpha"]), projected: new Map() },
   );
   const first = await store.stage(prepared);
   expect(
@@ -86,6 +87,8 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     { id: "alpha", index: 0 },
     { id: "beta", index: 1 },
   ]);
+  expect(connection.query(`SELECT id, "searchShape", label FROM "${first.points}" ORDER BY "index"`).toArray().map(row => row.toJSON()))
+    .toEqual([{ id: "alpha", searchShape: 3, label: "◆ 命中 · Alpha" }, { id: "beta", searchShape: 0, label: "Beta" }]);
   expect(
     connection
       .query(

@@ -54,6 +54,7 @@ export function useWorkbenchFilters(data: GraphDataset | null, dataRef: RefObjec
     filters,
     setFilters: sessions.setFilters,
     resetFilters: sessions.reset,
+    matchedIds,
     searchIds,
     searchScope: temporary ? `搜索 ${temporary.ids.size.toLocaleString()} 个命中及上级` : undefined,
     filterPresets: {

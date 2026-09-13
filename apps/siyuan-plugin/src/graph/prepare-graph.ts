@@ -2,6 +2,7 @@ import { Table, tableFromArrays, vectorFromArray, Utf8 } from "apache-arrow";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { CanvasEdge, CanvasNode } from "./types";
 import { nodeColor } from "./node-colors";
+import { searchNodeOrigin, searchDisplayLabel, type SearchOrigins } from "../search/origins";
 
 const CHUNK_SIZE = 8192;
 const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
@@ -37,6 +38,7 @@ export interface PreparedGraph {
   pointsCount: number;
   linksCount: number;
   preparationMs: number;
+  searchOrigins?: SearchOrigins;
 }
 
 /** Keep the source graph's stable indices at the boundary, then densely index the visible graph. */
@@ -44,6 +46,7 @@ export async function prepareGraph(
   nodes: readonly CanvasNode[],
   edges: readonly CanvasEdge[],
   signal: AbortSignal,
+  searchOrigins?: SearchOrigins,
 ): Promise<PreparedGraph> {
   const started = performance.now();
   signal.throwIfAborted();
@@ -57,6 +60,9 @@ export async function prepareGraph(
   const typeColor = new Array<string>(nodes.length);
   const index = new Uint32Array(nodes.length);
   const degree = new Float32Array(nodes.length);
+  const searchShape = new Uint8Array(nodes.length);
+  const labelWeight = new Float32Array(nodes.length);
+  let maximumDegree = 0;
   const originalToDense = new Map<number, number>();
   const idToIndex = new Map<string, number>();
 
@@ -82,7 +88,11 @@ export async function prepareGraph(
       // Cosmograph renders sanitized HTML for both regular and hovered labels.
       // Preserve note titles as literal text; even a sanitized <img> can make a network request.
       indexToLabel[position] = node.label || node.id;
-      label[position] = indexToLabel[position].replace(
+      const origin = searchNodeOrigin(node.id, searchOrigins);
+      // Native Cosmograph PointShape values: Circle=0, Diamond=3. This is
+      // a GPU point attribute, separate from the chosen outline/highlight masks.
+      searchShape[position] = origin === "match" || origin === "projected-match" ? 3 : 0;
+      label[position] = searchDisplayLabel(indexToLabel[position], origin).replace(
         /[&<>"']/g,
         (character) => HTML_ENTITIES[character],
       );
@@ -95,6 +105,7 @@ export async function prepareGraph(
       degree[position] = Number.isFinite(node.degree)
         ? Math.max(0, node.degree)
         : 0;
+      maximumDegree = Math.max(maximumDegree, degree[position]);
       originalToDense.set(node.index, position);
       idToIndex.set(node.id, position);
     }
@@ -144,6 +155,10 @@ export async function prepareGraph(
   }
 
   signal.throwIfAborted();
+  // Prefer matched labels when nearby labels compete for space. Chosen labels
+  // remain separately owned; degree/size/color semantics are unchanged.
+  for (let position = 0; position < nodes.length; position++)
+    labelWeight[position] = degree[position] + (searchShape[position] === 3 ? maximumDegree + 1 : 0);
   const points = tableFromArrays({
     id,
     label,
@@ -154,6 +169,8 @@ export async function prepareGraph(
     typeColor,
     index,
     degree,
+    searchShape,
+    labelWeight,
   });
   // Keep a typed source even with no edges: Cosmograph's zero-link transition still queries it.
   const links = new Table({
@@ -173,7 +190,8 @@ export async function prepareGraph(
       pointIdBy: "id",
       pointIndexBy: "index",
       pointLabelBy: "label",
-      pointLabelWeightBy: "degree",
+      pointLabelWeightBy: "labelWeight",
+      pointShapeBy: "searchShape",
       pointColorBy: "typeColor",
       pointColorStrategy: "direct",
       pointSizeBy: "degree",
@@ -199,5 +217,6 @@ export async function prepareGraph(
     pointsCount: nodes.length,
     linksCount: linkCount,
     preparationMs: performance.now() - started,
+    searchOrigins,
   };
 }

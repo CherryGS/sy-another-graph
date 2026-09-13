@@ -23,6 +23,7 @@ import type { WorkbenchState } from "./state";
 import { nodeColor } from "../graph/node-colors";
 import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
+import { SearchOriginBadge } from "./SearchOriginBadge";
 
 export function GraphSearch({
   state,
@@ -138,7 +139,10 @@ export function GraphSearch({
                     style={{ background: nodeColor(node, state.colorBy) }}
                   />
                   <span className="min-w-0 text-left">
-                    <span className="block truncate">{node.label}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{node.label}</span>
+                      <SearchOriginBadge id={node.id} origins={state.searchOrigins} />
+                    </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {[
                         NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node),

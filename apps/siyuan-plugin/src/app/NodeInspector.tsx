@@ -30,6 +30,8 @@ import { nodeType } from "../data/graph-model";
 import { NODE_TYPE_LABELS } from "../data/labels";
 import { NodeRelations } from "./NodeRelations";
 import { NativePreviewButton } from "./NativePreviewButton";
+import { SearchOriginBadge } from "./SearchOriginBadge";
+import { searchOriginDescription } from "../search/origins";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
   const [target, setTarget] = useState("");
@@ -84,12 +86,13 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
               <TooltipContent>关闭节点详情</TooltipContent>
             </Tooltip>
           </CardAction>
-          <CardDescription>
+          <CardDescription className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">
               {NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node)}
             </Badge>
+            <SearchOriginBadge id={node.id} origins={state.searchOrigins} />
             {node.notebook && (
-              <span className="ml-2 break-words">
+              <span className="break-words">
                 {notebook?.name ?? node.notebook}
               </span>
             )}
@@ -97,6 +100,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
         </CardHeader>
         <ScrollArea data-scroll-panel className="min-h-0 flex-1">
           <CardContent className="flex min-w-0 flex-col gap-4">
+            {state.searchOrigins && <p className="text-xs text-muted-foreground">{searchOriginDescription(node.id, state.searchOrigins)}</p>}
             {(node.humanPath || node.documentLabel) && (
               <p className="break-words text-xs leading-relaxed text-muted-foreground">
                 {node.humanPath || node.documentLabel}

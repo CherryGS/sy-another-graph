@@ -35,6 +35,15 @@ start enabled, so the surrounding structure is connected immediately.
 Filters can further narrow this scope; neighborhood and path operations stay
 inside it. Resetting a temporary search restores these search-specific defaults.
 
+Search hits use diamond points and a **◆ 命中** (match) label prefix; added
+ancestors use circles. Colors retain their existing meaning in both 2D and 3D.
+The legend counts visible direct matches, projected matches, and ancestors.
+Hover, graph search results, and node details also identify each node's origin.
+If a hidden matched block is represented by its document, that document is marked
+**命中投影** (projected match), with the hidden match count in its details.
+Search markings do not select or pin nodes, and existing selection rings remain
+independent.
+
 Open **Filter** to edit the temporary preset or **Return to original configuration**.
 Your previous preset and its unsaved filter changes are retained. The temporary
 entry can be reopened during the session; a new search replaces it. Search

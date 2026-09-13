@@ -36,6 +36,7 @@ import { withMentionEdges } from "../mentions/graph-integration";
 import { useMentions } from "./use-mentions";
 import { useWorkbenchFilters } from "./use-workbench-filters";
 import { useGraphTabState } from "./use-graph-tab-state";
+import { buildSearchOrigins } from "../search/origins";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -179,7 +180,7 @@ export function useWorkbenchState() {
     setFitRequest(value => value + 1);
     window.location.hash = "#/";
   }, []);
-  const { filters, setFilters, resetFilters, filterPresets, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
+  const { filters, setFilters, resetFilters, filterPresets, matchedIds, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
   const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified, searchScope);
 
   const {
@@ -223,6 +224,7 @@ export function useWorkbenchState() {
       searchIds,
     ],
   );
+  const searchOrigins = useMemo(() => baseGraph && matchedIds ? buildSearchOrigins(baseGraph, matchedIds) : undefined, [baseGraph, matchedIds]);
   const availableSelection = useMemo(
     () =>
       baseGraph
@@ -527,6 +529,7 @@ export function useWorkbenchState() {
     setFilters,
     resetFilters,
     filterPresets,
+    searchOrigins,
     graphTabState,
     mentionState,
     selectedId,
