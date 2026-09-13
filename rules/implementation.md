@@ -48,10 +48,3 @@ tracked package scripts and tool configuration.
 - Report view truncation, partial acquisition, and unsupported shared-memory
   capabilities explicitly. Synthetic benchmarks are separate from live-data
   acquisition and do not establish universal rendering guarantees.
-
-## User preferences
-
-- Use `uv run python` for Python usage.
-- Prefer CodeGraph for structural and cross-file exploration when a repository
-  has an existing `.codegraph/` index, following the top-level guidance.
-- Use a 10-minute timeout when waiting for subagents.
