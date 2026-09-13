@@ -108,6 +108,17 @@ test("an unrelated plugin directory is preserved", (t) => {
   rejectedWithoutChanges(f, /unmanaged plugin/);
 });
 
+test("marketplace archives stay outside the installed plugin", (t) => {
+  const f = fixture(t);
+  write(join(f.distribution, "package.zip"), "marketplace archive");
+  deployPlugin(f);
+  assert.ok(!existsSync(join(f.target, "package.zip")));
+  assert.ok(!JSON.parse(readFileSync(f.marker, "utf8")).files.includes("package.zip"));
+  write(join(f.target, "package.zip"), "user file");
+  deployPlugin(f);
+  assert.equal(readFileSync(join(f.target, "package.zip"), "utf8"), "user file");
+});
+
 test("a new build path cannot overwrite an unmanaged file or partially update earlier files", (t) => {
   const f = fixture(t);
   deployPlugin(f);

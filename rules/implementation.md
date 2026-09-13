@@ -13,6 +13,9 @@ tracked package scripts and tool configuration.
 | `pnpm typecheck` | Check the TypeScript project references. |
 | `pnpm test` | Run the TypeScript, acquisition, renderer-table, and worker tests. |
 | `pnpm test:deploy` | Verify managed deployment and path guards using temporary workspaces. |
+| `pnpm test:package` | Verify marketplace archive contents, metadata, path guards, and license notices. |
+| `pnpm package` | Build and validate a marketplace `package.zip` inside the member's `dist/`, without deployment or upload. |
+| `pnpm package:artifacts` | Package existing validated build output; optional `--tag vX.Y.Z` checks the intended release tag. |
 | `pnpm test:rust` | Run the native Rust graph tests. |
 | `pnpm lint:rust` | Run Clippy with warnings denied. |
 | `pnpm build:wasm` | Build generated browser WASM bindings with existing tools. |

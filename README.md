@@ -41,6 +41,8 @@ See [setup, commands, and architecture](apps/siyuan-plugin/README.md),
 
 ## Attribution
 
+Project code is [MIT licensed](LICENSE). See [third-party terms and modifications](NOTICE.md).
+
 Visualization by [Cosmograph](https://cosmograph.app/), under
 [CC BY-NC 4.0 / separate commercial terms](https://cosmograph.app/docs-general/citing-and-licensing/).
 Its attribution remains visible. Other dependencies retain their licenses;

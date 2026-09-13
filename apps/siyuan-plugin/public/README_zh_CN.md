@@ -40,6 +40,8 @@
 
 ## 致谢
 
+项目自有代码采用 MIT 许可，随包提供的第三方库保留各自条款。
+
 图谱由 [Cosmograph](https://cosmograph.app/) 提供可视化，遵循
 [CC BY-NC 4.0 / 独立商业许可条款](https://cosmograph.app/docs-general/citing-and-licensing/)，并保留署名。
 其他依赖保留各自许可，参见 [文本提及依赖声明](third-party-mentions.txt)

@@ -95,6 +95,8 @@ function uniqueFiles(files) {
 
 function filesBelow(distribution, directory = distribution) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    // Marketplace archives are delivery artifacts, not plugin runtime assets.
+    if (directory === distribution && entry.name === "package.zip") return [];
     const path = join(directory, entry.name);
     assert.ok(
       !entry.isSymbolicLink(),

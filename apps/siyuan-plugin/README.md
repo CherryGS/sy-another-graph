@@ -15,6 +15,7 @@ Run commands from the repository root:
 | `pnpm install --frozen-lockfile` | Install locked dependencies and apply the tracked dependency patches. |
 | `pnpm check` | Validate dependencies, deployment guards, Rust, WASM, TypeScript, tests, and built artifacts. |
 | `pnpm build:artifacts` | Build the plugin into `apps/siyuan-plugin/dist/`. |
+| `pnpm package` | Build, validate, and create `apps/siyuan-plugin/dist/package.zip` for the marketplace. |
 | `pnpm deploy:test <workspace>` | Install built artifacts into an explicitly selected workspace. |
 | `pnpm build` / `pnpm release` | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`. |
 | `pnpm deploy:release` | Validate and install existing artifacts into the personal workspace. |
@@ -50,6 +51,7 @@ JSON export creates a temporary workspace file.
 ## Further reading
 
 - [Implementation rules](../../rules/implementation.md)
+- [Marketplace release process](../../scripts/marketplace-release.md)
 - [Workspace pressure fixture](../../scripts/stress-fixture.md)
 - [Rust benchmarks](../../crates/graph-core/README.md)
 

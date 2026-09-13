@@ -1,21 +1,22 @@
 {
   "name": "sy-another-graph",
-  "author": "",
-  "url": "",
+  "author": "CherryGS",
+  "url": "https://github.com/CherryGS/sy-another-graph",
   "version": "0.1.0",
   "minAppVersion": "3.8.3",
   "backends": ["windows", "linux", "darwin"],
   "frontends": ["desktop", "desktop-window", "browser-desktop"],
   "displayName": {
     "default": "一个思源图谱",
-    "zh_CN": "一个思源图谱"
+    "zh-CN": "一个思源图谱"
   },
   "description": {
     "default": "Explore connections between SiYuan notes, blocks, and search results with filter presets and 2D/3D graphs.",
-    "zh_CN": "从笔记、块或搜索结果出发，探索引用与关联，支持筛选预设、邻域追踪和 2D / 3D 图谱。"
+    "zh-CN": "从笔记、块或搜索结果出发，探索引用与关联，支持筛选预设、邻域追踪和 2D / 3D 图谱。"
   },
   "readme": {
     "default": "README.md",
-    "zh_CN": "README_zh_CN.md"
-  }
+    "zh-CN": "README_zh_CN.md"
+  },
+  "keywords": ["思源图谱", "知识图谱", "搜索建图", "graph", "search"]
 }
