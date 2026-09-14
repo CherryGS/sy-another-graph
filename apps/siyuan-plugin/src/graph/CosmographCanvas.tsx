@@ -3,6 +3,7 @@ import type { CosmographConfig } from "@cosmograph/cosmograph";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -136,6 +137,15 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     session?.subscribe ?? subscribeNothing,
     session?.getDiagnostics ?? noDiagnostics,
   );
+  const serializedDiagnostics = useMemo(() => ({
+    camera: JSON.stringify(diagnostics?.camera ?? null),
+    chosenIds: JSON.stringify(diagnostics?.chosenIds ?? []),
+    positionSamples: JSON.stringify(diagnostics?.positionSamples ?? []),
+    layoutBefore: JSON.stringify(diagnostics?.layoutBefore ?? null),
+    layoutAfter: JSON.stringify(diagnostics?.layoutAfter ?? null),
+    layoutSnapshot: JSON.stringify(diagnostics?.layoutSnapshot ?? null),
+    layoutSpaceInfo: JSON.stringify(diagnostics?.layoutSpaceInfo ?? null),
+  }), [diagnostics]);
   const [prepared, setPrepared] = useState<PreparedGraph | null>(null);
   const communities = useCommunities(prepared, settings.communityEnabled, settings.communityResolution);
   const [counts, setCounts] = useState({ nodes: 0, links: 0 });
@@ -516,7 +526,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-data-revisions={diagnostics?.dataRevisions ?? 0}
       data-last-data-update-ms={diagnostics?.lastDataUpdateMs ?? ""}
       data-dimensions={diagnostics?.dimensions ?? 2}
-      data-camera={JSON.stringify(diagnostics?.camera ?? null)}
+      data-camera={serializedDiagnostics.camera}
       data-highlighted-count={diagnostics?.highlightedCount ?? 0}
       data-outlined-count={diagnostics?.outlinedCount ?? 0}
       data-requested-highlighted-count={
@@ -524,20 +534,20 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       }
       data-inspected-id={diagnostics?.inspectedId ?? ""}
       data-chosen-count={diagnostics?.chosenIds.length ?? 0}
-      data-chosen-ids={JSON.stringify(diagnostics?.chosenIds ?? [])}
+      data-chosen-ids={serializedDiagnostics.chosenIds}
       data-pinned-count={diagnostics?.pinnedCount ?? 0}
       data-position-restores={diagnostics?.positionRestorations ?? 0}
       data-restored-points={diagnostics?.restoredPointCount ?? 0}
       data-position-world-error={diagnostics?.positionWorldError ?? ""}
       data-position-screen-error={diagnostics?.positionScreenError ?? ""}
-      data-position-samples={JSON.stringify(diagnostics?.positionSamples ?? [])}
-      data-layout-before={JSON.stringify(diagnostics?.layoutBefore ?? null)}
-      data-layout-after={JSON.stringify(diagnostics?.layoutAfter ?? null)}
-      data-layout-snapshot={JSON.stringify(diagnostics?.layoutSnapshot ?? null)}
+      data-position-samples={serializedDiagnostics.positionSamples}
+      data-layout-before={serializedDiagnostics.layoutBefore}
+      data-layout-after={serializedDiagnostics.layoutAfter}
+      data-layout-snapshot={serializedDiagnostics.layoutSnapshot}
       data-layout-sample={diagnostics?.layoutSample ?? 0}
       data-layout-sampled-at={diagnostics?.layoutSampledAt ?? ""}
       data-layout-simulation-running={diagnostics?.layoutSimulationRunning ?? ""}
-      data-layout-space-info={JSON.stringify(diagnostics?.layoutSpaceInfo ?? null)}
+      data-layout-space-info={serializedDiagnostics.layoutSpaceInfo}
       data-layout-data-revision={diagnostics?.layoutDataRevision ?? ""}
       data-zoom-before={diagnostics?.zoomBefore ?? ""}
       data-zoom-after={diagnostics?.zoomAfter ?? ""}

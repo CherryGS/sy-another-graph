@@ -22,12 +22,6 @@ vi.mock("../../wasm/graph_core.js", () => ({
     statistics(): Uint32Array {
       return new Uint32Array([this.nodes, 0, this.nodes, this.nodes ? 1 : 0]);
     }
-    degrees(): Uint32Array {
-      return new Uint32Array(this.nodes);
-    }
-    component_ids(): Uint32Array {
-      return Uint32Array.from({ length: this.nodes }, (_, index) => index);
-    }
     free(): void {}
   },
 }));
@@ -62,8 +56,6 @@ const stats: EngineStats = {
   edges: 2,
   components: 1,
   largestComponent: 3,
-  degrees: new Uint32Array([1, 2, 1]),
-  componentIds: new Uint32Array([0, 0, 0]),
   backend: "Rust WASM · Worker",
   buildMs: 1,
   transport: "transfer",
@@ -255,11 +247,19 @@ describe("Worker WASM initialization failure recovery", () => {
     );
     worker.load(2);
     await vi.advanceTimersByTimeAsync(0);
-    expect(worker.responses[1]).toMatchObject({
+    expect(worker.responses[1]).toEqual({
       id: 2,
       revision: 2,
       kind: "stats",
-      value: { nodes: 2, transport: "transfer" },
+      value: {
+        nodes: 2,
+        edges: 0,
+        components: 2,
+        largestComponent: 1,
+        buildMs: expect.any(Number),
+        backend: "Rust WASM · Worker",
+        transport: "transfer",
+      },
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(wasmMock.initialize).toHaveBeenCalledOnce();

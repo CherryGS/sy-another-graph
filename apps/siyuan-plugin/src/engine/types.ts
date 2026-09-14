@@ -6,10 +6,6 @@ export interface EngineStats {
   edges: number;
   components: number;
   largestComponent: number;
-  /** Total directed degree (incoming plus outgoing) per global node index. */
-  degrees: Uint32Array;
-  /** Contiguous weak-component IDs ordered by the first global node index. */
-  componentIds: Uint32Array;
   buildMs: number;
   backend: string;
   /** This describes Worker buffer transport, not multithreaded WASM. */

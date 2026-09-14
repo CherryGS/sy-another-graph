@@ -65,26 +65,19 @@ async function handle(request: EngineRequest): Promise<void> {
       revision = request.revision;
       transport = request.transport;
       const statistics = graph.statistics();
-      const degrees = output(graph.degrees());
-      const componentIds = output(graph.component_ids());
-      scope.postMessage(
-        {
-          ...identity,
-          kind: "stats",
-          value: {
-            nodes: statistics[0],
-            edges: statistics[1],
-            components: statistics[2],
-            largestComponent: statistics[3],
-            degrees,
-            componentIds,
-            buildMs: performance.now() - start,
-            backend: "Rust WASM · Worker",
-            transport,
-          },
+      scope.postMessage({
+        ...identity,
+        kind: "stats",
+        value: {
+          nodes: statistics[0],
+          edges: statistics[1],
+          components: statistics[2],
+          largestComponent: statistics[3],
+          buildMs: performance.now() - start,
+          backend: "Rust WASM · Worker",
+          transport,
         },
-        transferableBuffers(degrees, componentIds),
-      );
+      }, []);
       return;
     }
     if (!graph || revision !== request.revision)
