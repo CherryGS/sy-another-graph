@@ -53,7 +53,7 @@ export function GraphLegend({
     <Popover>
       <PopoverAnchor virtualRef={anchorRef} />
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" disabled={!nodes.length}>
+        <Button variant="outline" disabled={!nodes.length}>
           <List data-icon="inline-start" />
           图例
         </Button>

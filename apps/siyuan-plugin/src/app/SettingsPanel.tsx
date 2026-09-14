@@ -120,7 +120,7 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
       <SheetTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           aria-label="图谱设置"
           title="图谱设置"
         >

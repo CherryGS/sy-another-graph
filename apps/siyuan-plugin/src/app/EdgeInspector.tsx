@@ -22,6 +22,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +35,7 @@ import { getGraphLookups } from "../data/graph-lookups";
 import type { GraphNode } from "../data/types";
 import { NativePreviewButton } from "./NativePreviewButton";
 
-function SourceCard({
+function SourceEntry({
   node,
   id,
   open,
@@ -49,8 +50,8 @@ function SourceCard({
   return (
     <NativePreviewButton
       nativeId={nativeId}
-      variant="outline"
-      className="h-auto w-full flex-col items-start gap-2 py-3"
+      variant="ghost"
+      className="h-auto w-full flex-col items-start gap-1.5 py-2"
       disabled={!canOpen}
       onClick={() => open(id)}
       aria-label={canOpen ? `打开原始位置：${node?.label ?? id}` : "暂无可打开的原生上下文"}
@@ -141,17 +142,17 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
             </div>
             {!!edge.omittedProvenance && <p className="text-xs text-muted-foreground">另有 {edge.omittedProvenance.toLocaleString()} 组出处超出展示上限；计数包含这些命中。</p>}
             {occurrences.slice(0, limit).map((occurrence, index) => (
-              <Card
-                size="sm"
+              <section
+                className="flex min-w-0 flex-col gap-2"
+                aria-label={occurrence.fieldName || `出处 ${index + 1}`}
                 key={`${occurrence.sourceId}:${occurrence.targetId}:${occurrence.fieldId ?? ""}:${index}`}
               >
-                <CardHeader>
-                  <CardTitle>
-                    {occurrence.fieldName ||
-                      `出处 ${String(index + 1).padStart(2, "0")}`}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex min-w-0 flex-col gap-2">
+                {index > 0 && <Separator className="mb-2" />}
+                <h3 className="text-sm font-medium">
+                  {occurrence.fieldName ||
+                    `出处 ${String(index + 1).padStart(2, "0")}`}
+                </h3>
+                <div className="flex min-w-0 flex-col gap-2">
                   {occurrence.mention && (
                     <div className="flex flex-col gap-2">
                       <Badge variant="outline" className="max-w-full"><span className="truncate" title={occurrence.mention.keyword}>命中名称：{occurrence.mention.keyword}</span></Badge>
@@ -163,7 +164,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       {occurrence.mention.candidates > 1 && <p className="text-xs text-muted-foreground">此名称对应范围内 {occurrence.mention.candidates} 个原始位置；当前目标为同名候选之一。</p>}
                     </div>
                   )}
-                  <SourceCard
+                  <SourceEntry
                     node={byId.get(occurrence.sourceId)}
                     id={occurrence.sourceId}
                     open={state.openDocument}
@@ -173,7 +174,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                     {occurrence.kind === "hierarchy" ? "包含 ↓" : "↓"}
                   </span>
                   {occurrence.viaIds?.map((id) => (
-                    <SourceCard
+                    <SourceEntry
                       key={id}
                       node={byId.get(id)}
                       id={id}
@@ -181,7 +182,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       nativeId={state.nativeBlockId(id)}
                     />
                   ))}
-                  <SourceCard
+                  <SourceEntry
                     node={byId.get(occurrence.targetId)}
                     id={occurrence.targetId}
                     open={state.openDocument}
@@ -235,8 +236,8 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       </CollapsibleContent>
                     </Collapsible>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             ))}
             {!occurrences.length && (
               <Empty>

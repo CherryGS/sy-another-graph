@@ -76,7 +76,6 @@ export function ExplorePage({ active }: { active: boolean }) {
                 <PopoverTrigger asChild>
                   <Button
                     variant={state.filtersOpen ? "secondary" : "outline"}
-                    size="sm"
                     className="max-w-[min(14rem,100%)]"
                     aria-label={`图谱筛选：${state.filterPresets.activeName}${state.filterPresets.modified ? "，已修改" : ""}`}
                   >
@@ -100,9 +99,22 @@ export function ExplorePage({ active }: { active: boolean }) {
             />
           </div>
           <div className="neighborhood-tools" aria-label="邻域扩展设置">
-            <Badge variant="secondary">
-              已选 {state.chosenIds.length} 个节点
-            </Badge>
+            <div className="flex shrink-0 items-center gap-1">
+              <Badge variant="secondary">
+                已选 {state.chosenIds.length} 个节点
+              </Badge>
+              {!!state.chosenIds.length && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="清空选择"
+                  title="清空选择 · Shift 双击空白"
+                  onClick={state.clearChosen}
+                >
+                  <X />
+                </Button>
+              )}
+            </div>
             <FieldGroup className="w-32 shrink-0">
               <Field orientation="horizontal" className="w-auto items-center">
                 <FieldLabel htmlFor="graph-depth" className="whitespace-nowrap">
@@ -125,7 +137,6 @@ export function ExplorePage({ active }: { active: boolean }) {
             </FieldGroup>
             <ToggleGroup
               type="single"
-              size="sm"
               variant="outline"
               aria-label="遍历方向"
               value={state.direction}
@@ -137,17 +148,6 @@ export function ExplorePage({ active }: { active: boolean }) {
               <ToggleGroupItem value="out">沿箭头</ToggleGroupItem>
               <ToggleGroupItem value="in">逆箭头</ToggleGroupItem>
             </ToggleGroup>
-            {!!state.chosenIds.length && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="清空选择"
-                title="清空选择 · Shift 双击空白"
-                onClick={state.clearChosen}
-              >
-                <X />
-              </Button>
-            )}
             {state.busy && (
               <span
                 className="flex items-center gap-1 text-xs text-muted-foreground"
@@ -161,7 +161,6 @@ export function ExplorePage({ active }: { active: boolean }) {
           <div className="display-tools">
             <ToggleGroup
               type="single"
-              size="sm"
               variant="outline"
               aria-label="图谱维度"
               value={String(state.graphSettings.dimensions)}
@@ -256,9 +255,9 @@ export function ExplorePage({ active }: { active: boolean }) {
               </EmptyContent>
             </Empty>
           )}
-          <div className="canvas-controls">
+          <div className="canvas-controls" role="group" aria-label="画布布局控制">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon-sm"
               aria-label="适应画布"
               title="适应画布"
@@ -267,7 +266,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <Focus />
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon-sm"
               aria-label={state.paused ? "继续布局" : "暂停布局"}
               title={state.paused ? "继续布局" : "暂停布局"}

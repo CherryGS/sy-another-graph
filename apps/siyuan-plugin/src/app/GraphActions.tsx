@@ -9,7 +9,7 @@ export function GraphActions({ state }: { state: WorkbenchState }) {
     <div className="graph-actions">
       <Button
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         aria-label="刷新图谱"
         title="重新读取工作空间"
         onClick={() => void state.load()}
@@ -18,7 +18,7 @@ export function GraphActions({ state }: { state: WorkbenchState }) {
       </Button>
       <Button
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         title="导出当前图谱 JSON"
         aria-label="导出当前图谱"
         disabled={!state.data || !!state.loading || state.exporting}
