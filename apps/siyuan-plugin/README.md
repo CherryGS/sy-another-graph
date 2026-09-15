@@ -18,6 +18,8 @@ Run commands from the repository root:
 | `pnpm package` | Build, validate, and create `apps/siyuan-plugin/dist/package.zip` for the marketplace. |
 | `pnpm deploy:test <workspace>` | Install built artifacts into an explicitly selected workspace. |
 | `pnpm build` / `pnpm release` | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`. |
+| `pnpm publish:plugin` | Select a patch/minor/major version, validate and package it, then confirm its GitHub Release publication. |
+| `pnpm test:publish` | Verify release preparation, cancellation, and failure handling in temporary local Git repositories. |
 | `pnpm deploy:release` | Validate and install existing artifacts into the personal workspace. |
 | `pnpm dev` / `pnpm dev:ui` | Watch the host adapter / React workbench in separate terminals. |
 

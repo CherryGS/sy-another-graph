@@ -21,13 +21,15 @@
     "test": "pnpm --dir apps/siyuan-plugin test",
     "test:deploy": "node --test scripts/deploy-plugin.test.mjs",
     "test:package": "node --test scripts/package-plugin.test.mjs scripts/license-notices.test.mjs",
+    "test:publish": "node --test scripts/publish-plugin.test.mjs",
+    "publish:plugin": "node scripts/publish-plugin.mjs",
     "package": "pnpm build:artifacts && pnpm check:plugin && pnpm package:artifacts",
     "package:artifacts": "node scripts/package-plugin.mjs",
     "build:artifacts": "pnpm build:wasm && pnpm --dir apps/siyuan-plugin build",
     "build": "pnpm test:deploy && pnpm build:artifacts && pnpm deploy:release",
     "release": "pnpm build",
     "check:plugin": "pnpm --dir apps/siyuan-plugin check:plugin",
-    "check": "pnpm check:deps && pnpm test:deploy && pnpm test:package && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
+    "check": "pnpm check:deps && pnpm test:deploy && pnpm test:package && pnpm test:publish && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
   },
   "devDependencies": {
     "fflate": "0.8.3"

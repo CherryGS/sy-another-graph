@@ -14,6 +14,8 @@ tracked package scripts and tool configuration.
 | `pnpm test` | Run the TypeScript, acquisition, renderer-table, and worker tests. |
 | `pnpm test:deploy` | Verify managed deployment and path guards using temporary workspaces. |
 | `pnpm test:package` | Verify marketplace archive contents, metadata, path guards, and license notices. |
+| `pnpm test:publish` | Verify version selection and publication safeguards in temporary local Git repositories without contacting GitHub. |
+| `pnpm publish:plugin` | Select a version increment, validate and package, then confirm a version commit, atomic push, and GitHub Latest Release. Use `--bump patch --dry-run` for a preview without mutations or remote access. |
 | `pnpm package` | Build and validate a marketplace `package.zip` inside the member's `dist/`, without deployment or upload. |
 | `pnpm package:artifacts` | Package existing validated build output; optional `--tag vX.Y.Z` checks the intended release tag. |
 | `pnpm test:rust` | Run the native Rust graph tests. |
