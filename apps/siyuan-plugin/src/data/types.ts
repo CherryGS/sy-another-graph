@@ -95,6 +95,7 @@ export interface GraphFilters {
   hiddenTypes: string[];
   databases: boolean;
   mentions: MentionMode;
+  excludedMentionPhrases: string[];
 }
 
 export const DEFAULT_FILTERS: GraphFilters = {
@@ -110,6 +111,7 @@ export const DEFAULT_FILTERS: GraphFilters = {
   hiddenTypes: [],
   databases: true,
   mentions: "off",
+  excludedMentionPhrases: [],
 };
 
 export const PALETTE = [

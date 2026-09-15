@@ -235,7 +235,7 @@ export function useWorkbenchState() {
   const chosenIds = availableSelection.chosenIds;
   const chosenKey = useMemo(() => JSON.stringify(chosenIds), [chosenIds]);
   const chosenSet = useMemo(() => new Set(chosenIds), [chosenIds]);
-  const mentionState = useMentions(data, baseGraph, filters.mentions, chosenIds);
+  const mentionState = useMentions(data, baseGraph, filters.mentions, chosenIds, filters.excludedMentionPhrases);
   const mentionsPending = filters.mentions !== "off" && !mentionState.error
     && (filters.mentions !== "selected" || chosenIds.length > 0)
     && (!mentionState.ready || mentionState.pending);

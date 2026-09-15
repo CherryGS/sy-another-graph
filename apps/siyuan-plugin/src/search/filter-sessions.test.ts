@@ -5,6 +5,26 @@ import { readSearchSnapshot, type SearchGraphSnapshot } from "./model";
 const snapshot: SearchGraphSnapshot = { requestId: "first", label: "Topic", query: "topic", ids: ["20260913000000-0000001"] };
 
 describe("temporary search preset isolation", () => {
+  it("keeps phrase exclusions independent across normal and temporary presets and resets", () => {
+    const session = new FilterSessions();
+    session.setFilters(previous => ({ ...previous, excludedMentionPhrases: ["01"] }));
+    const revision = session.ruleRevisionRef.current;
+    session.search(snapshot);
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPhrases).toEqual([]);
+    session.setFilters(previous => ({ ...previous, excludedMentionPhrases: ["todo"] }));
+    expect(session.ruleRevisionRef.current).toBe(revision);
+    session.leave();
+    expect(session.normalRef.current.excludedMentionPhrases).toEqual(["01"]);
+    session.resume();
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPhrases).toEqual(["todo"]);
+    session.reset();
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPhrases).toEqual([]);
+    expect(session.normalRef.current.excludedMentionPhrases).toEqual(["01"]);
+    session.leave();
+    session.reset();
+    expect(session.normalRef.current.excludedMentionPhrases).toEqual([]);
+  });
+
   it("preserves the original preset draft, lookup, and rule revision across temporary edits", () => {
     const session = new FilterSessions();
     session.setNormal(previous => ({ ...previous, query: "draft lookup", scopeId: snapshot.ids[0], hierarchy: true }));

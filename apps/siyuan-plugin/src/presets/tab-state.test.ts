@@ -15,10 +15,10 @@ describe("semantic graph tab state", () => {
   it("uses scope and preset state while retaining complete rule details in the tooltip", () => {
     const filters = { ...DEFAULT_FILTERS, notebook: BOOK, scopeId: BLOCK, documentsOnly: false,
       hiddenTypes: ["p"], hierarchy: true, mentions: "selected" as const, includeChildDocuments: false,
-      excludeIds: [BLOCK], hideIsolated: true };
+      excludeIds: [BLOCK], excludedMentionPhrases: ["01", "todo"], hideIsolated: true };
     const state = graphTabState(filters, data, "Reading", true);
     expect(state.title).toBe("图谱 · Project A · Reading*");
-    for (const text of [BLOCK, "笔记本：Research", "已修改", "隐藏：", "包含关系", "已选节点", "子文档：不包含", "排除：1 项", "隐藏未选中的节点"])
+    for (const text of [BLOCK, "笔记本：Research", "已修改", "隐藏：", "包含关系", "已选节点", "排除词组：2 项", "子文档：不包含", "排除：1 项", "隐藏未选中的节点"])
       expect(state.description).toContain(text);
     expect(graphTabState({ ...DEFAULT_FILTERS, notebook: BOOK }, data, "Reading", false).title).toBe("图谱 · Research · Reading");
     expect(graphTabState(DEFAULT_FILTERS, null, "", false).title).toBe("图谱 · 全部 · 自定义");

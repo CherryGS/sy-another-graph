@@ -41,6 +41,11 @@ matched IDs. The search button shows reading progress; click again to cancel.
   or show optional community territories in 2D.
 - **Export:** download the visible graph as JSON.
 
+For text mentions, enter one complete name or phrase per line under **Exclude
+phrases**, then click **Apply exclusions**. Save the filter preset to keep these
+rules; temporary search graphs keep independent exclusions. Excluding `01`
+preserves names such as `101`, and does not remove nodes or explicit references.
+
 ## Data and limits
 
 - Reads the local index without editing notes or relation fields. Appearance

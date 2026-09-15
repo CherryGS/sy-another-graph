@@ -11,6 +11,15 @@ function data(nodes: GraphNode[]): GraphDataset {
 }
 
 describe("mentions inside projected native scope", () => {
+  it("keeps native nodes and references when their names are excluded from text mentions", () => {
+    const source = data([node(0, "01"), node(1, "a")]);
+    source.edges.push({ source: 1, target: 0, kind: "reference", weight: 1 });
+    const graph = projectGraph(source, DEFAULT_FILTERS);
+    expect(projectGraph(source, { ...DEFAULT_FILTERS, excludedMentionPhrases: ["01"] })).toEqual(graph);
+    expect(graph.nodes.map(node => node.id)).toEqual(["01", "a"]);
+    expect(graph.edges).toHaveLength(1);
+  });
+
   it("does not treat a display-only owning document as an eligible source or target", () => {
     const source = data([node(0, "a"), node(1, "section", "h", "a", "a"), node(2, "p", "p", "a", "section"), node(3, "outside", "p", "a", "a")]);
     const graph = projectGraph(source, { ...DEFAULT_FILTERS, scopeId: "section", hiddenTypes: ["p", "h"] });

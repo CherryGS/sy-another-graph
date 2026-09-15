@@ -7,14 +7,14 @@ import type { MentionMode } from "../mentions/types";
 
 const NO_SELECTION: readonly string[] = [];
 
-export function useMentions(data: GraphDataset | null, graph: CurrentGraph | null, mode: MentionMode, chosenIds: readonly string[]) {
+export function useMentions(data: GraphDataset | null, graph: CurrentGraph | null, mode: MentionMode, chosenIds: readonly string[], excludedPhrases: readonly string[]) {
   const [snapshot, setSnapshot] = useState<MentionSnapshot>(EMPTY_MENTION_SNAPSHOT);
   const client = useRef<MentionClient | null>(null);
   const selected = mode === "selected" ? chosenIds : NO_SELECTION;
   const scope = useMemo(() => data && graph ? mentionScope(data, graph) : null, [data, graph]);
   const input = useMemo(() => data?.mentionBlocks && scope
-    ? { blocks: data.mentionBlocks, scope, mode, chosenIds: selected }
-    : null, [data, scope, mode, selected]);
+    ? { blocks: data.mentionBlocks, scope, mode, chosenIds: selected, excludedPhrases }
+    : null, [data, scope, mode, selected, excludedPhrases]);
   useEffect(() => {
     const current = new MentionClient(
       () => new Worker(new URL("../mentions/mentions.worker.ts", import.meta.url), { type: "module" }),

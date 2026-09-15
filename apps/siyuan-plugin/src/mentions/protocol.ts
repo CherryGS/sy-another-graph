@@ -1,7 +1,8 @@
 import type { MentionBlock, MentionMode, MentionProgress, MentionResult, MentionScope } from "./types";
 
 export type MentionRequest =
-  | { kind: "load"; revision: number; blocks: MentionBlock[] }
+  | { kind: "load"; revision: number; blocks: MentionBlock[]; excludedPhrases?: readonly string[] }
+  | { kind: "exclusions"; revision: number; excludedPhrases: readonly string[] }
   | { kind: "scope"; revision: number; scopeRevision: number; scope: MentionScope }
   | { kind: "query"; revision: number; scopeRevision: number; request: number; mode: MentionMode; chosenIds: readonly string[] };
 

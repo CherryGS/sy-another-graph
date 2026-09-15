@@ -63,7 +63,3 @@ export function nativeNames(title: string, ial: string): string[] {
   return [...new Set([title, attributes.get("name") ?? "", ...aliases.map(alias => alias.replace(/\\,/g, ","))]
     .map(name => name.replace(/[\s\u200B]+/g, " ").trim()).filter(Boolean))];
 }
-
-export function normalizeKeyword(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/[\s\u200B]+/g, " ").trim();
-}

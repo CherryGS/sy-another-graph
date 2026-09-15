@@ -1,11 +1,13 @@
 import type { MentionRequest, MentionResponse } from "./protocol";
 import { EMPTY_MENTION_PROGRESS, type MentionBlock, type MentionMode, type MentionProgress, type MentionResult, type MentionScope } from "./types";
+import { normalizeExcludedPhrases } from "./keywords";
 
 export interface MentionInput {
   blocks: MentionBlock[];
   scope: MentionScope;
   mode: MentionMode;
   chosenIds: readonly string[];
+  excludedPhrases?: readonly string[];
 }
 export interface MentionSnapshot {
   input: MentionInput | null;
@@ -30,6 +32,7 @@ export const EMPTY_MENTION_SNAPSHOT: MentionSnapshot = {
 export class MentionClient {
   private worker: MentionWorkerPort | null = null;
   private blocks: MentionBlock[] | null = null;
+  private exclusionKey = "";
   private scope: MentionScope | null = null;
   private revision = 0;
   private scopeRevision = 0;
@@ -47,25 +50,31 @@ export class MentionClient {
 
   update(input: MentionInput): void {
     if (this.closed) return;
-    if (this.fatalError && this.blocks === input.blocks) {
+    const excludedPhrases = normalizeExcludedPhrases(input.excludedPhrases ?? []);
+    const exclusionKey = JSON.stringify(excludedPhrases);
+    if (this.fatalError && this.blocks === input.blocks && this.exclusionKey === exclusionKey) {
       this.set({ input, pending: false, result: EMPTY_MENTION_RESULT, error: this.fatalError });
       return;
     }
     try {
-      if (this.fatalError) { this.stopWorker(); this.fatalError = ""; }
+      if (this.fatalError) { this.stopWorker(); this.blocks = null; this.fatalError = ""; }
       if (!this.worker) {
         this.worker = this.create();
         this.worker.addEventListener("message", this.onMessage);
         this.worker.addEventListener("error", this.onError);
         this.worker.addEventListener("messageerror", this.onError);
       }
-      if (this.blocks !== input.blocks) {
+      const sourceChanged = this.blocks !== input.blocks;
+      if (sourceChanged || this.exclusionKey !== exclusionKey) {
         this.blocks = input.blocks;
+        this.exclusionKey = exclusionKey;
         this.scope = null;
         this.revision++;
         this.scopeRevision = 0;
         this.snapshot = { ...EMPTY_MENTION_SNAPSHOT };
-        this.worker.postMessage({ kind: "load", revision: this.revision, blocks: input.blocks });
+        this.worker.postMessage(sourceChanged
+          ? { kind: "load", revision: this.revision, blocks: input.blocks, excludedPhrases }
+          : { kind: "exclusions", revision: this.revision, excludedPhrases });
       }
       if (this.scope !== input.scope) {
         this.scope = input.scope;

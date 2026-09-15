@@ -1,11 +1,12 @@
 import { MentionIndex } from "./mention-index";
 import type { MentionRequest, MentionResponse } from "./protocol";
-import type { MentionScope } from "./types";
+import type { MentionBlock, MentionScope } from "./types";
 
 /** Background indexing and foreground queries share one cache, with separate
  * cancellation domains so changing selection never restarts corpus scanning. */
 export class MentionWorkerRuntime {
   private index = new MentionIndex();
+  private blocks: MentionBlock[] = [];
   private revision = 0;
   private scopeRevision = 0;
   private scope: MentionScope = { entries: [], explicitPairs: [] };
@@ -19,7 +20,7 @@ export class MentionWorkerRuntime {
 
   receive(message: MentionRequest): void {
     if (this.closed) return;
-    if (message.kind === "load") {
+    if (message.kind === "load" || message.kind === "exclusions") {
       if (message.revision <= this.revision) return;
       this.warming?.abort();
       this.querying?.abort();
@@ -28,7 +29,8 @@ export class MentionWorkerRuntime {
       this.request = null;
       const abort = new AbortController();
       this.warming = abort;
-      try { this.index.replace(message.blocks); }
+      if (message.kind === "load") this.blocks = message.blocks;
+      try { this.index.replace(this.blocks, message.excludedPhrases); }
       catch (error) { this.fail(error, message.revision); return; }
       void this.index.warm(progress => {
         if (!abort.signal.aborted && !this.closed)
@@ -61,6 +63,7 @@ export class MentionWorkerRuntime {
     this.warming?.abort();
     this.querying?.abort();
     this.request = null;
+    this.blocks = [];
   }
 
   private runQuery(): void {

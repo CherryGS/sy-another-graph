@@ -1,5 +1,6 @@
 import { DEFAULT_FILTERS, type GraphFilters } from "../data/types";
 import { isMentionMode } from "../mentions/types";
+import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
 
 export type PresetFilters = Omit<GraphFilters, "query">;
 export interface FilterPreset { id: string; name: string; filters: PresetFilters }
@@ -37,6 +38,7 @@ export function presetFilters(filters: PresetFilters): PresetFilters {
     documentsOnly: filters.documentsOnly,
     databases: filters.databases,
     mentions: filters.mentions,
+    excludedMentionPhrases: normalizeExcludedPhrases(filters.excludedMentionPhrases ?? []),
   };
 }
 
@@ -53,6 +55,8 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
   return { ...next, query: previous.query,
     excludeIds: sameValues(previous.excludeIds, next.excludeIds) ? previous.excludeIds : next.excludeIds,
     hiddenTypes: sameValues(previous.hiddenTypes, next.hiddenTypes) ? previous.hiddenTypes : next.hiddenTypes,
+    excludedMentionPhrases: sameValues(previous.excludedMentionPhrases, next.excludedMentionPhrases)
+      ? previous.excludedMentionPhrases : next.excludedMentionPhrases,
   };
 }
 
@@ -71,7 +75,10 @@ function readFilters(value: unknown): PresetFilters | null {
     || !value.excludeIds.every(id => typeof id === "string" && NATIVE_ID.test(id))
     || !Array.isArray(value.hiddenTypes) || value.hiddenTypes.length > 256
     || !value.hiddenTypes.every(type => typeof type === "string" && type.length > 0 && type.length <= 64 && !hasControl(type))) return null;
-  return presetFilters(value as unknown as PresetFilters);
+  // Existing v1 presets predate phrase exclusions and keep their empty default.
+  const excludedMentionPhrases = readExcludedPhrases(value.excludedMentionPhrases === undefined ? [] : value.excludedMentionPhrases);
+  if (!excludedMentionPhrases) return null;
+  return presetFilters({ ...value, excludedMentionPhrases } as unknown as PresetFilters);
 }
 
 /** Reject corrupt/unsupported persisted data instead of replacing it with defaults. */

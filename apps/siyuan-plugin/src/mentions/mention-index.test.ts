@@ -1,16 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { MentionIndex } from "./mention-index";
 import { KeywordMatcher } from "./matcher";
-import { nativeNames, normalizeKeyword, ordinaryProse } from "./prose";
+import { nativeNames, ordinaryProse } from "./prose";
+import { normalizeKeyword } from "./keywords";
 import type { MentionBlock, MentionScope } from "./types";
 
 const controller = () => new AbortController();
 const doc = (id: string, title: string, ial = ""): MentionBlock => ({ id, rootId: id, type: "d", title, ial, markdown: null });
 const paragraph = (id: string, rootId: string, markdown: string, ial = ""): MentionBlock => ({ id, rootId, type: "p", title: "", ial, markdown });
 const scopeOf = (blocks: MentionBlock[]): MentionScope => ({ entries: blocks.map((block, index) => ({ id: block.id, displayId: block.id, index })), explicitPairs: [] });
-async function indexOf(blocks: MentionBlock[], limits = {}) {
+async function indexOf(blocks: MentionBlock[], limits = {}, excludedPhrases: readonly string[] = []) {
   const index = new MentionIndex(limits);
-  index.replace(blocks);
+  index.replace(blocks, excludedPhrases);
   await index.warm(() => {}, controller().signal);
   return index;
 }
@@ -44,6 +45,52 @@ describe("ordinary source prose and vocabulary", () => {
 });
 
 describe("cached text mention graph", () => {
+  it("excludes complete normalized names in both modes without excluding larger numeric names", async () => {
+    const blocks = [doc("source", "Source"), doc("noise", "01"), doc("number", "101"),
+      doc("phrase", "Graph Theory"), paragraph("p", "source", "01 101 Graph Theory")];
+    const index = await indexOf(blocks, {}, [" ０１ ", " GRAPH  THEORY "]);
+    for (const mode of ["all", "selected"] as const) {
+      const result = await index.query(scopeOf(blocks), mode, ["source"], controller().signal);
+      expect(result.edges.map(edge => edge.provenance![0].targetId)).toEqual(["number"]);
+      expect(result.edges[0].provenance![0].mention!.matched).toBe("101");
+    }
+  });
+
+  it("excludes a noisy alias while retaining the same node's other names", async () => {
+    const blocks = [doc("source", "Source"), doc("target", "Useful", '{: name="01" alias="Noise,Helpful"}'),
+      paragraph("p", "source", "01 Noise Helpful Useful")];
+    const index = await indexOf(blocks, {}, ["01", "noise"]);
+    const result = await index.query(scopeOf(blocks), "all", [], controller().signal);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].weight).toBe(2);
+    expect(result.edges[0].provenance!.map(item => item.mention!.matched)).toEqual(["Helpful", "Useful"]);
+  });
+
+  it("frees vocabulary and occurrence budgets before noisy words can crowd out useful matches", async () => {
+    const blocks = [doc("noise", "01"), doc("useful", "Beta"), paragraph("p", "source", `${"01 ".repeat(100)}Beta`)];
+    const index = await indexOf(blocks, { keywords: 1, occurrencesPerSource: 1, cachedOccurrences: 1 }, ["01"]);
+    const result = await index.query(scopeOf(blocks), "all", [], controller().signal);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].provenance![0]).toMatchObject({ sourceId: "p", targetId: "useful", mention: { matched: "Beta" } });
+    expect(index.progress).toMatchObject({ keywords: 1, skippedKeywords: 0, limitedSources: 0 });
+    expect(result.truncated).toBe(false);
+  });
+
+  it("recomputes cached matches when exclusions change and restores them when cleared", async () => {
+    const blocks = [doc("source", "Source"), doc("short", "Graph"), doc("long", "Graph Theory"), paragraph("p", "source", "Graph Theory")];
+    const index = await indexOf(blocks);
+    const scope = scopeOf(blocks);
+    const before = await index.query(scope, "all", [], controller().signal);
+    expect(before.edges[0].provenance![0].targetId).toBe("long");
+    index.replace(blocks, ["graph theory"]);
+    await index.warm(() => {}, controller().signal);
+    const excluded = await index.query(scope, "all", [], controller().signal);
+    expect(excluded.edges[0].provenance![0].targetId).toBe("short");
+    index.replace(blocks, []);
+    await index.warm(() => {}, controller().signal);
+    expect(await index.query(scope, "all", [], controller().signal)).toEqual(before);
+  });
+
   it("keeps source paragraphs and counts occurrences, with explicit edges taking precedence", async () => {
     const blocks = [doc("a", "Alpha"), doc("b", "Beta"), paragraph("p", "a", "Beta and **Beta**. Alpha ((20260822181032-6spbotb 'Beta'))")];
     const index = await indexOf(blocks);

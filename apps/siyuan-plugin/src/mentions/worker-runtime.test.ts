@@ -14,6 +14,26 @@ const query = (request: number, mode: "all" | "selected" | "off", chosenIds: str
 const results = (events: MentionResponse[]) => events.filter((event): event is Extract<MentionResponse, { kind: "result" }> => event.kind === "result");
 
 describe("mention worker scheduling", () => {
+  it("rebuilds exclusions using the retained corpus and publishes only the latest revision", async () => {
+    const events: MentionResponse[] = [];
+    const runtime = new MentionWorkerRuntime(event => events.push(event));
+    runtime.receive({ kind: "load", revision: 1, blocks, excludedPhrases: ["ＢＥＴＡ"] });
+    runtime.receive({ kind: "scope", revision: 1, scopeRevision: 1, scope });
+    runtime.receive(query(1, "all"));
+    await vi.waitFor(() => expect(results(events)).toHaveLength(1));
+    expect(results(events)[0].result.edges).toEqual([]);
+    runtime.receive({ kind: "exclusions", revision: 2, excludedPhrases: ["beta"] });
+    runtime.receive({ kind: "scope", revision: 2, scopeRevision: 1, scope });
+    runtime.receive({ ...query(2, "all"), revision: 2 });
+    runtime.receive({ kind: "exclusions", revision: 3, excludedPhrases: [] });
+    runtime.receive({ kind: "scope", revision: 3, scopeRevision: 1, scope });
+    runtime.receive({ ...query(3, "all"), revision: 3 });
+    await vi.waitFor(() => expect(results(events).at(-1)?.revision).toBe(3));
+    expect(results(events).at(-1)!.result.edges).toHaveLength(1);
+    expect(events.some(event => event.revision === 2 && (event.kind === "ready" || event.kind === "result"))).toBe(false);
+    runtime.dispose();
+  });
+
   it("warms once and serves both enabled modes from the same cache", async () => {
     const events: MentionResponse[] = [];
     const runtime = new MentionWorkerRuntime(event => events.push(event));
@@ -60,6 +80,39 @@ class WorkerStub extends EventTarget implements MentionWorkerPort {
 }
 
 describe("mention client revision boundaries", () => {
+  it("sends only changed exclusions, without copying the corpus again or accepting stale matches", () => {
+    const worker = new WorkerStub();
+    const states: MentionSnapshot[] = [];
+    const client = new MentionClient(() => worker, state => states.push(state));
+    const input: MentionInput = { blocks, scope, mode: "all", chosenIds: [] };
+    client.update(input);
+    client.update({ ...input, excludedPhrases: [" Ｂｅｔａ ", "beta"] });
+    expect(worker.messages.map(message => message.kind)).toEqual(["load", "scope", "query", "exclusions", "scope", "query"]);
+    expect(worker.messages[3]).toEqual({ kind: "exclusions", revision: 2, excludedPhrases: ["beta"] });
+    expect(states.at(-1)).toMatchObject({ ready: false, pending: true, result: { edges: [] } });
+    const count = states.length;
+    worker.emit({ kind: "ready", revision: 1, progress: EMPTY_MENTION_PROGRESS });
+    worker.emit({ kind: "result", revision: 1, scopeRevision: 1, request: 1, result: { edges: [], truncated: false, ambiguousEdges: 0 } });
+    expect(states).toHaveLength(count);
+    client.update({ ...input, excludedPhrases: ["beta"] });
+    expect(worker.messages.filter(message => message.kind === "exclusions")).toHaveLength(1);
+    client.retry();
+    expect(worker.messages.at(-3)).toMatchObject({ kind: "load", blocks, excludedPhrases: ["beta"] });
+    client.dispose();
+  });
+
+  it("sends the corpus to a fresh worker when exclusions change after an index failure", () => {
+    const workers: WorkerStub[] = [];
+    const client = new MentionClient(() => { const worker = new WorkerStub(); workers.push(worker); return worker; }, () => {});
+    const input: MentionInput = { blocks, scope, mode: "all", chosenIds: [] };
+    client.update(input);
+    workers[0].dispatchEvent(new Event("error"));
+    client.update({ ...input, excludedPhrases: ["beta"] });
+    expect(workers[0].terminate).toHaveBeenCalledOnce();
+    expect(workers[1].messages[0]).toMatchObject({ kind: "load", blocks, excludedPhrases: ["beta"] });
+    client.dispose();
+  });
+
   it("does not reload text for mode/selection changes and rejects late replies at every boundary", () => {
     const worker = new WorkerStub();
     const states: MentionSnapshot[] = [];

@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphProvenance } from "../data/types";
 import { KeywordMatcher, type KeywordHit } from "./matcher";
-import { nativeNames, normalizeKeyword, ordinaryProse } from "./prose";
+import { nativeNames, ordinaryProse } from "./prose";
+import { KEYWORD_LENGTH_LIMIT, normalizeExcludedPhrases, normalizeKeyword } from "./keywords";
 import {
   EMPTY_MENTION_PROGRESS, MENTION_LIMITS,
   type MentionBlock, type MentionEvidence, type MentionLimits, type MentionMode,
@@ -38,7 +39,7 @@ export class MentionIndex {
     this.limits = { ...MENTION_LIMITS, ...limits };
   }
 
-  replace(blocks: readonly MentionBlock[]): void {
+  replace(blocks: readonly MentionBlock[], excludedPhrases: readonly string[] = []): void {
     this.ready = false;
     this.blocks = new Map(blocks.map(block => [block.id, block]));
     if (this.blocks.size !== blocks.length) throw new Error("文本索引包含重复的原始块 ID");
@@ -49,6 +50,7 @@ export class MentionIndex {
     this.indexed = new Set();
     this.priority = [];
     this.progress = { ...EMPTY_MENTION_PROGRESS };
+    const excluded = new Set(normalizeExcludedPhrases(excludedPhrases));
     let keywordCharacters = 0;
     const rawTexts = new Set<string>();
     for (const block of blocks) {
@@ -59,7 +61,9 @@ export class MentionIndex {
         const keyword = normalizeKeyword(name);
         if (blockKeywords.has(keyword)) continue;
         blockKeywords.add(keyword);
-        if (!keyword || keyword.length > 256 || !/[\p{L}\p{N}]/u.test(keyword)
+        // Exclude before vocabulary and occurrence budgets, not after edges form.
+        if (excluded.has(keyword)) continue;
+        if (!keyword || keyword.length > KEYWORD_LENGTH_LIMIT || !/[\p{L}\p{N}]/u.test(keyword)
           || keyword.includes("\uFFFC")) { this.progress.skippedKeywords++; continue; }
         let targets = this.targets.get(keyword);
         if (!targets) {

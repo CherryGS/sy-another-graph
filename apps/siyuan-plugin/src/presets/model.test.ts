@@ -17,10 +17,13 @@ describe("persistent preset schema", () => {
     } });
     first.presets[0].filters.excludeIds.push(BLOCK);
     first.presets[0].filters.hiddenTypes.push("p");
+    first.presets[0].filters.excludedMentionPhrases.push("01");
     expect(second.presets[0].filters.excludeIds).toEqual([]);
     expect(second.presets[0].filters.hiddenTypes).toEqual([]);
     expect(DEFAULT_FILTERS.excludeIds).toEqual([]);
     expect(DEFAULT_FILTERS.hiddenTypes).toEqual([]);
+    expect(second.presets[0].filters.excludedMentionPhrases).toEqual([]);
+    expect(DEFAULT_FILTERS.excludedMentionPhrases).toEqual([]);
     expect(readPresetStore({ version: 1, presets: [], activePresetId: null })).toEqual({ version: 1, presets: [], activePresetId: null });
   });
 
@@ -31,6 +34,7 @@ describe("persistent preset schema", () => {
       references: false, hierarchy: true, hideIsolated: true, includeChildDocuments: false,
       databases: false, mentions: "selected" as const, query: "transient search",
       excludeIds: [OTHER, BLOCK, OTHER], hiddenTypes: ["future-type", "p", "d", "p"],
+      excludedMentionPhrases: [" ０１ ", "Graph Theory", "GRAPH THEORY"],
     };
     store.presets[0].filters = filters;
     const restored = readPresetStore({ ...store, selectedId: BLOCK })!;
@@ -39,12 +43,23 @@ describe("persistent preset schema", () => {
       hideIsolated: true, includeChildDocuments: false, databases: false,
       documentsOnly: false, mentions: "selected", excludeIds: [BLOCK, OTHER],
       hiddenTypes: ["future-type", "p"],
+      excludedMentionPhrases: ["01", "graph theory"],
     });
     expect("selectedId" in restored).toBe(false);
     filters.excludeIds.length = 0;
     filters.hiddenTypes.push("h");
+    filters.excludedMentionPhrases.length = 0;
     expect(restored.presets[0].filters.excludeIds).toEqual([BLOCK, OTHER]);
     expect(restored.presets[0].filters.hiddenTypes).toEqual(["future-type", "p"]);
+    expect(restored.presets[0].filters.excludedMentionPhrases).toEqual(["01", "graph theory"]);
+  });
+
+  it("restores existing v1 presets with an empty phrase exclusion list", () => {
+    const legacy = createPresetStore();
+    Reflect.deleteProperty(legacy.presets[0].filters, "excludedMentionPhrases");
+    const restored = readPresetStore(legacy)!;
+    expect(restored.activePresetId).toBe(legacy.activePresetId);
+    expect(restored.presets[0].filters.excludedMentionPhrases).toEqual([]);
   });
 
   it("compares effective rules independently of search, array ordering, and document-only redundant exclusions", () => {
@@ -54,6 +69,9 @@ describe("persistent preset schema", () => {
     expect(presetFilters(left).hiddenTypes).toEqual([]);
     expect(samePresetFilters(left, { ...right, scopeId: BLOCK })).toBe(false);
     expect(samePresetFilters({ ...left, documentsOnly: false }, { ...right, documentsOnly: false })).toBe(false);
+    expect(samePresetFilters(left, { ...left, excludedMentionPhrases: ["01"] })).toBe(false);
+    expect(samePresetFilters({ ...left, excludedMentionPhrases: [" ０１ ", "BETA"] },
+      { ...left, excludedMentionPhrases: ["beta", "01", "beta"] })).toBe(true);
   });
 
   it("preserves graph revision inputs for equivalent presets and mention-only switches", () => {
@@ -66,6 +84,11 @@ describe("persistent preset schema", () => {
     expect(mentions).toMatchObject({ mentions: "selected", query: "keep my search" });
     expect(mentions.excludeIds).toBe(previous.excludeIds);
     expect(mentions.hiddenTypes).toBe(previous.hiddenTypes);
+    expect(mentions.excludedMentionPhrases).toBe(previous.excludedMentionPhrases);
+    const phrases = applyPresetFilters(previous, { ...equivalent, excludedMentionPhrases: ["01"] });
+    expect(phrases.excludedMentionPhrases).toEqual(["01"]);
+    expect(phrases.excludeIds).toBe(previous.excludeIds);
+    expect(phrases.hiddenTypes).toBe(previous.hiddenTypes);
     const excluded = applyPresetFilters(previous, { ...equivalent, excludeIds: [BLOCK] });
     expect(excluded.excludeIds).toEqual([BLOCK]);
     expect(excluded.excludeIds).not.toBe(previous.excludeIds);
@@ -91,6 +114,9 @@ describe("persistent preset schema", () => {
     ["excludeIds", Array(2001).fill(BLOCK)], ["hiddenTypes", [false]],
     ["hiddenTypes", ["future\u0081type"]], ["hiddenTypes", ["a".repeat(65)]],
     ["hiddenTypes", Array(257).fill("p")],
+    ["excludedMentionPhrases", null], ["excludedMentionPhrases", "01"],
+    ["excludedMentionPhrases", [false]], ["excludedMentionPhrases", ["a".repeat(257)]],
+    ["excludedMentionPhrases", ["bad\u0081phrase"]], ["excludedMentionPhrases", Array(2001).fill("01")],
   ])("rejects invalid %s rules instead of silently broadening them", (field, value) => {
     const store = createPresetStore();
     store.presets[0].filters = { ...store.presets[0].filters, [field]: value };

@@ -1,4 +1,4 @@
-import { normalizeKeyword } from "./prose";
+import { normalizeKeyword } from "./keywords";
 
 interface TrieNode {
   next: Map<string, number>;

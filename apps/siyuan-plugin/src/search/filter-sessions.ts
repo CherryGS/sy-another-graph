@@ -3,7 +3,7 @@ import { samePresetFilters } from "../presets/model";
 import type { SearchGraphSnapshot } from "./model";
 
 type FilterAction = GraphFilters | ((previous: GraphFilters) => GraphFilters);
-const defaults = (): GraphFilters => ({ ...DEFAULT_FILTERS, excludeIds: [], hiddenTypes: [] });
+const defaults = (): GraphFilters => ({ ...DEFAULT_FILTERS, excludeIds: [], hiddenTypes: [], excludedMentionPhrases: [] });
 const searchDefaults = (): GraphFilters => ({ ...defaults(), documentsOnly: false, hierarchy: true });
 export interface TemporarySearch {
   snapshot: SearchGraphSnapshot;

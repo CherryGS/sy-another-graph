@@ -88,7 +88,7 @@ export function GraphFiltersPanel({
           </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {state.filterPresets.temporaryActive ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。" : "筛选自动生效，节点选择与邻域操作位于工具栏。"}
+          {state.filterPresets.temporaryActive ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。" : "筛选自动生效，排除词组需点击应用。"}
         </p>
       </div>
       <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
