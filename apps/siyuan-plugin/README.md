@@ -38,7 +38,7 @@ The configured test workspace is `E:/Data/SYTest`, served on port 6806.
 | `src/graph/` | Cosmograph rendering, interaction, and resource lifecycle. |
 | `src/engine/` | Rust WASM worker adapter. |
 | `../../crates/graph-core/` | Graph algorithms and Rust tests. |
-| `../../patches/` | Versioned Cosmograph/Cosmos changes applied by pnpm. |
+| `../../patches/` | Versioned Cosmograph/Cosmos changes and the Arrow CLI entry fix applied by pnpm. |
 
 The host retains one iframe across tab switches and close/reopen. Plugin unload
 releases its resources. Runtime assets are bundled locally; requests stay on the

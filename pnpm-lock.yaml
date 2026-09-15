@@ -7,6 +7,7 @@ settings:
 patchedDependencies:
   '@cosmograph/cosmograph@2.5.1': 811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a
   '@cosmograph/cosmos@2.5.1': 537ff56930363f9c09c8bb3233b6de3809fbbc3f24cc408c8c68e96e2f3dc2c6
+  apache-arrow@17.0.0: 1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5
 
 importers:
 
@@ -32,7 +33,7 @@ importers:
         version: 1.170.33(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       apache-arrow:
         specifier: 17.0.0
-        version: 17.0.0
+        version: 17.0.0(patch_hash=1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3633,7 +3634,7 @@ snapshots:
       '@uwdata/mosaic-plot': 0.21.1
       '@uwdata/mosaic-sql': 0.21.1
       '@uwdata/vgplot': 0.21.1
-      apache-arrow: 17.0.0
+      apache-arrow: 17.0.0(patch_hash=1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5)
       d3-array: 3.2.4
       d3-brush: 3.0.0
       d3-color: 3.1.0
@@ -3712,11 +3713,11 @@ snapshots:
 
   '@duckdb/duckdb-wasm@1.30.0':
     dependencies:
-      apache-arrow: 17.0.0
+      apache-arrow: 17.0.0(patch_hash=1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5)
 
   '@duckdb/duckdb-wasm@1.32.0':
     dependencies:
-      apache-arrow: 17.0.0
+      apache-arrow: 17.0.0(patch_hash=1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5)
 
   '@floating-ui/core@1.8.0':
     dependencies:
@@ -4964,7 +4965,7 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
 
-  apache-arrow@17.0.0:
+  apache-arrow@17.0.0(patch_hash=1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5):
     dependencies:
       '@swc/helpers': 0.5.23
       '@types/command-line-args': 5.2.3

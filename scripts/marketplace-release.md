@@ -59,19 +59,39 @@ pnpm publish:plugin --bump patch --notes release-notes.local --yes
 安装包和实际使用的更新说明另存于 Git 私有目录的 `plugin-releases/` 下，
 每次使用独立目录，终端会打印位置。它们不会进入源码提交或集市安装包。
 
-如果版本提交之后推送、上传或校验失败，脚本保留提交、标签和上述恢复资料。
+如果版本提交之后推送、上传或校验失败，脚本保留已经生成的提交、标签和恢复资料；
+具体停在哪一步需要先核对，标签不一定已经创建。
 先检查现状，不要直接重新递增版本：
 
-1. 确认本地版本提交和标签是否已到远端；未到远端时重新推送该分支与该标签。
-2. 用 `gh release view vX.Y.Z --repo CherryGS/sy-another-graph` 检查 Release。
-3. 如果尚无 Release，使用保留的安装包和说明创建：
+1. 如果报错是提交夹带额外文件、提交钩子修改版本或工作区有改动，先修正并重新检查、打包。
+   此类校验失败不能直接继续推送或上传之前的安装包。
+2. 如果已进入推送阶段，先核对本地标签所指提交以及远端分支、标签。
+   `schannel` / TLS 握手失败发生在 Git 网络连接阶段；连接恢复后可继续推送同一次发布：
+
+   ```powershell
+   git show --stat vX.Y.Z
+   git ls-remote origin refs/heads/master refs/tags/vX.Y.Z "refs/tags/vX.Y.Z^{}"
+   # 确认版本提交和标签有效后，原子推送标签对应的提交与标签。
+   git push --atomic origin "vX.Y.Z^{}:refs/heads/master" refs/tags/vX.Y.Z
+   ```
+
+   不要为重试递增版本、移动已有标签或强制推送；远端同名标签指向其他提交时应先核查。
+3. 用 `gh release view vX.Y.Z --repo CherryGS/sy-another-graph` 检查 Release。
+4. 如果尚无 Release，使用保留的安装包和说明创建：
 
    ```powershell
    gh release create vX.Y.Z "保留目录/package.zip" --repo CherryGS/sy-another-graph --verify-tag --title "vX.Y.Z · 一个思源图谱" --notes-file "保留目录/release-notes.md" --latest
    ```
 
-4. 如果已有草稿，检查并补齐该草稿的附件和说明后发布；如果正式 Release 已存在，
+5. 如果已有草稿，检查并补齐该草稿的附件和说明后发布；如果正式 Release 已存在，
    核对附件和摘要。不要为日常更新移动已发布标签或覆盖已发布版本。
+
+## Arrow 安装提示
+
+Arrow 17 的清单声明了未随包发布的 `bin/arrow2csv.cjs`。仓库补丁为该入口转接到
+原有 `arrow2csv.js`，不改动图谱使用的 Arrow API。pnpm 11 首次应用补丁时会先为
+依赖创建命令入口，所以全新安装仍可能出现一次内部 `.bin` 警告；安装完成后入口
+可用，后续冻结安装不应重复出现。这个提示与 Git 推送的 TLS 错误无关。
 
 ## 其他命令
 
