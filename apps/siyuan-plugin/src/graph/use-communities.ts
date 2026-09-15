@@ -19,7 +19,11 @@ export function useCommunities(data: PreparedGraph | null, enabled: boolean, res
   const [result, setResult] = useState<Result | null>(null);
   useEffect(() => {
     const { data, enabled, resolution } = input;
-    if (!data || !enabled || !data.pointsCount) return;
+    if (!data || !enabled || !data.pointsCount) {
+      // eslint-disable-next-line react/set-state-in-effect -- Release the obsolete graph snapshot when community computation is inactive.
+      setResult(null);
+      return;
+    }
     const controller = new AbortController();
     void communityEndpoints(data, controller.signal)
       .then((endpoints) => calculateCommunities({ nodes: data.pointsCount, endpoints, resolution }, controller.signal))

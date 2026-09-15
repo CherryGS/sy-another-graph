@@ -168,6 +168,7 @@ export class MentionIndex {
       const entry = eligible.get(id);
       return !!entry && (chosen.has(entry.displayId) || chosen.has(this.blocks.get(id)?.rootId ?? ""));
     };
+    let sliceStarted = performance.now();
     for (let offset = 0; offset < scope.entries.length; offset += 512) {
       signal.throwIfAborted();
       for (const source of scope.entries.slice(offset, offset + 512)) {
@@ -231,7 +232,11 @@ export class MentionIndex {
           }
         }
       }
-      await pause();
+      // Keep cheap scans in one turn while yielding longer work like warm().
+      if (performance.now() - sliceStarted >= 8) {
+        await pause();
+        sliceStarted = performance.now();
+      }
     }
     signal.throwIfAborted();
     result.edges = [...grouped.values()];

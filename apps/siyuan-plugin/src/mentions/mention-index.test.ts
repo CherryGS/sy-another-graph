@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MentionIndex } from "./mention-index";
 import { KeywordMatcher } from "./matcher";
 import { nativeNames, normalizeKeyword, ordinaryProse } from "./prose";
@@ -155,6 +155,38 @@ describe("cached text mention graph", () => {
     await expect(index.warm(() => {}, abort.signal)).rejects.toMatchObject({ name: "AbortError" });
     expect(index.ready).toBe(false);
     await expect(index.query(scopeOf(blocks), "all", [], abort.signal)).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("finishes cheap multi-batch queries without waiting for timers", async () => {
+    const blocks = Array.from({ length: 2_048 }, (_, index) => doc(`d${index}`, "Document"));
+    const index = await indexOf(blocks);
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    try {
+      expect(await index.query(scopeOf(blocks), "selected", ["d0"], controller().signal))
+        .toEqual({ edges: [], truncated: false, ambiguousEdges: 0 });
+      expect(timer).not.toHaveBeenCalled();
+    } finally { vi.restoreAllMocks(); }
+  });
+
+  it("lets queued cancellation interrupt a query after its work budget is spent", async () => {
+    const blocks = [doc("a", "Alpha"), doc("b", "Beta"),
+      ...Array.from({ length: 2_048 }, (_, index) => paragraph(`p${index}`, "a", "Beta"))];
+    const index = await indexOf(blocks);
+    const abort = controller();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let elapsed = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => elapsed += 8);
+    try {
+      setTimeout(() => abort.abort(), 0);
+      const rejected = expect(index.query(scopeOf(blocks), "all", [], abort.signal))
+        .rejects.toMatchObject({ name: "AbortError" });
+      await vi.runAllTimersAsync();
+      await rejected;
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
   });
 
   it("keeps shared limited passages stable and enforces the cache budget after source reordering", async () => {
