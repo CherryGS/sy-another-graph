@@ -38,7 +38,8 @@ SQL access is SELECT-only; the generator does not edit source SQLite files,
 write `.sy` files directly, delete notes, or replace existing document content.
 Planned block-ID and document-path collisions stop the run.
 
-The default checkpoint is `atlas-stress.local`, ignored by Git. Preserve it
+The default checkpoint is `temp/atlas-stress.local` at the repository root,
+ignored by Git. Its parent directory is created when needed. Preserve it
 between stages: it contains the notebook identity, deterministic ID namespace,
 completed batches, anchors, and any pending write. Use the same `--state <path>`
 on every invocation when selecting a different checkpoint. Initialization refuses

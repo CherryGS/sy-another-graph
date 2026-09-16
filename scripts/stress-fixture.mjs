@@ -5,13 +5,13 @@
  * node scripts/stress-fixture.mjs --write --pilot
  * node scripts/stress-fixture.mjs --write --target 1000
  * node scripts/stress-fixture.mjs --report
- * The default state file, atlas-stress.local, is ignored by the delivery repo.
+ * The default state file, temp/atlas-stress.local, is ignored by the delivery repo.
  * Kernel contracts: SiYuan 3.8.3 / upstream 8641553, docs/API.md; native writes
  * use createNotebook/createDocWithMd only, with read-only SQL verification.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { resolve, win32 } from "node:path";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, resolve, win32 } from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { BATCH_BLOCKS, makeFixtureDocument, planStages } from "./stress-fixture-data.mjs";
@@ -27,6 +27,7 @@ const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms)
 const emit = (value) => process.stdout.write(`${JSON.stringify(value)}\n`);
 
 function saveState(path, state) {
+  mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.pending.local`;
   writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, {
     encoding: "utf8",
@@ -48,7 +49,10 @@ export async function main(argv = process.argv.slice(2)) {
       workspace: { type: "string" },
       notebook: { type: "string" },
       stamp: { type: "string" },
-      state: { type: "string", default: "atlas-stress.local" },
+      state: {
+        type: "string",
+        default: resolve(import.meta.dirname, "../temp/atlas-stress.local"),
+      },
       url: { type: "string", default: "http://127.0.0.1:6806" },
     },
   });

@@ -40,15 +40,15 @@ pnpm publish:plugin
 pnpm publish:plugin --bump minor --dry-run
 
 # 指定升级类型和已有更新说明，最后仍需确认。
-pnpm publish:plugin --bump patch --notes release-notes.local
+pnpm publish:plugin --bump patch --notes temp/release-notes.md
 
 # 明确跳过最终确认，适用于已审阅内容的自动化调用。
-pnpm publish:plugin --bump patch --notes release-notes.local --yes
+pnpm publish:plugin --bump patch --notes temp/release-notes.md --yes
 ```
 
 支持 `--help`。非交互终端需要指定 `--bump`，并使用 `--dry-run` 或 `--yes`。
 当前仅支持稳定版本，不生成 prerelease。
-自定义说明草稿可使用 `.local` 后缀，沿用仓库忽略规则，无需为草稿单独提交。
+自定义说明草稿统一放在仓库根目录的 `temp/` 下，该目录已被 Git 忽略。
 
 ## 取消与失败后继续
 
