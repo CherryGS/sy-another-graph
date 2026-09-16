@@ -1,19 +1,20 @@
 import type { Custom } from "siyuan";
-import {
-  WORKBENCH_PRESET_CHANNEL,
-  type GraphTabStateMessage,
-} from "../presets/host-protocol";
+import { WORKBENCH_PRESET_CHANNEL, type GraphTabStateMessage } from "../presets/host-protocol";
 
 export const DEFAULT_GRAPH_TAB_TITLE = "图谱 · 全部 · 文档引用";
 
 type GraphTab = Pick<Custom["tab"], "title" | "headElement" | "updateTitle">;
 
 function isLabel(value: unknown, maxLength: number): value is string {
-  return typeof value === "string" && value.trim().length > 0 &&
-    value.length <= maxLength && Array.from(value).every(character => {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maxLength &&
+    Array.from(value).every((character) => {
       const code = character.charCodeAt(0);
       return code > 31 && (code < 127 || code > 159);
-    });
+    })
+  );
 }
 
 function tooltipText(value: string): string {
@@ -51,8 +52,13 @@ export class GraphTabTitle {
   handle(event: MessageEvent): boolean {
     if (this.disposed || !this.ownsMessage(event)) return false;
     const data = event.data as Partial<GraphTabStateMessage> | null;
-    if (data?.channel !== WORKBENCH_PRESET_CHANNEL || data.type !== "graph-tab-state" ||
-      !isLabel(data.title, 160) || !isLabel(data.description, 1000)) return false;
+    if (
+      data?.channel !== WORKBENCH_PRESET_CHANNEL ||
+      data.type !== "graph-tab-state" ||
+      !isLabel(data.title, 160) ||
+      !isLabel(data.description, 1000)
+    )
+      return false;
     if (data.title === this.state.title && data.description === this.state.description) return true;
     this.state = { title: data.title, description: data.description };
     for (const tab of this.tabs) this.apply(tab);

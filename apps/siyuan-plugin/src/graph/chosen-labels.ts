@@ -1,7 +1,13 @@
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasNode } from "./types";
 import { SEARCH_ORIGIN_LABELS, searchNodeOrigin } from "../search/origins";
-import { pointAt, projectPosition, type AsyncPointGeometry, type Dimensions, type PointPosition } from "./geometry";
+import {
+  pointAt,
+  projectPosition,
+  type AsyncPointGeometry,
+  type Dimensions,
+  type PointPosition,
+} from "./geometry";
 interface LabelScheduler {
   frame(callback: () => void): number;
   cancelFrame(id: number): void;
@@ -73,17 +79,17 @@ export class ChosenLabels {
     host.appendChild(this.layer);
   }
 
-  update(
-    data: PreparedGraph | null,
-    ids: readonly string[],
-    spotlightIds: readonly string[] = [],
-  ) {
+  update(data: PreparedGraph | null, ids: readonly string[], spotlightIds: readonly string[] = []) {
     if (this.disposed) return;
     const chosen = new Set(ids.filter((id) => data?.idToIndex.has(id)));
     const spotlight = new Set(spotlightIds.filter((id) => data?.idToIndex.has(id)));
     const dimensions = this.geometry.is3D ? 3 : 2;
-    if (data === this.data && sameIds(chosen, this.chosen) &&
-      sameIds(spotlight, this.spotlight) && dimensions === this.positionDimensions)
+    if (
+      data === this.data &&
+      sameIds(chosen, this.chosen) &&
+      sameIds(spotlight, this.spotlight) &&
+      dimensions === this.positionDimensions
+    )
       return;
 
     this.invalidate(data !== this.data || dimensions !== this.positionDimensions);
@@ -152,14 +158,16 @@ export class ChosenLabels {
     const dimensionsChanged = this.syncDimensions();
     // Chosen points are pinned. Simulation frames cannot change their coordinates.
     // Only the explicitly temporary, unpinned endpoint labels need tick readbacks.
-    if (kind === "simulation" && (this.readFailed ||
-      (!this.hasMovingLabels && !dimensionsChanged && this.readKind !== "all"))) return;
+    if (
+      kind === "simulation" &&
+      (this.readFailed || (!this.hasMovingLabels && !dimensionsChanged && this.readKind !== "all"))
+    )
+      return;
     if (kind === "positions") {
       this.readFailed = false;
       this.abortRetries = 0;
       this.readKind = "all";
-    }
-    else if (kind === "simulation" && this.readKind !== "all") this.readKind = "moving";
+    } else if (kind === "simulation" && this.readKind !== "all") this.readKind = "moving";
     if (kind !== "simulation") this.projectionDirty = true;
     this.schedule();
   }
@@ -201,8 +209,12 @@ export class ChosenLabels {
   }
 
   private canRead() {
-    return this.readKind && !this.pending && !this.readFailed &&
-      (this.readKind === "all" || this.scheduler.now() >= this.nextMovingReadAt);
+    return (
+      this.readKind &&
+      !this.pending &&
+      !this.readFailed &&
+      (this.readKind === "all" || this.scheduler.now() >= this.nextMovingReadAt)
+    );
   }
 
   private async readPositions(read: PositionRead) {
@@ -223,8 +235,7 @@ export class ChosenLabels {
       for (const id of this.ids) {
         if (read.kind === "moving" && this.chosen.has(id)) continue;
         const index = read.data.idToIndex.get(id);
-        if (index !== undefined)
-          this.positions.set(id, pointAt(positions, index, read.dimensions));
+        if (index !== undefined) this.positions.set(id, pointAt(positions, index, read.dimensions));
       }
       if (this.hasMovingLabels) {
         const completedAt = this.scheduler.now();
@@ -240,7 +251,12 @@ export class ChosenLabels {
       // One frame retry also recovers paused layouts whose source upload is still pending.
       // Further aborts wait for new demand rather than creating an idle polling loop.
       // Operational failures wait for explicit demand instead of hammering the GPU.
-      if (failure && typeof failure === "object" && "name" in failure && failure.name === "AbortError") {
+      if (
+        failure &&
+        typeof failure === "object" &&
+        "name" in failure &&
+        failure.name === "AbortError"
+      ) {
         if (this.abortRetries < 1) {
           this.abortRetries += 1;
           retryNextFrame = true;
@@ -256,8 +272,7 @@ export class ChosenLabels {
       if (this.pending === read) {
         this.pending = undefined;
         const refreshQueued = this.readKind !== null;
-        if (!applied)
-          this.readKind = read.kind === "all" ? "all" : (this.readKind ?? "moving");
+        if (!applied) this.readKind = read.kind === "all" ? "all" : (this.readKind ?? "moving");
         if (applied || refreshQueued || retryNextFrame) this.schedule();
       }
     }
@@ -278,7 +293,10 @@ export class ChosenLabels {
         label.style.visibility = "hidden";
         continue;
       }
-      const radius = this.geometry.getPointScreenRadiusByIndex(index, position.length === 3 ? position : undefined);
+      const radius = this.geometry.getPointScreenRadiusByIndex(
+        index,
+        position.length === 3 ? position : undefined,
+      );
       label.style.left = `${screen[0]}px`;
       label.style.top = `${screen[1] - (Number.isFinite(radius) ? radius : 0) - 7}px`;
       label.style.visibility = "visible";
@@ -286,9 +304,14 @@ export class ChosenLabels {
   }
 
   private isCurrent(read: PositionRead) {
-    return !this.disposed && this.active && this.pending === read &&
-      this.generation === read.generation && this.data === read.data &&
-      !read.controller.signal.aborted;
+    return (
+      !this.disposed &&
+      this.active &&
+      this.pending === read &&
+      this.generation === read.generation &&
+      this.data === read.data &&
+      !read.controller.signal.aborted
+    );
   }
 
   private isCurrentLabel(id: string, label: HTMLButtonElement) {

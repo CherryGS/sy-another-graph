@@ -19,10 +19,7 @@ export type PresetResponse = {
   channel: typeof WORKBENCH_PRESET_CHANNEL;
   type: "preset-response";
   request: string;
-} & (
-  | { ok: true; store: PresetStore | null }
-  | { ok: false; error: string }
-);
+} & ({ ok: true; store: PresetStore | null } | { ok: false; error: string });
 
 export interface GraphTabStateMessage {
   channel: typeof WORKBENCH_PRESET_CHANNEL;

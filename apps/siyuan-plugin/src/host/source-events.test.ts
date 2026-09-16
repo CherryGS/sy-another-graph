@@ -9,9 +9,7 @@ const event = (cmd: string, data: unknown = null, code = 0) => ({
   msg: "",
 });
 const transaction = (...actions: string[]) =>
-  event("transactions", [
-    { doOperations: actions.map((action) => ({ action })) },
-  ]);
+  event("transactions", [{ doOperations: actions.map((action) => ({ action })) }]);
 
 describe("SiYuan source-change event classification", () => {
   it.each([
@@ -86,12 +84,9 @@ describe("SiYuan source-change event classification", () => {
     "reloadFiletree",
     "reloadDocInfo",
     "unrecognized-command",
-  ])(
-    "does not treat activity or another channel as a source mutation: %s",
-    (cmd) => {
-      expect(isSourceChange(event(cmd))).toBe(false);
-    },
-  );
+  ])("does not treat activity or another channel as a source mutation: %s", (cmd) => {
+    expect(isSourceChange(event(cmd))).toBe(false);
+  });
 
   it("ignores empty, read-only, layout-only, failed and malformed transaction messages", () => {
     for (const message of [
@@ -104,11 +99,7 @@ describe("SiYuan source-change event classification", () => {
       event("transactions", [{ doOperations: [] }]),
       event("transactions", [{ undoOperations: [{ action: "update" }] }]),
       event("transactions", [{ doOperations: [null, {}, { action: 1 }] }]),
-      transaction(
-        "setAttrViewColWidth",
-        "setAttrViewCardLayout",
-        "sortAttrViewView",
-      ),
+      transaction("setAttrViewColWidth", "setAttrViewCardLayout", "sortAttrViewView"),
       { ...transaction("update"), code: -1 },
     ])
       expect(isSourceChange(message)).toBe(false);
@@ -123,10 +114,7 @@ describe("SiYuan source-change event classification", () => {
       off: vi.fn(),
     };
     const changed = vi.fn();
-    const dispose = registerSourceChanges(
-      bus as unknown as Pick<EventBus, "on" | "off">,
-      changed,
-    );
+    const dispose = registerSourceChanges(bus as unknown as Pick<EventBus, "on" | "off">, changed);
     const callback = listener!;
     callback({ detail: event("statusbar") } as CustomEvent);
     callback({

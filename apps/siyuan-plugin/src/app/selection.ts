@@ -17,9 +17,7 @@ export function selectNode(
   shiftKey = false,
 ): GraphSelection {
   if (id === null)
-    return previous.multiple
-      ? { ...previous, inspectedId: null }
-      : { ...EMPTY_SELECTION };
+    return previous.multiple ? { ...previous, inspectedId: null } : { ...EMPTY_SELECTION };
   if (shiftKey) {
     const chosenIds = previous.chosenIds.includes(id)
       ? previous.chosenIds.filter((chosen) => chosen !== id)
@@ -38,13 +36,8 @@ export function retainSelection(
 ): GraphSelection {
   const chosenIds = previous.chosenIds.filter((id) => eligibleIds.has(id));
   const inspectedId =
-    previous.inspectedId && eligibleIds.has(previous.inspectedId)
-      ? previous.inspectedId
-      : null;
-  if (
-    chosenIds.length === previous.chosenIds.length &&
-    inspectedId === previous.inspectedId
-  )
+    previous.inspectedId && eligibleIds.has(previous.inspectedId) ? previous.inspectedId : null;
+  if (chosenIds.length === previous.chosenIds.length && inspectedId === previous.inspectedId)
     return previous;
   return {
     chosenIds,

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { defaultCosmographConfig } from "@cosmograph/cosmograph/cosmograph/config/defaults.js";
-import { DEFAULT_GRAPH_SETTINGS, GRAPH_SETTING_RANGES, graphSettingsConfig, normalizeGraphSettings } from "./settings";
+import {
+  DEFAULT_GRAPH_SETTINGS,
+  GRAPH_SETTING_RANGES,
+  graphSettingsConfig,
+  normalizeGraphSettings,
+} from "./settings";
 
 describe("graph settings", () => {
   it("preserves the installed Cosmograph spring default and the workbench's existing force overrides", () => {
-    expect(DEFAULT_GRAPH_SETTINGS.linkSpring).toBe(
-      defaultCosmographConfig.simulationLinkSpring,
-    );
+    expect(DEFAULT_GRAPH_SETTINGS.linkSpring).toBe(defaultCosmographConfig.simulationLinkSpring);
     expect(graphSettingsConfig()).toMatchObject({
       simulationLinkSpring: defaultCosmographConfig.simulationLinkSpring,
       simulationRepulsion: 0.8,
@@ -20,7 +23,14 @@ describe("graph settings", () => {
   });
 
   it("keeps invalid or nonfinite persisted values out of the renderer", () => {
-    const normalized = normalizeGraphSettings({ dimensions: 3, repulsion: Infinity, gravity: -2, friction: 5, decay: NaN, linkWidth: 100 });
+    const normalized = normalizeGraphSettings({
+      dimensions: 3,
+      repulsion: Infinity,
+      gravity: -2,
+      friction: 5,
+      decay: NaN,
+      linkWidth: 100,
+    });
     expect(normalized.dimensions).toBe(3);
     expect(normalized.repulsion).toBe(DEFAULT_GRAPH_SETTINGS.repulsion);
     expect(normalized.gravity).toBe(0);
@@ -35,8 +45,24 @@ describe("graph settings", () => {
   });
 
   it("maps display and force controls to supported config without changing graph semantics", () => {
-    const config = graphSettingsConfig({ dimensions: 3, showArrows: false, curvedLinks: true, collision: 0.5, collisionPadding: 4, linkWidth: 2, decay: 8000 });
-    expect(config).toMatchObject({ spaceDimensions: 3, linkDefaultArrows: false, curvedLinks: true, simulationCollision: 0.5, simulationCollisionPadding: 4, linkWidthScale: 2, simulationDecay: 8000 });
+    const config = graphSettingsConfig({
+      dimensions: 3,
+      showArrows: false,
+      curvedLinks: true,
+      collision: 0.5,
+      collisionPadding: 4,
+      linkWidth: 2,
+      decay: 8000,
+    });
+    expect(config).toMatchObject({
+      spaceDimensions: 3,
+      linkDefaultArrows: false,
+      curvedLinks: true,
+      simulationCollision: 0.5,
+      simulationCollisionPadding: 4,
+      linkWidthScale: 2,
+      simulationDecay: 8000,
+    });
     expect(config).not.toHaveProperty("points");
     expect(config).not.toHaveProperty("links");
     expect(config).not.toHaveProperty("enableSimulation");

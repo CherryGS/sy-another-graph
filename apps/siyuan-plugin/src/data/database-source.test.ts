@@ -3,8 +3,7 @@ import { addDatabaseGraph } from "./database-source";
 import type { BlockRow } from "./source";
 import type { GraphNode } from "./types";
 
-const id = (index: number) =>
-  `20260909120000-${String(index).padStart(7, "0")}`;
+const id = (index: number) => `20260909120000-${String(index).padStart(7, "0")}`;
 const AV_A = id(1);
 const AV_B = id(2);
 const FIELD_A = id(3);
@@ -67,12 +66,7 @@ function primary(itemId: string, boundBlockId?: string) {
   };
 }
 
-function database(
-  avId: string,
-  primaryFieldId: string,
-  items: unknown[],
-  extra: unknown[] = [],
-) {
+function database(avId: string, primaryFieldId: string, items: unknown[], extra: unknown[] = []) {
   return {
     av: {
       id: avId,
@@ -136,12 +130,7 @@ function mockDatabases(responses: Record<string, unknown>) {
 }
 
 async function acquire(blocks: BlockRow[]) {
-  return addDatabaseGraph(
-    baseGraph(blocks),
-    blocks,
-    new AbortController().signal,
-    () => {},
-  );
+  return addDatabaseGraph(baseGraph(blocks), blocks, new AbortController().signal, () => {});
 }
 
 describe("complete logical database acquisition", () => {
@@ -149,12 +138,7 @@ describe("complete logical database acquisition", () => {
     const fetchMock = mockDatabases({});
     const blocks = [block(BOUND_BLOCK)];
     const base = baseGraph(blocks);
-    const graph = await addDatabaseGraph(
-      base,
-      blocks,
-      new AbortController().signal,
-      () => {},
-    );
+    const graph = await addDatabaseGraph(base, blocks, new AbortController().signal, () => {});
     expect(fetchMock).not.toHaveBeenCalled();
     expect(graph.nodes).toEqual(base.nodes);
     expect(graph.nodes[0]).not.toBe(base.nodes[0]);
@@ -174,9 +158,7 @@ describe("complete logical database acquisition", () => {
           relationField(),
           {
             key: { id: id(40), type: "rollup" },
-            values: [
-              { blockID: ITEM_A, rollup: { contents: [primary(id(98))] } },
-            ],
+            values: [{ blockID: ITEM_A, rollup: { contents: [primary(id(98))] } }],
           },
           {
             key: { id: id(41), type: "text" },
@@ -186,31 +168,16 @@ describe("complete logical database acquisition", () => {
       ),
       [AV_B]: database(AV_B, FIELD_B, [primary(ITEM_B)]),
     });
-    const blocks = [
-      block(BOUND_BLOCK),
-      embedding(),
-      embedding(EMBEDDING_MIRROR),
-    ];
+    const blocks = [block(BOUND_BLOCK), embedding(), embedding(EMBEDDING_MIRROR)];
     const original = baseGraph(blocks);
     const originalCopy = structuredClone(original);
-    const graph = await addDatabaseGraph(
-      original,
-      blocks,
-      new AbortController().signal,
-      () => {},
-    );
+    const graph = await addDatabaseGraph(original, blocks, new AbortController().signal, () => {});
     expect(original).toEqual(originalCopy);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(graph.warnings).toEqual([]);
-    expect(
-      graph.nodes.filter((node) => node.entity === "database"),
-    ).toHaveLength(2);
-    expect(
-      graph.nodes.filter((node) => node.entity === "database-item"),
-    ).toHaveLength(22);
-    const boundItem = graph.nodes.find(
-      (node) => node.id === `av-item:${AV_A}:${ITEM_A}`,
-    )!;
+    expect(graph.nodes.filter((node) => node.entity === "database")).toHaveLength(2);
+    expect(graph.nodes.filter((node) => node.entity === "database-item")).toHaveLength(22);
+    const boundItem = graph.nodes.find((node) => node.id === `av-item:${AV_A}:${ITEM_A}`)!;
     expect(boundItem).toMatchObject({
       itemId: ITEM_A,
       databaseId: AV_A,
@@ -218,21 +185,11 @@ describe("complete logical database acquisition", () => {
       openBlockId: BOUND_BLOCK,
     });
     expect(boundItem.rootId).toBeUndefined();
-    expect(
-      graph.nodes.find((node) => node.id === EMBEDDING_A)?.databaseId,
-    ).toBe(AV_A);
-    expect(
-      graph.edges.filter((edge) => edge.kind === "database-embedding"),
-    ).toHaveLength(2);
-    expect(
-      graph.edges.filter((edge) => edge.kind === "database-membership"),
-    ).toHaveLength(22);
-    expect(
-      graph.edges.filter((edge) => edge.kind === "database-binding"),
-    ).toHaveLength(1);
-    const relations = graph.edges.filter(
-      (edge) => edge.kind === "database-relation",
-    );
+    expect(graph.nodes.find((node) => node.id === EMBEDDING_A)?.databaseId).toBe(AV_A);
+    expect(graph.edges.filter((edge) => edge.kind === "database-embedding")).toHaveLength(2);
+    expect(graph.edges.filter((edge) => edge.kind === "database-membership")).toHaveLength(22);
+    expect(graph.edges.filter((edge) => edge.kind === "database-binding")).toHaveLength(1);
+    const relations = graph.edges.filter((edge) => edge.kind === "database-relation");
     expect(relations).toHaveLength(1);
     expect(relations[0].provenance).toEqual([
       {
@@ -253,9 +210,7 @@ describe("complete logical database acquisition", () => {
     const target = graph.nodes[relations[0].target];
     expect(target.openBlockId).toBeUndefined();
     expect(target.rootId).toBeUndefined();
-    expect(graph.nodes.reduce((sum, node) => sum + node.degree, 0)).toBe(
-      2 * graph.edges.length,
-    );
+    expect(graph.nodes.reduce((sum, node) => sum + node.degree, 0)).toBe(2 * graph.edges.length);
   });
 
   it("uses the embedding as detached-item context, never an item ID as a block ID", async () => {
@@ -268,9 +223,7 @@ describe("complete logical database acquisition", () => {
     expect(item.openBlockId).toBe(EMBEDDING_A);
     expect(item.boundBlockId).toBeUndefined();
     expect(item.rootId).toBeUndefined();
-    expect(graph.edges.some((edge) => edge.kind === "database-binding")).toBe(
-      false,
-    );
+    expect(graph.edges.some((edge) => edge.kind === "database-binding")).toBe(false);
   });
 
   it("terminates cyclic relation targets and only emits relations actually stored in fields", async () => {
@@ -283,19 +236,12 @@ describe("complete logical database acquisition", () => {
     });
     const graph = await acquire([embedding()]);
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(
-      graph.edges.filter((edge) => edge.kind === "database-relation"),
-    ).toHaveLength(2);
+    expect(graph.edges.filter((edge) => edge.kind === "database-relation")).toHaveLength(2);
   });
 
   it("keeps a real item whose bound block is unavailable and reports missing endpoints", async () => {
     mockDatabases({
-      [AV_A]: database(
-        AV_A,
-        FIELD_A,
-        [primary(ITEM_A, BOUND_BLOCK)],
-        [relationField()],
-      ),
+      [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, BOUND_BLOCK)], [relationField()]),
     });
     const graph = await acquire([embedding()]);
     expect(graph.nodes.some((node) => node.itemId === ITEM_A)).toBe(true);
@@ -303,8 +249,7 @@ describe("complete logical database acquisition", () => {
     expect(graph.nodes.some((node) => node.itemId === ITEM_B)).toBe(false);
     expect(
       graph.edges.some(
-        (edge) =>
-          edge.kind === "database-binding" || edge.kind === "database-relation",
+        (edge) => edge.kind === "database-binding" || edge.kind === "database-relation",
       ),
     ).toBe(false);
     expect(JSON.stringify(graph.warnings)).toContain(AV_B);
@@ -318,12 +263,8 @@ describe("complete logical database acquisition", () => {
       [AV_B]: database(AV_B, FIELD_B, []),
     });
     const graph = await acquire([embedding()]);
-    expect(
-      graph.nodes.filter((node) => node.entity === "database-item"),
-    ).toHaveLength(0);
-    expect(
-      graph.edges.filter((edge) => edge.kind === "database-relation"),
-    ).toHaveLength(0);
+    expect(graph.nodes.filter((node) => node.entity === "database-item")).toHaveLength(0);
+    expect(graph.edges.filter((edge) => edge.kind === "database-relation")).toHaveLength(0);
     expect(JSON.stringify(graph.warnings)).toContain("实际条目端点不可用");
   });
 
@@ -341,9 +282,7 @@ describe("complete logical database acquisition", () => {
       },
     });
     const graph = await acquire([embedding()]);
-    expect(
-      graph.nodes.filter((node) => node.entity === "database"),
-    ).toHaveLength(1);
+    expect(graph.nodes.filter((node) => node.entity === "database")).toHaveLength(1);
     expect(graph.warnings).toEqual([]);
   });
 
@@ -352,29 +291,55 @@ describe("complete logical database acquisition", () => {
     relation.key.id = "mcq1ziy5-related";
     relation.key.relation.backKeyID = "legacy-back-key";
     mockDatabases({
-      [AV_A]: database(AV_A, "mcq1ziy5-primary", [primary(ITEM_A)], [relation, { key: { id: "imported-url-key", type: "url" } }]),
+      [AV_A]: database(
+        AV_A,
+        "mcq1ziy5-primary",
+        [primary(ITEM_A)],
+        [relation, { key: { id: "imported-url-key", type: "url" } }],
+      ),
       [AV_B]: database(AV_B, "legacy-primary", [primary(ITEM_B)]),
     });
     const graph = await acquire([embedding()]);
     expect(graph.warnings).toEqual([]);
-    expect(graph.edges.find(edge => edge.kind === "database-relation")?.provenance?.[0]).toMatchObject({ fieldId: "mcq1ziy5-related", pairedFieldId: "legacy-back-key" });
-    expect(graph.edges.find(edge => edge.kind === "database-membership")?.provenance?.[0].fieldId).toBe("mcq1ziy5-primary");
+    expect(
+      graph.edges.find((edge) => edge.kind === "database-relation")?.provenance?.[0],
+    ).toMatchObject({ fieldId: "mcq1ziy5-related", pairedFieldId: "legacy-back-key" });
+    expect(
+      graph.edges.find((edge) => edge.kind === "database-membership")?.provenance?.[0].fieldId,
+    ).toBe("mcq1ziy5-primary");
   });
 
   it("reports the exact invalid native binding location, actual value, database and available source", async () => {
     mockDatabases({ [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, "not-a-block-id")]) });
     const graph = await acquire([embedding()]);
-    expect(graph.warnings[0]).toMatchObject({ code: "database-read", count: 1, details: [{
-      fields: { "数据库 ID": AV_A, "接口": "/api/av/getAttributeView", "位置": "av.keyValues[0].values[0].block.id", "实际值": "not-a-block-id" },
-      openBlockId: EMBEDDING_A,
-    }] });
+    expect(graph.warnings[0]).toMatchObject({
+      code: "database-read",
+      count: 1,
+      details: [
+        {
+          fields: {
+            "数据库 ID": AV_A,
+            接口: "/api/av/getAttributeView",
+            位置: "av.keyValues[0].values[0].block.id",
+            实际值: "not-a-block-id",
+          },
+          openBlockId: EMBEDDING_A,
+        },
+      ],
+    });
   });
 
   it("retains endpoint identities and the binding impact in read diagnostics", async () => {
-    mockDatabases({ [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, BOUND_BLOCK)], [relationField()]) });
+    mockDatabases({
+      [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A, BOUND_BLOCK)], [relationField()]),
+    });
     const graph = await acquire([embedding()]);
-    expect(graph.warnings.find(issue => issue.code === "database-bindings")?.details[0].fields).toMatchObject({ "条目 ID": ITEM_A, "绑定块 ID": BOUND_BLOCK });
-    expect(graph.warnings.find(issue => issue.code === "database-relations")?.details[0].fields).toMatchObject({ "来源条目 ID": ITEM_A, "目标条目 ID": ITEM_B, "目标数据库 ID": AV_B });
+    expect(
+      graph.warnings.find((issue) => issue.code === "database-bindings")?.details[0].fields,
+    ).toMatchObject({ "条目 ID": ITEM_A, "绑定块 ID": BOUND_BLOCK });
+    expect(
+      graph.warnings.find((issue) => issue.code === "database-relations")?.details[0].fields,
+    ).toMatchObject({ "来源条目 ID": ITEM_A, "目标条目 ID": ITEM_B, "目标数据库 ID": AV_B });
   });
 
   it("reports an invalid logical payload and continues with another independent database", async () => {
@@ -382,10 +347,7 @@ describe("complete logical database acquisition", () => {
       [AV_A]: database(AV_A, FIELD_A, [primary(ITEM_A), primary(ITEM_A)]),
       [AV_B]: database(AV_B, FIELD_B, [primary(ITEM_B)]),
     });
-    const graph = await acquire([
-      embedding(),
-      embedding(EMBEDDING_MIRROR, AV_B),
-    ]);
+    const graph = await acquire([embedding(), embedding(EMBEDDING_MIRROR, AV_B)]);
     expect(graph.nodes.some((node) => node.id === `av:${AV_A}`)).toBe(false);
     expect(graph.nodes.some((node) => node.itemId === ITEM_B)).toBe(true);
     expect(JSON.stringify(graph.warnings)).toContain("重复条目标识");
@@ -409,9 +371,7 @@ describe("complete logical database acquisition", () => {
     const graph = await acquire(blocks);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(graph.warnings)).toContain("无法识别 1 个数据库块");
-    expect(
-      graph.nodes.find((node) => node.id === BOUND_BLOCK)?.databaseId,
-    ).toBeUndefined();
+    expect(graph.nodes.find((node) => node.id === BOUND_BLOCK)?.databaseId).toBeUndefined();
   });
 
   it("propagates cancellation instead of claiming an aborted read was a partial successful graph", async () => {
@@ -443,9 +403,7 @@ describe("complete logical database acquisition", () => {
     );
     const graph = await acquire(blocks);
     expect(fetch).toHaveBeenCalledTimes(4096);
-    expect(
-      graph.nodes.filter((node) => node.entity === "database"),
-    ).toHaveLength(4096);
+    expect(graph.nodes.filter((node) => node.entity === "database")).toHaveLength(4096);
     expect(JSON.stringify(graph.warnings)).toContain("逻辑库的上限");
     expect(JSON.stringify(graph.warnings)).toContain("不完整");
   });

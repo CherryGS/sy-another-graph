@@ -1,19 +1,11 @@
 import { useEffect, useState } from "react";
 
 /** Visibility alone is a host lifecycle signal, never a request to reload the graph. */
-export function subscribeHostVisibility(
-  target: Window,
-  publish: (active: boolean) => void,
-) {
+export function subscribeHostVisibility(target: Window, publish: (active: boolean) => void) {
   let hostActive = true;
-  const update = () =>
-    publish(hostActive && target.document.visibilityState !== "hidden");
+  const update = () => publish(hostActive && target.document.visibilityState !== "hidden");
   const onMessage = (event: MessageEvent) => {
-    if (
-      event.source !== target.parent ||
-      event.origin !== target.location.origin
-    )
-      return;
+    if (event.source !== target.parent || event.origin !== target.location.origin) return;
     const message = event.data;
     if (
       message?.channel !== "sy-another-graph" ||

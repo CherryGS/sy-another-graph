@@ -5,16 +5,41 @@ import { buildSearchOrigins, searchNodeOrigin, searchOriginDescription } from ".
 
 const data: GraphDataset = {
   nodes: [
-    ["top", "d", "top", undefined], ["doc", "d", "doc", "top"],
-    ["heading", "h", "doc", "doc"], ["first", "p", "doc", "heading"],
-    ["second", "p", "doc", "heading"], ["sibling", "p", "doc", "heading"],
-  ].map(([id, blockType, rootId, parentId], index) => ({ id: id!, index, entity: "block", blockType, rootId, parentId,
-    label: "Same title", notebook: "book", path: "/top/doc.sy", color: "#fff", degree: 0 })),
-  edges: [], notebooks: [], source: "siyuan", loadedAt: "", loadMs: 0, referenceCount: 0, skippedReferences: 0, warnings: [],
+    ["top", "d", "top", undefined],
+    ["doc", "d", "doc", "top"],
+    ["heading", "h", "doc", "doc"],
+    ["first", "p", "doc", "heading"],
+    ["second", "p", "doc", "heading"],
+    ["sibling", "p", "doc", "heading"],
+  ].map(([id, blockType, rootId, parentId], index) => ({
+    id: id!,
+    index,
+    entity: "block",
+    blockType,
+    rootId,
+    parentId,
+    label: "Same title",
+    notebook: "book",
+    path: "/top/doc.sy",
+    color: "#fff",
+    degree: 0,
+  })),
+  edges: [],
+  notebooks: [],
+  source: "siyuan",
+  loadedAt: "",
+  loadMs: 0,
+  referenceCount: 0,
+  skippedReferences: 0,
+  warnings: [],
 };
 function origins(hits: string[], filters: Partial<GraphFilters> = {}) {
   const matched = new Set(hits);
-  const graph = projectGraph(data, { ...DEFAULT_FILTERS, documentsOnly: false, hierarchy: true, ...filters }, searchAncestorIds(data, matched));
+  const graph = projectGraph(
+    data,
+    { ...DEFAULT_FILTERS, documentsOnly: false, hierarchy: true, ...filters },
+    searchAncestorIds(data, matched),
+  );
   return { graph, origins: buildSearchOrigins(graph, matched) };
 }
 
@@ -54,6 +79,6 @@ describe("search origin identity", () => {
   it("adds no search identity in ordinary preset mode and leaves source text unchanged", () => {
     expect(searchNodeOrigin("doc")).toBeUndefined();
     expect(searchOriginDescription("doc")).toBeUndefined();
-    expect(data.nodes.every(node => node.label === "Same title")).toBe(true);
+    expect(data.nodes.every((node) => node.label === "Same title")).toBe(true);
   });
 });

@@ -4,12 +4,20 @@ import { DEFAULT_GRAPH_TAB_TITLE, GraphTabTitle } from "./graph-tab-title";
 function harness() {
   const source = {};
   const origin = "http://127.0.0.1:6806";
-  const titles = new GraphTabTitle(event => event.source === source && event.origin === origin);
-  const message = (data = {}, event = {}) => titles.handle({
-    source, origin,
-    data: { channel: "sy-another-graph", type: "graph-tab-state", title: "图谱 · 项目 A · 阅读", description: "范围：项目 A；预设：阅读", ...data },
-    ...event,
-  } as MessageEvent);
+  const titles = new GraphTabTitle((event) => event.source === source && event.origin === origin);
+  const message = (data = {}, event = {}) =>
+    titles.handle({
+      source,
+      origin,
+      data: {
+        channel: "sy-another-graph",
+        type: "graph-tab-state",
+        title: "图谱 · 项目 A · 阅读",
+        description: "范围：项目 A；预设：阅读",
+        ...data,
+      },
+      ...event,
+    } as MessageEvent);
   const tab = () => {
     const attributes = new Map<string, string>();
     const headElement = {
@@ -17,7 +25,14 @@ function harness() {
       setAttribute: (name: string, value: string) => attributes.set(name, value),
       classList: { add: vi.fn() },
     } as unknown as HTMLElement;
-    const target = { title: "Atlas 图谱", headElement, updateTitle: vi.fn((value: string) => { target.title = value; }), attributes };
+    const target = {
+      title: "Atlas 图谱",
+      headElement,
+      updateTitle: vi.fn((value: string) => {
+        target.title = value;
+      }),
+      attributes,
+    };
     return target;
   };
   return { titles, message, tab };
@@ -52,7 +67,9 @@ describe("graph tab state", () => {
     expect(tab.updateTitle).toHaveBeenLastCalledWith(title);
     expect(tab.title).toBe(title);
     expect(tab.headElement.title).toBe(description);
-    expect(tab.attributes.get("aria-label")).toBe('范围：&lt;b&gt;项目&lt;/b&gt; &amp;amp; &lt;svg onload="bad()"&gt;');
+    expect(tab.attributes.get("aria-label")).toBe(
+      '范围：&lt;b&gt;项目&lt;/b&gt; &amp;amp; &lt;svg onload="bad()"&gt;',
+    );
     h.message({ title, description });
     expect(tab.updateTitle).toHaveBeenCalledTimes(2);
     h.message({ title, description: "范围：新的说明" });
@@ -67,9 +84,15 @@ describe("graph tab state", () => {
     h.message({}, { source: {} });
     h.message({}, { origin: "https://other.example" });
     for (const data of [
-      { channel: "other" }, { type: "other" }, { title: "" }, { title: "a".repeat(161) },
-      { description: "a".repeat(1001) }, { title: "bad\nname" }, { description: "bad\u0085name" },
-    ]) h.message(data);
+      { channel: "other" },
+      { type: "other" },
+      { title: "" },
+      { title: "a".repeat(161) },
+      { description: "a".repeat(1001) },
+      { title: "bad\nname" },
+      { description: "bad\u0085name" },
+    ])
+      h.message(data);
     expect(tab.title).toBe(DEFAULT_GRAPH_TAB_TITLE);
     expect(tab.updateTitle).toHaveBeenCalledOnce();
     h.titles.dispose();

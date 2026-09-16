@@ -25,10 +25,6 @@ export interface GraphEngine {
     depth: number,
     limit: number,
   ): Promise<Neighborhood>;
-  shortestPath(
-    source: number,
-    target: number,
-    direction: GraphDirection,
-  ): Promise<Uint32Array>;
+  shortestPath(source: number, target: number, direction: GraphDirection): Promise<Uint32Array>;
   dispose(): void;
 }

@@ -3,9 +3,7 @@ import { readFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { initSync, WasmGraph } from "../../wasm/graph_core.js";
 
-const bytes = await readFile(
-  new URL("../../wasm/graph_core_bg.wasm", import.meta.url),
-);
+const bytes = await readFile(new URL("../../wasm/graph_core_bg.wasm", import.meta.url));
 const initStart = performance.now();
 initSync({ module: bytes });
 const initializationMs = performance.now() - initStart;
@@ -28,12 +26,7 @@ try {
   assert(graph.degrees().every((value) => value === 8));
   assert(graph.component_ids().every((value) => value === 0));
   const queryStart = performance.now();
-  const neighborhood = graph.neighborhood(
-    new Uint32Array([0]),
-    0,
-    0xffff_fffe,
-    nodes,
-  );
+  const neighborhood = graph.neighborhood(new Uint32Array([0]), 0, 0xffff_fffe, nodes);
   const fullNeighborhoodMs = performance.now() - queryStart;
   assert.equal(neighborhood[0], 0);
   assert.equal(neighborhood.length, nodes + 1);

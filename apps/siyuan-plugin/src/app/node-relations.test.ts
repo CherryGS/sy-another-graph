@@ -10,5 +10,9 @@ it("separates directions without double-counting projected self references or ex
   const groups = groupNodeRelations(9, [outgoing, self, incoming, unrelated]);
   expect(groups).toEqual({ outgoing: [outgoing], incoming: [incoming], self: [self] });
   expect(groups.self[0]).toBe(self);
-  expect(groupNodeRelations(100, [outgoing, incoming, self])).toEqual({ outgoing: [], incoming: [], self: [] });
+  expect(groupNodeRelations(100, [outgoing, incoming, self])).toEqual({
+    outgoing: [],
+    incoming: [],
+    self: [],
+  });
 });

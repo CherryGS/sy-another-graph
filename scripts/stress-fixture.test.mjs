@@ -6,7 +6,10 @@ test("stages append deterministic native IDs and references only target current 
   const stamp = "20260909000000";
   const previous = makeFixtureDocument({ stamp, batch: 0, corpusExists: false });
   const current = makeFixtureDocument({ stamp, batch: 1, priorAnchors: previous.anchors });
-  assert.deepEqual(current, makeFixtureDocument({ stamp, batch: 1, priorAnchors: previous.anchors }));
+  assert.deepEqual(
+    current,
+    makeFixtureDocument({ stamp, batch: 1, priorAnchors: previous.anchors }),
+  );
   const previousIds = new Set(previous.ownedIds);
   const eligible = new Set([...current.ownedIds, ...previous.anchors]);
   assert.ok(current.ownedIds.every((id) => !previousIds.has(id)));
@@ -23,11 +26,26 @@ test("stages append deterministic native IDs and references only target current 
   assert.equal(refs, current.expectedReferences);
   assert.ok(self > 0 && cross > 0);
   assert.ok(current.deepListLevels >= 12);
-  assert.deepEqual(Object.keys(current.typeCounts).sort(), ["b", "c", "h", "i", "l", "m", "p", "s", "t"]);
+  assert.deepEqual(Object.keys(current.typeCounts).sort(), [
+    "b",
+    "c",
+    "h",
+    "i",
+    "l",
+    "m",
+    "p",
+    "s",
+    "t",
+  ]);
 });
 
 test("small pilot covers native structures without producing a large fixture", () => {
-  const plan = makeFixtureDocument({ stamp: "20260909000000", batch: 0, nativeBudget: 60, pilot: true });
+  const plan = makeFixtureDocument({
+    stamp: "20260909000000",
+    batch: 0,
+    nativeBudget: 60,
+    pilot: true,
+  });
   assert.equal(plan.expectedDocumentBlocks, 60);
   assert.equal(plan.ownedIds.length, 59);
   assert.equal(plan.expectedReferences, 240);
@@ -38,7 +56,10 @@ test("small pilot covers native structures without producing a large fixture", (
 
 test("stage planning reports cumulative native counts and payload without writing notes", () => {
   const plans = planStages();
-  assert.deepEqual(plans.map((plan) => plan.target), STAGES);
+  assert.deepEqual(
+    plans.map((plan) => plan.target),
+    STAGES,
+  );
   for (const plan of plans) {
     assert.ok(plan.fixtureBlocks >= plan.target && plan.fixtureBlocks < plan.target + 6);
     assert.equal(plan.addedReferences, plan.fixtureBlocks * 4);

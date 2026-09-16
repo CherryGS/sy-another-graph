@@ -36,10 +36,10 @@ the deterministic fixture contains 100,000 nodes and 400,000 unique directed
 edges. Each node connects to its modular offsets 1, 7, 97, and 997. One cold
 measurement produced:
 
-| Runtime | Build | Full neighborhood | Directed path |
-| --- | ---: | ---: | ---: |
-| Native release | 7.768 ms | 1.971 ms | 0.685 ms |
-| Release WASM in Node.js | 16.303 ms | 4.488 ms | 2.457 ms |
+| Runtime                 |     Build | Full neighborhood | Directed path |
+| ----------------------- | --------: | ----------------: | ------------: |
+| Native release          |  7.768 ms |          1.971 ms |      0.685 ms |
+| Release WASM in Node.js | 16.303 ms |          4.488 ms |      2.457 ms |
 
 WASM initialization took 14.079 ms and the binary occupied 37,549 bytes. The
 shortest path contained 106 nodes. These measurements cover graph computation

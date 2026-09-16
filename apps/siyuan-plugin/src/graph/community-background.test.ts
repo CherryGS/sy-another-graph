@@ -6,25 +6,66 @@ import type { PreparedGraph } from "./prepare-graph";
 function harness() {
   const frames = new Map<number, FrameRequestCallback>();
   let sequence = 0;
-  vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => { frames.set(++sequence, fn); return sequence; });
+  vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => {
+    frames.set(++sequence, fn);
+    return sequence;
+  });
   vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
   vi.stubGlobal("window", { setTimeout, devicePixelRatio: 1 });
-  const context = { clearRect: vi.fn(), resetTransform: vi.fn(), setTransform: vi.fn(), drawImage: vi.fn(), putImageData: vi.fn(), createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }) };
-  const canvas = { width: 0, height: 0, clientWidth: 120, clientHeight: 100, hidden: false, dataset: {} as Record<string, string>, getContext: () => context, ownerDocument: { createElement: () => ({ width: 0, height: 0, getContext: () => context }) } };
-  const reads: { resolve: (p: Float32Array) => void; reject: (e: Error) => void; signal: AbortSignal }[] = [];
+  const context = {
+    clearRect: vi.fn(),
+    resetTransform: vi.fn(),
+    setTransform: vi.fn(),
+    drawImage: vi.fn(),
+    putImageData: vi.fn(),
+    createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+  };
+  const canvas = {
+    width: 0,
+    height: 0,
+    clientWidth: 120,
+    clientHeight: 100,
+    hidden: false,
+    dataset: {} as Record<string, string>,
+    getContext: () => context,
+    ownerDocument: { createElement: () => ({ width: 0, height: 0, getContext: () => context }) },
+  };
+  const reads: {
+    resolve: (p: Float32Array) => void;
+    reject: (e: Error) => void;
+    signal: AbortSignal;
+  }[] = [];
   const geometry = {
     is3D: false,
     spaceToScreenPosition: (point: number[]) => point,
-    getPointPositionsAsync: vi.fn(({ signal }: { signal: AbortSignal }) => new Promise<Float32Array>((resolve, reject) => reads.push({ resolve, reject, signal }))),
+    getPointPositionsAsync: vi.fn(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise<Float32Array>((resolve, reject) => reads.push({ resolve, reject, signal })),
+    ),
   };
-  const background = new CommunityBackground(canvas as unknown as HTMLCanvasElement, geometry as unknown as AsyncPointGeometry);
+  const background = new CommunityBackground(
+    canvas as unknown as HTMLCanvasElement,
+    geometry as unknown as AsyncPointGeometry,
+  );
   const data = { pointsCount: 2, indexToId: ["a", "b"] } as PreparedGraph;
-  const partition = { membership: new Uint32Array([0, 0]), sizes: new Uint32Array([2, 0]), count: 1, calculationMs: 1 };
-  const frame = () => { const current = [...frames.values()]; frames.clear(); for (const f of current) f(0); };
+  const partition = {
+    membership: new Uint32Array([0, 0]),
+    sizes: new Uint32Array([2, 0]),
+    count: 1,
+    calculationMs: 1,
+  };
+  const frame = () => {
+    const current = [...frames.values()];
+    frames.clear();
+    for (const f of current) f(0);
+  };
   return { background, data, partition, geometry, reads, frame, canvas, context };
 }
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 describe("community background lifetime", () => {
   it("reads asynchronously once for a paused view and reuses coordinates for projection", async () => {
     const h = harness();

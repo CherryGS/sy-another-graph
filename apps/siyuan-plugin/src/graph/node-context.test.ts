@@ -2,13 +2,26 @@ import { expect, it } from "vitest";
 import { nodeContext } from "./node-context";
 
 it("explains search origin separately from a node's type and source title", () => {
-  const node = { id: "doc", label: "Title", index: 0, degree: 1, color: "#fff", notebook: "", path: "", blockType: "d" };
+  const node = {
+    id: "doc",
+    label: "Title",
+    index: 0,
+    degree: 1,
+    color: "#fff",
+    notebook: "",
+    path: "",
+    blockType: "d",
+  };
   const context = nodeContext(node, {}, { matches: new Set(), projected: new Map([["doc", 2]]) });
   expect(context.title).toBe("Title");
   expect(context.lines[0]).toBe("文档");
   expect(context.lines[1]).toContain("命中投影：2 个隐藏的命中块");
-  expect(nodeContext(node, {}, { matches: new Set(["doc"]), projected: new Map() }).lines[1]).toContain("直接命中");
-  expect(nodeContext(node, {}, { matches: new Set(), projected: new Map() }).lines[1]).toContain("上级节点");
+  expect(
+    nodeContext(node, {}, { matches: new Set(["doc"]), projected: new Map() }).lines[1],
+  ).toContain("直接命中");
+  expect(nodeContext(node, {}, { matches: new Set(), projected: new Map() }).lines[1]).toContain(
+    "上级节点",
+  );
 });
 
 it("keeps distinguishing source context as literal text with a bounded excerpt", () => {
@@ -79,14 +92,27 @@ it("keeps markup-like human paths and heading ancestry as literal text", () => {
 
 it("distinguishes a document from an identically named heading in the same source path", () => {
   const common = {
-    id: "doc", label: "Graph Theory", index: 0, degree: 0, color: "#fff",
-    notebook: "book", path: "/native-id.sy", humanPath: "/Research/Graph Theory",
-    documentLabel: "Graph Theory", content: "Graph Theory",
+    id: "doc",
+    label: "Graph Theory",
+    index: 0,
+    degree: 0,
+    color: "#fff",
+    notebook: "book",
+    path: "/native-id.sy",
+    humanPath: "/Research/Graph Theory",
+    documentLabel: "Graph Theory",
+    content: "Graph Theory",
   };
   const document = nodeContext({ ...common, blockType: "d" }, { book: "Study" });
-  const heading = nodeContext({
-    ...common, id: "heading", blockType: "h", heading: "Graph Theory",
-  }, { book: "Study" });
+  const heading = nodeContext(
+    {
+      ...common,
+      id: "heading",
+      blockType: "h",
+      heading: "Graph Theory",
+    },
+    { book: "Study" },
+  );
   expect(document.title).toBe(heading.title);
   expect(document.lines).toEqual(["文档 · Study", "/Research/Graph Theory"]);
   expect(heading.lines).toEqual(["标题 · Study", "/Research/Graph Theory"]);
@@ -97,8 +123,14 @@ it.each([
   ["constructor", "constructor"],
 ])("retains an unknown native type label literally (%s)", (blockType, expected) => {
   const context = nodeContext({
-    id: "source", label: "Source", index: 0, degree: 0, color: "#fff",
-    notebook: "", path: "", blockType,
+    id: "source",
+    label: "Source",
+    index: 0,
+    degree: 0,
+    color: "#fff",
+    notebook: "",
+    path: "",
+    blockType,
   });
   expect(context.lines).toEqual([expected]);
 });

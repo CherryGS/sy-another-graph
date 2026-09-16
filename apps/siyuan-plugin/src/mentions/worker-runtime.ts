@@ -16,7 +16,9 @@ export class MentionWorkerRuntime {
   private closed = false;
   private readonly publish: (message: MentionResponse) => void;
 
-  constructor(publish: (message: MentionResponse) => void) { this.publish = publish; }
+  constructor(publish: (message: MentionResponse) => void) {
+    this.publish = publish;
+  }
 
   receive(message: MentionRequest): void {
     if (this.closed) return;
@@ -30,16 +32,29 @@ export class MentionWorkerRuntime {
       const abort = new AbortController();
       this.warming = abort;
       if (message.kind === "load") this.blocks = message.blocks;
-      try { this.index.replace(this.blocks, message.excludedPhrases); }
-      catch (error) { this.fail(error, message.revision); return; }
-      void this.index.warm(progress => {
-        if (!abort.signal.aborted && !this.closed)
-          this.publish({ kind: "progress", revision: message.revision, progress });
-      }, abort.signal).then(() => {
-        if (abort.signal.aborted || this.closed) return;
-        this.publish({ kind: "ready", revision: message.revision, progress: { ...this.index.progress } });
-        this.runQuery();
-      }).catch(error => { if (!abort.signal.aborted) this.fail(error, message.revision); });
+      try {
+        this.index.replace(this.blocks, message.excludedPhrases);
+      } catch (error) {
+        this.fail(error, message.revision);
+        return;
+      }
+      void this.index
+        .warm((progress) => {
+          if (!abort.signal.aborted && !this.closed)
+            this.publish({ kind: "progress", revision: message.revision, progress });
+        }, abort.signal)
+        .then(() => {
+          if (abort.signal.aborted || this.closed) return;
+          this.publish({
+            kind: "ready",
+            revision: message.revision,
+            progress: { ...this.index.progress },
+          });
+          this.runQuery();
+        })
+        .catch((error) => {
+          if (!abort.signal.aborted) this.fail(error, message.revision);
+        });
       return;
     }
     if (message.revision !== this.revision) return;
@@ -51,7 +66,11 @@ export class MentionWorkerRuntime {
       this.request = null;
       return;
     }
-    if (message.scopeRevision !== this.scopeRevision || (this.request && message.request <= this.request.request)) return;
+    if (
+      message.scopeRevision !== this.scopeRevision ||
+      (this.request && message.request <= this.request.request)
+    )
+      return;
     this.querying?.abort();
     this.request = message;
     if (message.mode === "selected") this.index.prioritize(message.chosenIds);
@@ -68,21 +87,43 @@ export class MentionWorkerRuntime {
 
   private runQuery(): void {
     const request = this.request;
-    if (!request || this.closed || (!this.index.ready && request.mode !== "off"
-      && !(request.mode === "selected" && !request.chosenIds.length))) return;
+    if (
+      !request ||
+      this.closed ||
+      (!this.index.ready &&
+        request.mode !== "off" &&
+        !(request.mode === "selected" && !request.chosenIds.length))
+    )
+      return;
     this.querying?.abort();
     const abort = new AbortController();
     this.querying = abort;
-    void this.index.query(this.scope, request.mode, request.chosenIds, abort.signal).then(result => {
-      if (!abort.signal.aborted && !this.closed && this.request === request)
-        this.publish({ kind: "result", revision: request.revision, scopeRevision: request.scopeRevision, request: request.request, result });
-    }).catch(error => {
-      if (!abort.signal.aborted) this.fail(error, request.revision, request.scopeRevision, request.request);
-    });
+    void this.index
+      .query(this.scope, request.mode, request.chosenIds, abort.signal)
+      .then((result) => {
+        if (!abort.signal.aborted && !this.closed && this.request === request)
+          this.publish({
+            kind: "result",
+            revision: request.revision,
+            scopeRevision: request.scopeRevision,
+            request: request.request,
+            result,
+          });
+      })
+      .catch((error) => {
+        if (!abort.signal.aborted)
+          this.fail(error, request.revision, request.scopeRevision, request.request);
+      });
   }
 
   private fail(error: unknown, revision: number, scopeRevision?: number, request?: number): void {
-    if (!this.closed) this.publish({ kind: "error", revision, scopeRevision, request,
-      message: error instanceof Error ? error.message : String(error) });
+    if (!this.closed)
+      this.publish({
+        kind: "error",
+        revision,
+        scopeRevision,
+        request,
+        message: error instanceof Error ? error.message : String(error),
+      });
   }
 }

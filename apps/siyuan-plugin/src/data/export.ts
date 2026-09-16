@@ -47,8 +47,7 @@ export async function prepareGraphExport(
     msg?: string;
     data?: { file?: unknown };
   };
-  if (result.code !== 0)
-    throw new Error(result.msg || "思源未能生成 JSON 导出文件");
+  if (result.code !== 0) throw new Error(result.msg || "思源未能生成 JSON 导出文件");
   // The SiYuan endpoint prefixes uploaded basenames with "file-". Accept only
   // this exact local export, never a server-supplied external or arbitrary URL.
   if (result.data?.file !== `/export/file-${name}`)

@@ -1,0 +1,13 @@
+node_modules
+dist
+target
+coverage
+apps/siyuan-plugin/wasm
+project-doc
+.agents
+.claude
+.codegraph
+patches
+pnpm-lock.yaml
+*.local
+*.log

@@ -15,10 +15,7 @@ export function GraphNotices({ state }: { state: WorkbenchState }) {
             </span>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
-                <a
-                  href={state.exportFile.url}
-                  download={state.exportFile.name}
-                >
+                <a href={state.exportFile.url} download={state.exportFile.name}>
                   <Download data-icon="inline-start" />
                   下载 JSON
                 </a>

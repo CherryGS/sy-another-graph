@@ -8,14 +8,25 @@ export function fixtureId(stamp, slot) {
   return `${stamp}-s${slot.toString(36).padStart(6, "0")}`;
 }
 
-const indent = (text, count = 2) => text.split("\n").map((line) => " ".repeat(count) + line).join("\n");
+const indent = (text, count = 2) =>
+  text
+    .split("\n")
+    .map((line) => " ".repeat(count) + line)
+    .join("\n");
 
 /**
  * Plan one append-only document, including its implicit parent-document cost.
  * All forward targets are in this document; cross-document targets already exist.
  * SiYuan 3.8.3 does not backfill refs when a missing cross-document target appears.
  */
-export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS, corpusExists = true, priorAnchors = [], pilot = false }) {
+export function makeFixtureDocument({
+  stamp,
+  batch,
+  nativeBudget = BATCH_BLOCKS,
+  corpusExists = true,
+  priorAnchors = [],
+  pilot = false,
+}) {
   if (!Number.isInteger(batch) || batch < 0 || batch > 100000)
     throw new Error("Invalid batch number");
   const overhead = pilot ? 1 : corpusExists ? 3 : 5;
@@ -46,7 +57,8 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
       const item = allocate("i");
       const text = allocate("p", true);
       const nested = depth > 1 ? list(depth - 1) : null;
-      return (refs) => `- ${ial(item)} Repeated list item ${refs(text)}\n  ${ial(text)}${nested ? `\n\n${indent(nested(refs))}` : ""}`;
+      return (refs) =>
+        `- ${ial(item)} Repeated list item ${refs(text)}\n  ${ial(text)}${nested ? `\n\n${indent(nested(refs))}` : ""}`;
     });
     return (refs) => `${children.map((child) => child(refs)).join("\n")}\n${ial(listId)}`;
   };
@@ -55,7 +67,7 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
   while (records.length < bodyBudget) {
     const remaining = bodyBudget - records.length;
     const kind = unit % 30;
-    if (kind === 0) parts.push(heading(1 + Math.floor(unit / 30) % 6));
+    if (kind === 0) parts.push(heading(1 + (Math.floor(unit / 30) % 6)));
     else if (kind === 1) {
       const id = allocate("c");
       parts.push(() => `\`\`\`text\nSynthetic fixture: code is literal text.\n\`\`\`\n${ial(id)}`);
@@ -64,11 +76,19 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
       parts.push(() => `$$\na^2 + b^2 = c^2\n$$\n${ial(id)}`);
     } else if (kind === 3) {
       const id = allocate("t", true);
-      parts.push((refs) => `| Label | Sources |\n| --- | --- |\n| Repeated row | ${refs(id)} |\n${ial(id)}`);
+      parts.push(
+        (refs) => `| Label | Sources |\n| --- | --- |\n| Repeated row | ${refs(id)} |\n${ial(id)}`,
+      );
     } else if (kind === 4 && remaining >= 2) {
       const id = allocate("b");
       const child = paragraph();
-      parts.push((refs) => `${child(refs).split("\n").map((line) => `> ${line}`).join("\n")}\n${ial(id)}`);
+      parts.push(
+        (refs) =>
+          `${child(refs)
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n")}\n${ial(id)}`,
+      );
     } else if (kind === 5 && remaining >= 7) parts.push(list(1, 3));
     else if (kind === 6 && remaining >= 3) {
       const id = allocate("s");
@@ -86,10 +106,15 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
   const references = new Map();
   for (let index = 0; index < sources.length; index++) {
     const sourceId = sources[index];
-    const count = Math.floor(referenceBudget / sources.length) + (index < referenceBudget % sources.length ? 1 : 0);
-    if (count > pool.length) throw new Error("The requested reference density needs more existing targets");
+    const count =
+      Math.floor(referenceBudget / sources.length) +
+      (index < referenceBudget % sources.length ? 1 : 0);
+    if (count > pool.length)
+      throw new Error("The requested reference density needs more existing targets");
     const selected = new Set();
-    const add = (id) => { if (id && selected.size < count) selected.add(id); };
+    const add = (id) => {
+      if (id && selected.size < count) selected.add(id);
+    };
     if (index % 11 === 0) add(sourceId);
     add(sources[(index + 1) % sources.length]);
     add(sources[(index + sources.length - 1) % sources.length]);
@@ -103,17 +128,25 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
       add(pool[(offset + step) % pool.length]);
     references.set(sourceId, [...selected]);
   }
-  const refs = (id) => references.get(id).map((target) => `((${target} "source"))`).join(" ");
+  const refs = (id) =>
+    references
+      .get(id)
+      .map((target) => `((${target} "source"))`)
+      .join(" ");
   const markdown = parts.map((part) => part(refs)).join("\n\n");
   const typeCounts = {};
   for (const { type } of records) typeCounts[type] = (typeCounts[type] ?? 0) + 1;
   return {
     batch,
-    path: pilot ? "/Generator Pilot" : `/Corpus/Batch ${String(batch).padStart(5, "0")}/Repeated note`,
+    path: pilot
+      ? "/Generator Pilot"
+      : `/Corpus/Batch ${String(batch).padStart(5, "0")}/Repeated note`,
     markdown,
     ownedIds: ids,
     referenceSources: Object.fromEntries(references),
-    anchors: sources.filter((_, index) => index % Math.max(1, Math.floor(sources.length / 6)) === 0).slice(0, 6),
+    anchors: sources
+      .filter((_, index) => index % Math.max(1, Math.floor(sources.length / 6)) === 0)
+      .slice(0, 6),
     expectedNativeBlocks: nativeBudget,
     expectedDocumentBlocks: records.length + 1,
     expectedReferences: referenceBudget,
@@ -123,7 +156,13 @@ export function makeFixtureDocument({ stamp, batch, nativeBudget = BATCH_BLOCKS,
   };
 }
 
-export function planStages({ stamp = "20260909000000", existingBlocks = 0, nextBatch = 0, priorAnchors = [], corpusExists = false } = {}) {
+export function planStages({
+  stamp = "20260909000000",
+  existingBlocks = 0,
+  nextBatch = 0,
+  priorAnchors = [],
+  corpusExists = false,
+} = {}) {
   const results = [];
   let blocks = existingBlocks;
   let references = 0;
@@ -136,7 +175,13 @@ export function planStages({ stamp = "20260909000000", existingBlocks = 0, nextB
       const remaining = target - blocks;
       const minimum = corpusExists ? 4 : 6;
       const nativeBudget = Math.max(minimum, Math.min(BATCH_BLOCKS, remaining));
-      const document = makeFixtureDocument({ stamp, batch, nativeBudget, corpusExists, priorAnchors: anchors });
+      const document = makeFixtureDocument({
+        stamp,
+        batch,
+        nativeBudget,
+        corpusExists,
+        priorAnchors: anchors,
+      });
       blocks += document.expectedNativeBlocks;
       references += document.expectedReferences;
       bytes += document.markdownBytes;
@@ -145,7 +190,13 @@ export function planStages({ stamp = "20260909000000", existingBlocks = 0, nextB
       corpusExists = true;
       anchors.push(...document.anchors);
     }
-    results.push({ target, fixtureBlocks: blocks, addedReferences: references, createRequests: documents, markdownMiB: Number((bytes / 1024 / 1024).toFixed(2)) });
+    results.push({
+      target,
+      fixtureBlocks: blocks,
+      addedReferences: references,
+      createRequests: documents,
+      markdownMiB: Number((bytes / 1024 / 1024).toFixed(2)),
+    });
   }
   return results;
 }

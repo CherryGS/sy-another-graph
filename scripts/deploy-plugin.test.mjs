@@ -32,9 +32,7 @@ function fixture(t) {
   const root = mkdtempSync(join(temporaryRoot, "atlas-deployment-"));
   t.after(() => {
     const cleanupTarget = resolve(root);
-    assert.ok(
-      cleanupTarget.startsWith(join(temporaryRoot, "atlas-deployment-")),
-    );
+    assert.ok(cleanupTarget.startsWith(join(temporaryRoot, "atlas-deployment-")));
     assert.equal(dirname(cleanupTarget), temporaryRoot);
     rmSync(cleanupTarget, { recursive: true, force: true });
   });
@@ -58,7 +56,8 @@ function snapshot(root) {
       entries.push([relativePath, "link", readlinkSync(path)]);
     } else if (stat.isDirectory()) {
       entries.push([relativePath, "directory"]);
-      for (const name of readdirSync(path).sort()) visit(join(path, name), join(relativePath, name));
+      for (const name of readdirSync(path).sort())
+        visit(join(path, name), join(relativePath, name));
     } else {
       entries.push([relativePath, "file", readFileSync(path, "utf8")]);
     }

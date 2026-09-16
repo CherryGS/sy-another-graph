@@ -20,9 +20,7 @@ function databaseFixture(count: number, includeReferences = true) {
   const addDocument = database.prepare(
     "INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)",
   );
-  const addReference = database.prepare(
-    "INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)",
-  );
+  const addReference = database.prepare("INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)");
   database.exec("BEGIN");
   for (let index = 0; index < count; index++) {
     const id = documentId(index);
@@ -40,10 +38,7 @@ function databaseFixture(count: number, includeReferences = true) {
 interface ApiHarnessOptions {
   pageSize?: number;
   beforeQuery?: (statement: string) => void;
-  overridePage?: (
-    statement: string,
-    rows: Record<string, unknown>[],
-  ) => Record<string, unknown>[];
+  overridePage?: (statement: string, rows: Record<string, unknown>[]) => Record<string, unknown>[];
 }
 
 function mockSiYuan(database: DatabaseSync, options: ApiHarnessOptions = {}) {
@@ -71,10 +66,7 @@ function mockSiYuan(database: DatabaseSync, options: ApiHarnessOptions = {}) {
     statements.push(body.stmt);
     options.beforeQuery?.(body.stmt);
     let rows = database.prepare(body.stmt).all();
-    if (
-      body.stmt.startsWith("SELECT id, box") ||
-      body.stmt.startsWith("SELECT json_group_array")
-    ) {
+    if (body.stmt.startsWith("SELECT id, box") || body.stmt.startsWith("SELECT json_group_array")) {
       rows = rows.slice(0, options.pageSize ?? 1000);
       rows = (options.overridePage?.(body.stmt, rows) as typeof rows) ?? rows;
     }
@@ -89,26 +81,50 @@ function mockSiYuan(database: DatabaseSync, options: ApiHarnessOptions = {}) {
 function stalledFetch(_path: unknown, request: RequestInit): Promise<Response> {
   return new Promise((_resolve, reject) => {
     request.signal?.throwIfAborted();
-    request.signal?.addEventListener(
-      "abort",
-      () => reject(request.signal?.reason),
-      { once: true },
-    );
+    request.signal?.addEventListener("abort", () => reject(request.signal?.reason), { once: true });
   });
 }
 
 describe("SiYuan source block graph", () => {
   it("acquires native prose and name metadata for the separate mention index without exporting raw Markdown on nodes", async () => {
     const database = databaseFixture(2, false);
-    const insert = database.prepare("INSERT INTO blocks(id, box, path, content, type, root_id, parent_id, ial, markdown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    insert.run("p", "book", "/doc-000000.sy", "Document 1 inline", "p", "doc-000000", "doc-000000", '{: name="Passage" alias="Alias"}', "Document 1 `inline`");
-    insert.run("code", "book", "/doc-000000.sy", "Document 1", "c", "doc-000000", "doc-000000", "", "```\nDocument 1\n```");
+    const insert = database.prepare(
+      "INSERT INTO blocks(id, box, path, content, type, root_id, parent_id, ial, markdown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    insert.run(
+      "p",
+      "book",
+      "/doc-000000.sy",
+      "Document 1 inline",
+      "p",
+      "doc-000000",
+      "doc-000000",
+      '{: name="Passage" alias="Alias"}',
+      "Document 1 `inline`",
+    );
+    insert.run(
+      "code",
+      "book",
+      "/doc-000000.sy",
+      "Document 1",
+      "c",
+      "doc-000000",
+      "doc-000000",
+      "",
+      "```\nDocument 1\n```",
+    );
     mockSiYuan(database);
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
-    expect(graph.mentionBlocks!.find(block => block.id === "p")).toMatchObject({ rootId: "doc-000000", markdown: "Document 1 `inline`", ial: '{: name="Passage" alias="Alias"}' });
-    expect(graph.mentionBlocks!.find(block => block.id === "code")!.markdown).toBeNull();
-    expect(graph.mentionBlocks!.find(block => block.id === "doc-000001")!.title).toBe("Document 1");
-    expect(graph.nodes.find(node => node.id === "p")).not.toHaveProperty("markdown");
+    expect(graph.mentionBlocks!.find((block) => block.id === "p")).toMatchObject({
+      rootId: "doc-000000",
+      markdown: "Document 1 `inline`",
+      ial: '{: name="Passage" alias="Alias"}',
+    });
+    expect(graph.mentionBlocks!.find((block) => block.id === "code")!.markdown).toBeNull();
+    expect(graph.mentionBlocks!.find((block) => block.id === "doc-000001")!.title).toBe(
+      "Document 1",
+    );
+    expect(graph.nodes.find((node) => node.id === "p")).not.toHaveProperty("markdown");
   });
   it("retains actual reference endpoints, including self references, and document parents", () => {
     const graph = normalizeGraph(
@@ -133,12 +149,7 @@ describe("SiYuan source block graph", () => {
   });
 
   it("uses native indexed parents and retains block, document, and heading context", () => {
-    const makeBlock = (
-      id: string,
-      type: string,
-      parent_id: string,
-      content = id,
-    ): BlockRow => ({
+    const makeBlock = (id: string, type: string, parent_id: string, content = id): BlockRow => ({
       id,
       type,
       parent_id,
@@ -227,10 +238,7 @@ describe("SiYuan source block graph", () => {
     );
     expect(graph.nodes).toHaveLength(2);
     expect(
-      graph.nodes.every(
-        (node) =>
-          node.documentLabel === undefined && node.heading === undefined,
-      ),
+      graph.nodes.every((node) => node.documentLabel === undefined && node.heading === undefined),
     ).toBe(true);
   });
 
@@ -240,12 +248,7 @@ describe("SiYuan source block graph", () => {
       const outer = ancestorFirst ? "a-outer" : "z-outer";
       const inner = ancestorFirst ? "b-inner" : "y-inner";
       const passage = ancestorFirst ? "z-passage" : "a-passage";
-      const row = (
-        id: string,
-        type: string,
-        parent_id: string,
-        content: string,
-      ): BlockRow => ({
+      const row = (id: string, type: string, parent_id: string, content: string): BlockRow => ({
         id,
         type,
         parent_id,
@@ -273,15 +276,9 @@ describe("SiYuan source block graph", () => {
         expect(graph.nodes.find((node) => node.id === inner)?.heading).toBe(
           "Outer section › Inner section",
         );
-        expect(graph.nodes.find((node) => node.id === outer)?.heading).toBe(
-          "Outer section",
-        );
-        expect(graph.nodes.find((node) => node.id === "sibling")?.heading).toBe(
-          "Outer section",
-        );
-        expect(
-          graph.nodes.find((node) => node.id === "unknown-container"),
-        ).toMatchObject({
+        expect(graph.nodes.find((node) => node.id === outer)?.heading).toBe("Outer section");
+        expect(graph.nodes.find((node) => node.id === "sibling")?.heading).toBe("Outer section");
+        expect(graph.nodes.find((node) => node.id === "unknown-container")).toMatchObject({
           blockType: "future-type",
           heading: "Outer section",
         });
@@ -290,12 +287,7 @@ describe("SiYuan source block graph", () => {
   );
 
   it("does not fabricate a heading path from a cycle or a different document's ancestor", () => {
-    const row = (
-      id: string,
-      type: string,
-      parent_id: string,
-      root_id = "doc",
-    ): BlockRow => ({
+    const row = (id: string, type: string, parent_id: string, root_id = "doc"): BlockRow => ({
       id,
       type,
       parent_id,
@@ -318,12 +310,8 @@ describe("SiYuan source block graph", () => {
       [],
     );
     for (const id of ["a-heading", "b-container", "c-passage", "d-heading"])
-      expect(
-        graph.nodes.find((node) => node.id === id)?.heading,
-      ).toBeUndefined();
-    expect(
-      graph.nodes.find((node) => node.id === "local-passage")?.heading,
-    ).toBe("local-heading");
+      expect(graph.nodes.find((node) => node.id === id)?.heading).toBeUndefined();
+    expect(graph.nodes.find((node) => node.id === "local-passage")?.heading).toBe("local-heading");
   });
 });
 
@@ -334,39 +322,9 @@ describe("SiYuan keyset pagination through the API", () => {
     const insert = database.prepare(
       "INSERT INTO blocks(id, box, path, content, type, root_id, parent_id, ial, markdown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
-    insert.run(
-      "heading",
-      "book",
-      `/${doc}.sy`,
-      "Heading",
-      "h",
-      doc,
-      doc,
-      "",
-      "",
-    );
-    insert.run(
-      "paragraph",
-      "book",
-      `/${doc}.sy`,
-      "Citing passage",
-      "p",
-      doc,
-      "heading",
-      "",
-      "",
-    );
-    insert.run(
-      "superblock",
-      "book",
-      `/${doc}.sy`,
-      "Container",
-      "s",
-      doc,
-      doc,
-      "",
-      "",
-    );
+    insert.run("heading", "book", `/${doc}.sy`, "Heading", "h", doc, doc, "", "");
+    insert.run("paragraph", "book", `/${doc}.sy`, "Citing passage", "p", doc, "heading", "", "");
+    insert.run("superblock", "book", `/${doc}.sy`, "Container", "s", doc, doc, "", "");
     insert.run(
       "unknown",
       "book",
@@ -388,13 +346,7 @@ describe("SiYuan keyset pagination through the API", () => {
     mockSiYuan(database, { pageSize: 2 });
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.nodes).toHaveLength(5);
-    expect(graph.nodes.map((node) => node.blockType)).toEqual([
-      "d",
-      "h",
-      "p",
-      "s",
-      "new-kind",
-    ]);
+    expect(graph.nodes.map((node) => node.blockType)).toEqual(["d", "h", "p", "s", "new-kind"]);
     const references = graph.edges.filter((edge) => edge.kind === "reference");
     expect(references).toHaveLength(3);
     expect(references.flatMap((edge) => edge.provenance ?? [])).toEqual(
@@ -433,12 +385,8 @@ describe("SiYuan keyset pagination through the API", () => {
     expect(graph.warnings).toEqual([]);
     expect(graph.notebooks.map((book) => book.id)).toEqual(["book"]);
     expect(graph.nodes[0].humanPath).toBeUndefined();
-    expect(
-      statements.filter((stmt) => stmt.startsWith("SELECT id, box")),
-    ).toHaveLength(9);
-    expect(
-      statements.filter((stmt) => stmt.startsWith("SELECT json_group_array")),
-    ).toHaveLength(1);
+    expect(statements.filter((stmt) => stmt.startsWith("SELECT id, box"))).toHaveLength(9);
+    expect(statements.filter((stmt) => stmt.startsWith("SELECT json_group_array"))).toHaveLength(1);
     expect(new Set(graph.nodes.map((node) => node.id)).size).toBe(1057);
   });
 
@@ -450,9 +398,9 @@ describe("SiYuan keyset pagination through the API", () => {
       overridePage: (stmt, rows) =>
         stmt.startsWith("SELECT id, box") && ++pages === 2 ? [] : rows,
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("块分页结果不完整");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "块分页结果不完整",
+    );
   });
 
   it("rejects an early empty reference page instead of publishing missing edges", async () => {
@@ -463,9 +411,9 @@ describe("SiYuan keyset pagination through the API", () => {
       overridePage: (stmt, rows) =>
         stmt.startsWith("SELECT json_group_array") && ++pages === 2 ? [] : rows,
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("引用分页结果不完整");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "引用分页结果不完整",
+    );
   });
 
   it("rejects a repeated short page before it can loop or duplicate nodes", async () => {
@@ -479,12 +427,10 @@ describe("SiYuan keyset pagination through the API", () => {
         return firstPage;
       },
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("块分页未前进");
-    expect(
-      statements.filter((stmt) => stmt.startsWith("SELECT id, box")),
-    ).toHaveLength(2);
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "块分页未前进",
+    );
+    expect(statements.filter((stmt) => stmt.startsWith("SELECT id, box"))).toHaveLength(2);
   });
 
   it("detects same-count replacement when a new row appears behind the cursor", async () => {
@@ -496,21 +442,13 @@ describe("SiYuan keyset pagination through the API", () => {
         if (!stmt.startsWith("SELECT id, box") || ++pages !== 2) return;
         database.prepare("DELETE FROM blocks WHERE id = ?").run(documentId(10));
         database
-          .prepare(
-            "INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)",
-          )
-          .run(
-            "before-cursor",
-            "book",
-            "/before-cursor.sy",
-            "Replacement",
-            "d",
-          );
+          .prepare("INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)")
+          .run("before-cursor", "book", "/before-cursor.sy", "Replacement", "d");
       },
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("块分页结果不完整");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "块分页结果不完整",
+    );
   });
 
   it("bounds continuous appends by the initial key without imposing a graph capacity cap", async () => {
@@ -522,18 +460,14 @@ describe("SiYuan keyset pagination through the API", () => {
         if (!stmt.startsWith("SELECT id, box")) return;
         const id = `new-${++pages}`;
         database
-          .prepare(
-            "INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)",
-          )
+          .prepare("INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)")
           .run(id, "book", `/${id}.sy`, "New", "d");
       },
     });
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(pages).toBe(6);
     expect(graph.nodes).toHaveLength(101);
-    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(
-      true,
-    );
+    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(true);
   });
 
   it("notices reference weight changes even when pair count is unchanged", async () => {
@@ -550,16 +484,12 @@ describe("SiYuan keyset pagination through the API", () => {
     });
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(6000);
-    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(
-      true,
-    );
+    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(true);
   });
 
   it("accounts for missing and empty reference endpoints without losing their weights", async () => {
     const database = databaseFixture(2, false);
-    const insert = database.prepare(
-      "INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)",
-    );
+    const insert = database.prepare("INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)");
     insert.run("", documentId(0));
     insert.run("missing", documentId(1));
     insert.run(documentId(0), documentId(0));
@@ -567,18 +497,22 @@ describe("SiYuan keyset pagination through the API", () => {
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(3);
     expect(graph.skippedReferences).toBe(2);
-    expect(graph.warnings.find(issue => issue.code === "reference-endpoints")).toMatchObject({
-      count: 2, detailCount: 2, details: [
-        { fields: { "来源块 ID": "（空字符串）", "目标块 ID": documentId(0), "缺失端点": "来源" }, openBlockId: documentId(0) },
-        { fields: { "来源块 ID": "missing", "目标块 ID": documentId(1) }, openBlockId: documentId(1) },
+    expect(graph.warnings.find((issue) => issue.code === "reference-endpoints")).toMatchObject({
+      count: 2,
+      detailCount: 2,
+      details: [
+        {
+          fields: { "来源块 ID": "（空字符串）", "目标块 ID": documentId(0), 缺失端点: "来源" },
+          openBlockId: documentId(0),
+        },
+        {
+          fields: { "来源块 ID": "missing", "目标块 ID": documentId(1) },
+          openBlockId: documentId(1),
+        },
       ],
     });
-    expect(graph.edges).toMatchObject([
-      { source: 0, target: 0, kind: "reference", weight: 1 },
-    ]);
-    expect(
-      graph.warnings.some((warning) => warning.summary.includes("端点不可用")),
-    ).toBe(true);
+    expect(graph.edges).toMatchObject([{ source: 0, target: 0, kind: "reference", weight: 1 }]);
+    expect(graph.warnings.some((warning) => warning.summary.includes("端点不可用"))).toBe(true);
   });
 
   it("loads a genuinely empty workspace without requesting data pages", async () => {
@@ -590,18 +524,14 @@ describe("SiYuan keyset pagination through the API", () => {
     expect(graph.warnings).toEqual([]);
     expect(
       statements.some(
-        (stmt) =>
-          stmt.startsWith("SELECT id, box") ||
-          stmt.startsWith("SELECT json_group_array"),
+        (stmt) => stmt.startsWith("SELECT id, box") || stmt.startsWith("SELECT json_group_array"),
       ),
     ).toBe(false);
   });
 
   it("merges more than 1000 duplicate pairs across raw windows without losing weights", async () => {
     const database = databaseFixture(1500, false);
-    const insert = database.prepare(
-      "INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)",
-    );
+    const insert = database.prepare("INSERT INTO refs(block_id, def_block_id) VALUES (?, ?)");
     database.exec("BEGIN");
     for (let repeat = 0; repeat < 3; repeat++) {
       for (let index = 0; index < 1500; index++)
@@ -625,18 +555,12 @@ describe("SiYuan keyset pagination through the API", () => {
     insert.run(-9223372036854775808n, documentId(0), documentId(1));
     database.exec("BEGIN");
     for (let index = 0; index < 5000; index++)
-      insert.run(
-        9007199254740993n + BigInt(index),
-        documentId(0),
-        documentId(1),
-      );
+      insert.run(9007199254740993n + BigInt(index), documentId(0), documentId(1));
     database.exec("COMMIT");
     const { referenceBatchRows } = mockSiYuan(database);
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(referenceBatchRows).toEqual([4096, 905]);
-    expect(graph.edges).toMatchObject([
-      { source: 0, target: 1, kind: "reference", weight: 5001 },
-    ]);
+    expect(graph.edges).toMatchObject([{ source: 0, target: 1, kind: "reference", weight: 5001 }]);
     expect(graph.referenceCount).toBe(5001);
     expect(graph.warnings).toEqual([]);
   });
@@ -650,9 +574,9 @@ describe("SiYuan keyset pagination through the API", () => {
         return [{ ...rows[0], groups: JSON.stringify(groups.slice(1)) }];
       },
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("不完整的引用批次");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "不完整的引用批次",
+    );
   });
 
   it("rejects repeated raw windows instead of double-counting their groups", async () => {
@@ -665,9 +589,9 @@ describe("SiYuan keyset pagination through the API", () => {
         return firstWindow;
       },
     });
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("引用分页未前进");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "引用分页未前进",
+    );
   });
 
   it("uses bounded indexed rowid scans for more than 100000 raw references", async () => {
@@ -679,26 +603,18 @@ describe("SiYuan keyset pagination through the API", () => {
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(105_000);
     expect(graph.edges).toHaveLength(70_000);
-    expect(referenceBatchRows.reduce((sum, count) => sum + count, 0)).toBe(
-      105_000,
-    );
-    expect(
-      referenceBatchRows.every((count) => count > 0 && count <= 4096),
-    ).toBe(true);
-    const pages = statements.filter((stmt) =>
-      stmt.startsWith("SELECT json_group_array"),
-    );
+    expect(referenceBatchRows.reduce((sum, count) => sum + count, 0)).toBe(105_000);
+    expect(referenceBatchRows.every((count) => count > 0 && count <= 4096)).toBe(true);
+    const pages = statements.filter((stmt) => stmt.startsWith("SELECT json_group_array"));
     expect(pages).toHaveLength(26);
     for (const statement of pages) {
       const plan = database
         .prepare(`EXPLAIN QUERY PLAN ${statement}`)
         .all()
         .map((row) => String(row.detail));
-      expect(
-        plan.some((detail) =>
-          detail.includes("SEARCH refs USING INTEGER PRIMARY KEY"),
-        ),
-      ).toBe(true);
+      expect(plan.some((detail) => detail.includes("SEARCH refs USING INTEGER PRIMARY KEY"))).toBe(
+        true,
+      );
       expect(plan.some((detail) => detail.startsWith("SCAN refs"))).toBe(false);
     }
   });
@@ -735,17 +651,13 @@ describe("SiYuan keyset pagination through the API", () => {
     expect(graph.nodes.map((node) => node.path)).toEqual(
       [0, 1, 2].map((index) => `/${documentId(index)}.sy`),
     );
-    for (const statement of statements.filter((stmt) =>
-      stmt.startsWith("SELECT id, box"),
-    )) {
+    for (const statement of statements.filter((stmt) => stmt.startsWith("SELECT id, box"))) {
       const plan = database
         .prepare(`EXPLAIN QUERY PLAN ${statement}`)
         .all()
         .map((row) => String(row.detail));
       expect(
-        plan.some((detail) =>
-          detail.includes("SEARCH blocks USING INDEX idx_blocks_id"),
-        ),
+        plan.some((detail) => detail.includes("SEARCH blocks USING INDEX idx_blocks_id")),
       ).toBe(true);
       expect(plan.some((detail) => detail.includes("TEMP B-TREE"))).toBe(false);
     }
@@ -758,9 +670,7 @@ describe("SiYuan request failure and cancellation", () => {
     vi.stubGlobal("fetch", fetch);
     const controller = new AbortController();
     controller.abort(new Error("Cancelled by user"));
-    await expect(loadSiYuanGraph(controller.signal, () => {})).rejects.toThrow(
-      "Cancelled by user",
-    );
+    await expect(loadSiYuanGraph(controller.signal, () => {})).rejects.toThrow("Cancelled by user");
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -789,15 +699,13 @@ describe("SiYuan request failure and cancellation", () => {
       vi.fn((path: unknown, request: RequestInit) => {
         signals.push(request.signal!);
         if (String(request.body).includes("max(id)"))
-          return Promise.resolve(
-            Response.json({ code: -1, msg: "Database unavailable" }),
-          );
+          return Promise.resolve(Response.json({ code: -1, msg: "Database unavailable" }));
         return stalledFetch(path, request);
       }),
     );
-    await expect(
-      loadSiYuanGraph(new AbortController().signal, () => {}),
-    ).rejects.toThrow("Database unavailable");
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "Database unavailable",
+    );
     expect(signals.filter((signal) => signal.aborted)).toHaveLength(2);
   });
 
@@ -817,12 +725,20 @@ describe("SiYuan request failure and cancellation", () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     fetch.mockResolvedValueOnce(new Response("", { status: 503 }));
-    await expect(api("/api/query/sql", {})).rejects.toMatchObject({ message: "思源接口返回 HTTP 503", fields: { "接口": "/api/query/sql", "HTTP 状态": "503" } });
+    await expect(api("/api/query/sql", {})).rejects.toMatchObject({
+      message: "思源接口返回 HTTP 503",
+      fields: { 接口: "/api/query/sql", "HTTP 状态": "503" },
+    });
     fetch.mockResolvedValueOnce(Response.json({ data: [] }));
     await expect(api("/api/query/sql", {})).rejects.toThrow("无效数据");
     fetch.mockResolvedValueOnce(Response.json({ code: -7, msg: "Database unavailable" }));
-    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({ fields: { "接口": "/api/av/getAttributeView", "错误码": "-7", "接口消息": "Database unavailable" } });
+    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({
+      fields: { 接口: "/api/av/getAttributeView", 错误码: "-7", 接口消息: "Database unavailable" },
+    });
     fetch.mockResolvedValueOnce(new Response("{broken"));
-    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({ message: "思源接口返回了无法解析的 JSON", fields: { "接口": "/api/av/getAttributeView" } });
+    await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({
+      message: "思源接口返回了无法解析的 JSON",
+      fields: { 接口: "/api/av/getAttributeView" },
+    });
   });
 });

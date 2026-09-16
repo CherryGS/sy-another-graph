@@ -40,7 +40,8 @@ export class KeywordMatcher {
       const state = queue[cursor];
       for (const [char, next] of this.nodes[state].next) {
         let fallback = this.nodes[state].failure;
-        while (fallback && !this.nodes[fallback].next.has(char)) fallback = this.nodes[fallback].failure;
+        while (fallback && !this.nodes[fallback].next.has(char))
+          fallback = this.nodes[fallback].failure;
         const failure = this.nodes[fallback].next.get(char) ?? 0;
         this.nodes[next].failure = failure;
         this.nodes[next].suffix = this.nodes[failure].output ? failure : this.nodes[failure].suffix;
@@ -82,7 +83,10 @@ export class KeywordMatcher {
         const single = Array.from(keyword).length === 1;
         if ((single || !IDEOGRAPH.test(first)) && WORD.test(first) && WORD.test(before)) continue;
         if ((single || !IDEOGRAPH.test(last)) && WORD.test(last) && WORD.test(after)) continue;
-        if (matches.length >= limit) { truncated = true; break outer; }
+        if (matches.length >= limit) {
+          truncated = true;
+          break outer;
+        }
         matches.push({ keyword, start: starts[from], end: ends[offset - 1] });
       }
     }

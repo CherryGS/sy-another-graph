@@ -1,10 +1,4 @@
-import type {
-  GraphDataset,
-  GraphEdge,
-  GraphFilters,
-  GraphNode,
-  GraphProvenance,
-} from "./types";
+import type { GraphDataset, GraphEdge, GraphFilters, GraphNode, GraphProvenance } from "./types";
 import { getGraphLookups, type GraphLike } from "./graph-lookups";
 import { isTypeHidden } from "./filter-types";
 
@@ -24,19 +18,14 @@ export interface CurrentGraph extends GraphView {
 }
 
 export function nodeType(node: GraphNode): string {
-  return node.entity && node.entity !== "block"
-    ? node.entity
-    : (node.blockType ?? "d");
+  return node.entity && node.entity !== "block" ? node.entity : (node.blockType ?? "d");
 }
 
 export function isBlock(node: GraphNode): boolean {
   return !node.entity || node.entity === "block";
 }
 
-function sourceParents(
-  data: GraphLike,
-  byIndex: ReadonlyMap<number, GraphNode>,
-) {
+function sourceParents(data: GraphLike, byIndex: ReadonlyMap<number, GraphNode>) {
   const parents = new Map<string, string>();
   for (const node of data.nodes) {
     if (isBlock(node) && node.parentId && node.parentId !== node.id)
@@ -50,12 +39,7 @@ function sourceParents(
       parents.set(target.id, source.id);
   }
   for (const node of data.nodes) {
-    if (
-      isBlock(node) &&
-      !parents.has(node.id) &&
-      node.rootId &&
-      node.rootId !== node.id
-    )
+    if (isBlock(node) && !parents.has(node.id) && node.rootId && node.rootId !== node.id)
       parents.set(node.id, node.rootId);
   }
   return parents;
@@ -124,11 +108,7 @@ export function containedIds(
   rootId: string,
   includeChildDocuments = true,
 ): Set<string> {
-  return expandContainment(
-    containmentIndex(data),
-    [rootId],
-    includeChildDocuments,
-  );
+  return expandContainment(containmentIndex(data), [rootId], includeChildDocuments);
 }
 
 /** Add the native parent chain of each search hit, including document-tree
@@ -146,18 +126,21 @@ export function searchAncestorIds(data: GraphLike, matchedIds: ReadonlySet<strin
       const node = byId.get(id);
       const parentId = parents.get(id);
       const parent = parentId ? byId.get(parentId) : undefined;
-      if (!node || !isBlock(node) || !parent || !isBlock(parent) ||
-          node.notebook !== parent.notebook) break;
+      if (
+        !node ||
+        !isBlock(node) ||
+        !parent ||
+        !isBlock(parent) ||
+        node.notebook !== parent.notebook
+      )
+        break;
       id = parent.id;
     }
   }
   return result;
 }
 
-function provenanceOf(
-  edge: GraphEdge,
-  byIndex: ReadonlyMap<number, GraphNode>,
-): GraphProvenance[] {
+function provenanceOf(edge: GraphEdge, byIndex: ReadonlyMap<number, GraphNode>): GraphProvenance[] {
   if (edge.provenance?.length) return edge.provenance;
   const source = byIndex.get(edge.source);
   const target = byIndex.get(edge.target);
@@ -200,8 +183,7 @@ export function projectGraph(
     if (searchIds && !searchIds.has(node.id)) continue;
     if (excludedIds.has(node.id) || (scopeIds && !scopeIds.has(node.id))) continue;
     if (isBlock(node)) {
-      if (!filters.notebook || node.notebook === filters.notebook)
-        candidates.add(node.id);
+      if (!filters.notebook || node.notebook === filters.notebook) candidates.add(node.id);
     } else if (filters.databases) {
       const bound = node.boundBlockId ? byId.get(node.boundBlockId) : undefined;
       if (
@@ -222,8 +204,7 @@ export function projectGraph(
       if (!edge.kind.startsWith("database-")) continue;
       const from = byIndex.get(edge.source)?.id;
       const to = byIndex.get(edge.target)?.id;
-      if (!from || !to || !candidates.has(from) || !candidates.has(to))
-        continue;
+      if (!from || !to || !candidates.has(from) || !candidates.has(to)) continue;
       const outgoing = links.get(from) ?? [];
       outgoing.push(to);
       links.set(from, outgoing);
@@ -232,9 +213,7 @@ export function projectGraph(
       links.set(to, incoming);
     }
     const reached = new Set(
-      data.nodes
-        .filter((node) => isBlock(node) && candidates.has(node.id))
-        .map((node) => node.id),
+      data.nodes.filter((node) => isBlock(node) && candidates.has(node.id)).map((node) => node.id),
     );
     const queue = [...reached];
     for (let cursor = 0; cursor < queue.length; cursor++) {
@@ -256,17 +235,24 @@ export function projectGraph(
     else if (isBlock(node) && node.rootId) {
       const document = byId.get(node.rootId);
       if (
-        document && nodeType(document) === "d" &&
+        document &&
+        nodeType(document) === "d" &&
         !excludedIds.has(document.id) &&
         (!filters.notebook || document.notebook === filters.notebook)
-      ) eligibleIds.add(document.id);
+      )
+        eligibleIds.add(document.id);
     }
   }
   const visible = data.nodes.filter((node) => eligibleIds.has(node.id));
   const representatives = new Map(visible.map((node) => [node.id, node.id]));
   for (const node of data.nodes) {
-    if (candidates.has(node.id) && !eligibleIds.has(node.id) &&
-        isBlock(node) && node.rootId && eligibleIds.has(node.rootId))
+    if (
+      candidates.has(node.id) &&
+      !eligibleIds.has(node.id) &&
+      isBlock(node) &&
+      node.rootId &&
+      eligibleIds.has(node.rootId)
+    )
       representatives.set(node.id, node.rootId);
   }
   const grouped = new Map<string, GraphEdge>();
@@ -295,18 +281,21 @@ export function projectGraph(
     if (edge.kind === "hierarchy") continue;
     // Derived candidates are attached after native eligibility and projection.
     if (edge.kind === "text-mention") continue;
-    if (edge.kind === "reference" ? !filters.references : !filters.databases)
-      continue;
+    if (edge.kind === "reference" ? !filters.references : !filters.databases) continue;
     const originalSource = byIndex.get(edge.source);
     const originalTarget = byIndex.get(edge.target);
-    if (!originalSource || !originalTarget ||
-        !candidates.has(originalSource.id) || !candidates.has(originalTarget.id)) continue;
+    if (
+      !originalSource ||
+      !originalTarget ||
+      !candidates.has(originalSource.id) ||
+      !candidates.has(originalTarget.id)
+    )
+      continue;
     const from = representatives.get(originalSource.id);
     const to = representatives.get(originalTarget.id);
     const source = from ? byId.get(from) : undefined;
     const target = to ? byId.get(to) : undefined;
-    if (source && target)
-      add(source, target, edge, provenanceOf(edge, byIndex));
+    if (source && target) add(source, target, edge, provenanceOf(edge, byIndex));
   }
   if (filters.hierarchy) {
     const parents = containment!.parents;
@@ -321,9 +310,14 @@ export function projectGraph(
         // Search results can omit structural containers between two hits.
         // Trace those parents as evidence without admitting their source facts;
         // explicit scope, notebook and exclusion boundaries still stop the walk.
-        if (!parent || !isBlock(parent) || excludedIds.has(ancestor) ||
-            (scopeIds && !scopeIds.has(ancestor)) ||
-            (filters.notebook && parent.notebook !== filters.notebook)) break;
+        if (
+          !parent ||
+          !isBlock(parent) ||
+          excludedIds.has(ancestor) ||
+          (scopeIds && !scopeIds.has(ancestor)) ||
+          (filters.notebook && parent.notebook !== filters.notebook)
+        )
+          break;
         if (candidates.has(ancestor) && eligibleIds.has(ancestor)) {
           const provenance: GraphProvenance = {
             sourceId: ancestor,
@@ -377,10 +371,7 @@ const openTargetCache = new WeakMap<
   }
 >();
 
-function currentOpenTargets(
-  data: GraphDataset,
-  graph: CurrentGraph,
-): Map<string, string> {
+function currentOpenTargets(data: GraphDataset, graph: CurrentGraph): Map<string, string> {
   const cached = openTargetCache.get(graph);
   if (cached?.data === data) return cached.targets;
   const targets = new Map<string, string>();
@@ -389,11 +380,7 @@ function currentOpenTargets(
   for (const node of data.nodes) {
     // Type-hidden source blocks remain available through their document
     // representative. Notebook and content exclusions have no representative.
-    if (
-      isBlock(node) &&
-      graph.representatives.has(node.id) &&
-      !graph.excludedIds.has(node.id)
-    ) {
+    if (isBlock(node) && graph.representatives.has(node.id) && !graph.excludedIds.has(node.id)) {
       targets.set(node.id, node.id);
       nativeSources.add(node.id);
     }
@@ -413,23 +400,14 @@ function currentOpenTargets(
       !targets.has(carrier.id)
     )
       continue;
-    if (!embeddings.has(database.databaseId))
-      embeddings.set(database.databaseId, carrier.id);
+    if (!embeddings.has(database.databaseId)) embeddings.set(database.databaseId, carrier.id);
   }
   for (const node of data.nodes) {
-    if (
-      isBlock(node) ||
-      !graph.representatives.has(node.id) ||
-      graph.excludedIds.has(node.id)
-    )
+    if (isBlock(node) || !graph.representatives.has(node.id) || graph.excludedIds.has(node.id))
       continue;
     const bound =
-      node.boundBlockId && nativeSources.has(node.boundBlockId)
-        ? node.boundBlockId
-        : undefined;
-    const carrier = node.databaseId
-      ? embeddings.get(node.databaseId)
-      : undefined;
+      node.boundBlockId && nativeSources.has(node.boundBlockId) ? node.boundBlockId : undefined;
+    const carrier = node.databaseId ? embeddings.get(node.databaseId) : undefined;
     if (bound || carrier) targets.set(node.id, bound ?? carrier!);
   }
   // Source datasets and their projections are immutable after publication.
@@ -470,12 +448,7 @@ export function scopeGraph(
   reachedIndices: ReadonlySet<number> | null,
   hideIsolated: boolean,
 ): GraphView {
-  return createViewProjector(graph).project(
-    backgroundIds,
-    chosenIds,
-    reachedIndices,
-    hideIsolated,
-  );
+  return createViewProjector(graph).project(backgroundIds, chosenIds, reachedIndices, hideIsolated);
 }
 
 export interface GraphViewProjector {
@@ -490,8 +463,7 @@ export interface GraphViewProjector {
 function sameSequence<T>(left: readonly T[], right: readonly T[]): boolean {
   return (
     left === right ||
-    (left.length === right.length &&
-      left.every((value, index) => value === right[index]))
+    (left.length === right.length && left.every((value, index) => value === right[index]))
   );
 }
 
@@ -528,12 +500,9 @@ export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
             connected.add(edge.target);
           }
         }
-        nodes = candidates.filter(
-          (node) => connected!.has(node.index) || chosenIds.has(node.id),
-        );
+        nodes = candidates.filter((node) => connected!.has(node.index) || chosenIds.has(node.id));
       }
-      const sameNodes =
-        previous !== undefined && sameSequence(previous.nodes, nodes);
+      const sameNodes = previous !== undefined && sameSequence(previous.nodes, nodes);
       const sameEdges = previous !== undefined && sameSequence(previous.edges, edges);
       if (sameNodes && sameEdges) return previous!;
       previous = {
@@ -547,15 +516,12 @@ export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
 
 /** Engine indices describe this projection only, independent of source indices. */
 export function numericTopology(graph: GraphView) {
-  const sourceToDense = new Map(
-    graph.nodes.map((node, dense) => [node.index, dense]),
-  );
+  const sourceToDense = new Map(graph.nodes.map((node, dense) => [node.index, dense]));
   const endpoints = new Uint32Array(graph.edges.length * 2);
   graph.edges.forEach((edge, index) => {
     const source = sourceToDense.get(edge.source);
     const target = sourceToDense.get(edge.target);
-    if (source === undefined || target === undefined)
-      throw new Error("当前图包含不可用的关系端点");
+    if (source === undefined || target === undefined) throw new Error("当前图包含不可用的关系端点");
     endpoints[index * 2] = source;
     endpoints[index * 2 + 1] = target;
   });

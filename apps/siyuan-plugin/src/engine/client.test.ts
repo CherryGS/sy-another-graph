@@ -2,12 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GraphEngineClient } from "./client";
 import type { EngineWorker } from "./client";
 import type { EngineRequest, EngineResponse } from "./protocol";
-import {
-  copyForTransport,
-  directionCode,
-  transferableBuffers,
-  validateUint32,
-} from "./protocol";
+import { copyForTransport, directionCode, transferableBuffers, validateUint32 } from "./protocol";
 import type { EngineStats } from "./types";
 
 const wasmMock = vi.hoisted(() => ({ initialize: vi.fn() }));
@@ -163,9 +158,7 @@ describe("GraphEngineClient ownership and lifecycle", () => {
     const rejected = expect(path).rejects.toThrow("WASM failure");
     worker.onerror?.({ message: "WASM failure" } as ErrorEvent);
     await rejected;
-    await expect(engine.shortestPath(0, 2, "both")).rejects.toThrow(
-      "Load a graph",
-    );
+    await expect(engine.shortestPath(0, 2, "both")).rejects.toThrow("Load a graph");
     await load(engine, workers);
     engine.dispose();
   });
@@ -223,11 +216,9 @@ describe("Worker WASM initialization failure recovery", () => {
     const fetch = vi.fn(
       (_url: unknown, options: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
-          options.signal?.addEventListener(
-            "abort",
-            () => reject(options.signal?.reason),
-            { once: true },
-          );
+          options.signal?.addEventListener("abort", () => reject(options.signal?.reason), {
+            once: true,
+          });
         }),
     );
     vi.stubGlobal("fetch", fetch);
@@ -242,9 +233,7 @@ describe("Worker WASM initialization failure recovery", () => {
     });
     expect(vi.getTimerCount()).toBe(0);
 
-    fetch.mockResolvedValueOnce(
-      new Response(new Uint8Array(), { status: 200 }),
-    );
+    fetch.mockResolvedValueOnce(new Response(new Uint8Array(), { status: 200 }));
     worker.load(2);
     await vi.advanceTimersByTimeAsync(0);
     expect(worker.responses[1]).toEqual({
@@ -263,18 +252,13 @@ describe("Worker WASM initialization failure recovery", () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(wasmMock.initialize).toHaveBeenCalledOnce();
-    expect(wasmMock.initialize.mock.calls[0][0].module_or_path).toBeInstanceOf(
-      Response,
-    );
+    expect(wasmMock.initialize.mock.calls[0][0].module_or_path).toBeInstanceOf(Response);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("reports asset HTTP errors without waiting for the timeout", async () => {
     vi.useFakeTimers();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("", { status: 503 })),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 503 })));
     const worker = await workerHarness();
     worker.load(1);
     await vi.advanceTimersByTimeAsync(0);

@@ -19,11 +19,7 @@ import {
   type GraphNode,
 } from "./types";
 
-function node(
-  id: string,
-  index: number,
-  fields: Partial<GraphNode> = {},
-): GraphNode {
+function node(id: string, index: number, fields: Partial<GraphNode> = {}): GraphNode {
   return {
     id,
     index,
@@ -54,26 +50,19 @@ function block(
   });
 }
 
-type EdgeSpec = [
-  source: string,
-  target: string,
-  kind?: GraphEdgeKind,
-  weight?: number,
-];
+type EdgeSpec = [source: string, target: string, kind?: GraphEdgeKind, weight?: number];
 
 function dataset(nodes: GraphNode[], specs: EdgeSpec[]): GraphDataset {
   const byId = new Map(nodes.map((item) => [item.id, item.index]));
   return {
     nodes,
-    edges: specs.map(
-      ([sourceId, targetId, kind = "reference", weight = 1]) => ({
-        source: byId.get(sourceId)!,
-        target: byId.get(targetId)!,
-        kind,
-        weight,
-        provenance: [{ sourceId, targetId, kind, weight }],
-      }),
-    ),
+    edges: specs.map(([sourceId, targetId, kind = "reference", weight = 1]) => ({
+      source: byId.get(sourceId)!,
+      target: byId.get(targetId)!,
+      kind,
+      weight,
+      provenance: [{ sourceId, targetId, kind, weight }],
+    })),
     notebooks: [{ id: "book", name: "Book", color: "#fff" }],
     source: "siyuan",
     loadedAt: "2026-09-09T00:00:00Z",
@@ -92,37 +81,64 @@ const filters = (overrides: Partial<GraphFilters> = {}): GraphFilters => ({
 });
 
 describe("temporary search result boundaries", () => {
-  const data = dataset([node("A", 0), node("B", 1), block("hit", 2, "p", "A"), block("outside", 3, "p", "A")],
-    [["hit", "B"], ["outside", "B"], ["A", "B"]]);
+  const data = dataset(
+    [node("A", 0), node("B", 1), block("hit", 2, "p", "A"), block("outside", 3, "p", "A")],
+    [
+      ["hit", "B"],
+      ["outside", "B"],
+      ["A", "B"],
+    ],
+  );
   it("keeps only matched sources and their actual relationships", () => {
     const graph = projectGraph(data, filters(), new Set(["hit", "B"]));
     expect([...graph.sourceIds].sort()).toEqual(["B", "hit"]);
-    expect(graph.nodes.map(node => node.id).sort()).toEqual(["B", "hit"]);
+    expect(graph.nodes.map((node) => node.id).sort()).toEqual(["B", "hit"]);
     expect(graph.edges).toHaveLength(1);
-    expect(graph.edges[0].provenance?.map(item => item.sourceId)).toEqual(["hit"]);
+    expect(graph.edges[0].provenance?.map((item) => item.sourceId)).toEqual(["hit"]);
   });
   it("does not admit document siblings through document-only projection", () => {
     const graph = projectGraph(data, filters({ documentsOnly: true }), new Set(["hit", "B"]));
-    expect(graph.nodes.map(node => node.id).sort()).toEqual(["A", "B"]);
+    expect(graph.nodes.map((node) => node.id).sort()).toEqual(["A", "B"]);
     expect(graph.edges).toHaveLength(1);
-    expect(graph.edges[0].provenance?.map(item => item.sourceId)).toEqual(["hit"]);
+    expect(graph.edges[0].provenance?.map((item) => item.sourceId)).toEqual(["hit"]);
     expect(graph.sourceIds.has("outside")).toBe(false);
   });
   it("intersects scope and exclusions and treats an empty snapshot as empty", () => {
     expect(projectGraph(data, filters(), new Set()).nodes).toEqual([]);
-    expect(projectGraph(data, filters({ excludeIds: ["A"] }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["B"]);
-    expect(projectGraph(data, filters({ scopeId: "A" }), new Set(["hit", "B"])).nodes.map(node => node.id)).toEqual(["hit"]);
+    expect(
+      projectGraph(data, filters({ excludeIds: ["A"] }), new Set(["hit", "B"])).nodes.map(
+        (node) => node.id,
+      ),
+    ).toEqual(["B"]);
+    expect(
+      projectGraph(data, filters({ scopeId: "A" }), new Set(["hit", "B"])).nodes.map(
+        (node) => node.id,
+      ),
+    ).toEqual(["hit"]);
   });
 });
 
 describe("search ancestor context", () => {
-  const tree = () => dataset([
-    node("top", 0), node("D", 1, { parentId: "top" }),
-    block("heading", 2, "h", "D"), block("list", 3, "l", "D", "heading"),
-    block("item", 4, "i", "D", "list"), block("hitA", 5, "p", "D", "item"),
-    node("D2", 6, { parentId: "top" }), block("hitB", 7, "p", "D2"),
-    block("sibling", 8, "p", "D", "heading"), node("unrelated", 9),
-  ], [["hitA", "hitB"], ["sibling", "hitB"], ["list", "unrelated"]]);
+  const tree = () =>
+    dataset(
+      [
+        node("top", 0),
+        node("D", 1, { parentId: "top" }),
+        block("heading", 2, "h", "D"),
+        block("list", 3, "l", "D", "heading"),
+        block("item", 4, "i", "D", "list"),
+        block("hitA", 5, "p", "D", "item"),
+        node("D2", 6, { parentId: "top" }),
+        block("hitB", 7, "p", "D2"),
+        block("sibling", 8, "p", "D", "heading"),
+        node("unrelated", 9),
+      ],
+      [
+        ["hitA", "hitB"],
+        ["sibling", "hitB"],
+        ["list", "unrelated"],
+      ],
+    );
 
   it("adds complete block and document ancestry without expanding siblings or descendants", () => {
     const data = tree();
@@ -140,59 +156,112 @@ describe("search ancestor context", () => {
     const graph = projectGraph(data, filters({ hierarchy: true }), context);
     expect(graph.sourceIds).toEqual(context);
     expect(new Set(ids(graph))).toEqual(context);
-    expect(pairs(graph, "hierarchy")).toEqual(["D2>hitB", "D>heading", "heading>list", "item>hitA", "list>item", "top>D", "top>D2"]);
+    expect(pairs(graph, "hierarchy")).toEqual([
+      "D2>hitB",
+      "D>heading",
+      "heading>list",
+      "item>hitA",
+      "list>item",
+      "top>D",
+      "top>D2",
+    ]);
     expect(pairs(graph, "reference")).toEqual(["hitA>hitB"]);
-    expect(shortestPath(graph, "top", "hitA", "out")).toEqual(["top", "D", "heading", "list", "item", "hitA"]);
-    expect(reached(graph, ["top"], 8)).toEqual(new Set(graph.nodes.map(node => node.index)));
+    expect(shortestPath(graph, "top", "hitA", "out")).toEqual([
+      "top",
+      "D",
+      "heading",
+      "list",
+      "item",
+      "hitA",
+    ]);
+    expect(reached(graph, ["top"], 8)).toEqual(new Set(graph.nodes.map((node) => node.index)));
     expect(resolveOpenBlock("item", data, graph)).toBe("item");
     expect(resolveOpenBlock("sibling", data, graph)).toBeNull();
     const background = scopeBackground(data, graph, "", true);
-    expect(ids(scopeGraph(graph, background, new Set(["hitA"]), new Set([5]), false))).toEqual(ids(graph));
+    expect(ids(scopeGraph(graph, background, new Set(["hitA"]), new Set([5]), false))).toEqual(
+      ids(graph),
+    );
   });
 
   it("keeps expanded context subject to ordinary scope, exclusions and type filters", () => {
     const data = tree();
     const context = searchAncestorIds(data, new Set(["hitA", "hitB"]));
-    expect(ids(projectGraph(data, filters({ scopeId: "D" }), context))).toEqual(["D", "heading", "hitA", "item", "list"]);
-    expect(ids(projectGraph(data, filters({ excludeIds: ["D"] }), context))).toEqual(["D2", "hitB", "top"]);
-    expect(ids(projectGraph(data, filters({ documentsOnly: true }), context))).toEqual(["D", "D2", "top"]);
+    expect(ids(projectGraph(data, filters({ scopeId: "D" }), context))).toEqual([
+      "D",
+      "heading",
+      "hitA",
+      "item",
+      "list",
+    ]);
+    expect(ids(projectGraph(data, filters({ excludeIds: ["D"] }), context))).toEqual([
+      "D2",
+      "hitB",
+      "top",
+    ]);
+    expect(ids(projectGraph(data, filters({ documentsOnly: true }), context))).toEqual([
+      "D",
+      "D2",
+      "top",
+    ]);
     const disabled = projectGraph(data, filters({ hierarchy: false }), context);
     expect(new Set(ids(disabled))).toEqual(context);
     expect(pairs(disabled, "hierarchy")).toEqual([]);
   });
 
   it("deduplicates cycles and stops at missing, non-native or cross-notebook parents", () => {
-    const data = dataset([
-      node("root", 0), block("leaf", 1, "p", "root", "missing"),
-      block("a", 2, "l", "root", "b"), block("b", 3, "i", "root", "a"),
-      block("cross", 4, "p", "root", "foreign"), node("foreign", 5, { notebook: "other" }),
-      block("carrier", 6, "av", "root", "database"), node("database", 7, { entity: "database" }),
-    ], []);
-    expect(searchAncestorIds(data, new Set(["leaf", "unavailable-hit", "a", "cross", "carrier"])))
-      .toEqual(new Set(["leaf", "unavailable-hit", "a", "b", "cross", "carrier"]));
+    const data = dataset(
+      [
+        node("root", 0),
+        block("leaf", 1, "p", "root", "missing"),
+        block("a", 2, "l", "root", "b"),
+        block("b", 3, "i", "root", "a"),
+        block("cross", 4, "p", "root", "foreign"),
+        node("foreign", 5, { notebook: "other" }),
+        block("carrier", 6, "av", "root", "database"),
+        node("database", 7, { entity: "database" }),
+      ],
+      [],
+    );
+    expect(
+      searchAncestorIds(data, new Set(["leaf", "unavailable-hit", "a", "cross", "carrier"])),
+    ).toEqual(new Set(["leaf", "unavailable-hit", "a", "b", "cross", "carrier"]));
   });
 
   it("recomputes context after source movement and does not share mutable result sets", () => {
     const data = tree();
     const hits = new Set(["hitA"]);
     const before = searchAncestorIds(data, hits);
-    const moved = { ...data, nodes: data.nodes.map(node => node.id === "hitA" ? { ...node, parentId: "D2", rootId: "D2" } : node) };
+    const moved = {
+      ...data,
+      nodes: data.nodes.map((node) =>
+        node.id === "hitA" ? { ...node, parentId: "D2", rootId: "D2" } : node,
+      ),
+    };
     expect(searchAncestorIds(moved, hits)).toEqual(new Set(["hitA", "D2", "top"]));
     before.clear();
-    expect(searchAncestorIds(data, hits)).toEqual(new Set(["hitA", "item", "list", "heading", "D", "top"]));
+    expect(searchAncestorIds(data, hits)).toEqual(
+      new Set(["hitA", "item", "list", "heading", "D", "top"]),
+    );
   });
 
   it("visits a long shared ancestor chain once across thousands of matches", () => {
     let notebookReads = 0;
     const nodes = [node("root", 0)];
-    for (let i = 1; i <= 5_000; i++) nodes.push(block(`parent${i}`, i, "s", "root", i === 1 ? "root" : `parent${i - 1}`));
+    for (let i = 1; i <= 5_000; i++)
+      nodes.push(block(`parent${i}`, i, "s", "root", i === 1 ? "root" : `parent${i - 1}`));
     const hits = new Set<string>();
     for (let i = 1; i <= 5_000; i++) {
       const id = `hit${i}`;
       nodes.push(block(id, nodes.length, "p", "root", "parent5000"));
       hits.add(id);
     }
-    for (const node of nodes) Object.defineProperty(node, "notebook", { get: () => { notebookReads++; return "book"; } });
+    for (const node of nodes)
+      Object.defineProperty(node, "notebook", {
+        get: () => {
+          notebookReads++;
+          return "book";
+        },
+      });
     expect(searchAncestorIds(dataset(nodes, []), hits).size).toBe(10_001);
     expect(notebookReads).toBeLessThan(40_000);
   });
@@ -203,7 +272,10 @@ describe("source containment index reuse", () => {
     let parentReads = 0;
     const child = block("child", 1, "p", "A");
     Object.defineProperty(child, "parentId", {
-      get: () => { parentReads++; return "A"; },
+      get: () => {
+        parentReads++;
+        return "A";
+      },
       enumerable: true,
     });
     const data = dataset([node("A", 0), child, node("other", 2)], []);
@@ -214,17 +286,28 @@ describe("source containment index reuse", () => {
     expect(first).toEqual(new Set(["A", "child"]));
     first.clear();
     expect(scopeBackground(data, current, "A", false)).toEqual(new Set(["A", "child"]));
-    expect(containedIds({ nodes: data.nodes, edges: data.edges }, "A")).toEqual(new Set(["A", "child"]));
+    expect(containedIds({ nodes: data.nodes, edges: data.edges }, "A")).toEqual(
+      new Set(["A", "child"]),
+    );
     expect(parentReads).toBe(initialReads);
   });
 
   it("rebuilds containment after either the native nodes or fallback hierarchy edges change", () => {
-    const data = dataset([node("A", 0), node("B", 1), node("child-doc", 2)], [["A", "child-doc", "hierarchy"]]);
+    const data = dataset(
+      [node("A", 0), node("B", 1), node("child-doc", 2)],
+      [["A", "child-doc", "hierarchy"]],
+    );
     expect(containedIds(data, "A")).toEqual(new Set(["A", "child-doc"]));
-    const moved = { ...data, edges: [{ source: 1, target: 2, kind: "hierarchy" as const, weight: 1 }] };
+    const moved = {
+      ...data,
+      edges: [{ source: 1, target: 2, kind: "hierarchy" as const, weight: 1 }],
+    };
     expect(containedIds(moved, "A")).toEqual(new Set(["A"]));
     expect(containedIds(moved, "B")).toEqual(new Set(["B", "child-doc"]));
-    const nativeParent = { ...data, nodes: [data.nodes[0], data.nodes[1], { ...data.nodes[2], parentId: "B" }] };
+    const nativeParent = {
+      ...data,
+      nodes: [data.nodes[0], data.nodes[1], { ...data.nodes[2], parentId: "B" }],
+    };
     expect(containedIds(nativeParent, "A")).toEqual(new Set(["A"]));
     expect(containedIds(nativeParent, "B")).toEqual(new Set(["B", "child-doc"]));
     expect(containedIds(data, "A")).toEqual(new Set(["A", "child-doc"]));
@@ -233,12 +316,23 @@ describe("source containment index reuse", () => {
 
 describe("stable views within one current graph revision", () => {
   it("reuses the entire view for equivalent neighborhood membership and avoids rescanning edges", () => {
-    const data = dataset([node("A", 0), node("B", 1), node("outside", 2)], [["A", "B"], ["B", "outside"]]);
+    const data = dataset(
+      [node("A", 0), node("B", 1), node("outside", 2)],
+      [
+        ["A", "B"],
+        ["B", "outside"],
+      ],
+    );
     const graph = projectGraph(data, filters());
     let edgeReads = 0;
     for (const edge of graph.edges) {
       const source = edge.source;
-      Object.defineProperty(edge, "source", { get: () => { edgeReads++; return source; } });
+      Object.defineProperty(edge, "source", {
+        get: () => {
+          edgeReads++;
+          return source;
+        },
+      });
     }
     const projector = createViewProjector(graph);
     const first = projector.project(new Set(["A"]), new Set(["A"]), new Set([0, 1]), false);
@@ -252,7 +346,16 @@ describe("stable views within one current graph revision", () => {
   });
 
   it("keeps all of B and never admits outside choices or changing neighborhood results", () => {
-    const graph = projectGraph(dataset([node("B", 0), node("S", 1), node("near", 2), node("far", 3)], [["S", "near"], ["near", "far"]]), filters());
+    const graph = projectGraph(
+      dataset(
+        [node("B", 0), node("S", 1), node("near", 2), node("far", 3)],
+        [
+          ["S", "near"],
+          ["near", "far"],
+        ],
+      ),
+      filters(),
+    );
     const projector = createViewProjector(graph);
     const background = new Set(["B", "S", "near"]);
     const chosen = new Set(["S"]);
@@ -267,7 +370,10 @@ describe("stable views within one current graph revision", () => {
   });
 
   it("changes the display boundary while retaining node objects and an unchanged edge set", () => {
-    const graph = projectGraph(dataset([node("A", 0), node("B", 1), node("unused", 2)], [["A", "B"]]), filters());
+    const graph = projectGraph(
+      dataset([node("A", 0), node("B", 1), node("unused", 2)], [["A", "B"]]),
+      filters(),
+    );
     const projector = createViewProjector(graph);
     const chosen = new Set(["A"]);
     const reached = new Set([0, 1]);
@@ -284,7 +390,10 @@ describe("stable views within one current graph revision", () => {
   });
 
   it("retains chosen isolates and reuses an unchanged isolated-node result", () => {
-    const graph = projectGraph(dataset([node("a", 0), node("b", 1), node("isolate", 2)], [["a", "b"]]), filters());
+    const graph = projectGraph(
+      dataset([node("a", 0), node("b", 1), node("isolate", 2)], [["a", "b"]]),
+      filters(),
+    );
     const projector = createViewProjector(graph);
     const background = new Set(["a", "b", "isolate"]);
     const chosen = new Set(["a"]);
@@ -298,8 +407,14 @@ describe("stable views within one current graph revision", () => {
   });
 
   it("does not reuse previous-revision labels, edge weights or provenance just because IDs match", () => {
-    const before = projectGraph(dataset([node("a", 0, { label: "Before" }), node("b", 1)], [["a", "b", "reference", 1]]), filters());
-    const after = projectGraph(dataset([node("a", 0, { label: "After" }), node("b", 1)], [["a", "b", "reference", 9]]), filters());
+    const before = projectGraph(
+      dataset([node("a", 0, { label: "Before" }), node("b", 1)], [["a", "b", "reference", 1]]),
+      filters(),
+    );
+    const after = projectGraph(
+      dataset([node("a", 0, { label: "After" }), node("b", 1)], [["a", "b", "reference", 9]]),
+      filters(),
+    );
     const background = new Set(["a", "b"]);
     const chosen = new Set(["a"]);
     const focus = new Set([0, 1]);
@@ -338,10 +453,8 @@ function reached(
     for (let index = 0; index < topology.endpoints.length; index += 2) {
       const from = topology.endpoints[index];
       const to = topology.endpoints[index + 1];
-      if (direction !== "in" && frontier.has(from) && !found.has(to))
-        next.add(to);
-      if (direction !== "out" && frontier.has(to) && !found.has(from))
-        next.add(from);
+      if (direction !== "in" && frontier.has(from) && !found.has(to)) next.add(to);
+      if (direction !== "out" && frontier.has(to) && !found.has(from)) next.add(from);
     }
     for (const member of next) found.add(member);
     frontier = next;
@@ -387,27 +500,32 @@ function shortestPath(
 
 describe("conservative document-only filters", () => {
   it("defaults to document references and projects native types without admitting database entities or future types", () => {
-    const data = dataset([
-      node("A", 0), node("B", 1),
-      block("paragraph", 2, "p", "A"),
-      block("future", 3, "future-block-kind", "B"),
-      block("carrier", 4, "av", "A"),
-      node("database", 5, { entity: "database", rootId: undefined }),
-      node("item", 6, { entity: "database-item", rootId: undefined }),
-    ], [
-      ["paragraph", "future", "reference", 2],
-      ["A", "B", "hierarchy"],
-      ["carrier", "database", "database-embedding"],
-      ["database", "item", "database-membership"],
-      ["item", "B", "database-binding"],
-    ]);
+    const data = dataset(
+      [
+        node("A", 0),
+        node("B", 1),
+        block("paragraph", 2, "p", "A"),
+        block("future", 3, "future-block-kind", "B"),
+        block("carrier", 4, "av", "A"),
+        node("database", 5, { entity: "database", rootId: undefined }),
+        node("item", 6, { entity: "database-item", rootId: undefined }),
+      ],
+      [
+        ["paragraph", "future", "reference", 2],
+        ["A", "B", "hierarchy"],
+        ["carrier", "database", "database-embedding"],
+        ["database", "item", "database-membership"],
+        ["item", "B", "database-binding"],
+      ],
+    );
     const graph = projectGraph(data, DEFAULT_FILTERS);
     expect(ids(graph)).toEqual(["A", "B"]);
     expect(graph.edges).toHaveLength(1);
     expect(pairs(graph, "reference")).toEqual(["A>B"]);
-    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
-      { sourceId: "paragraph", targetId: "future", kind: "reference", weight: 2 },
-    ] });
+    expect(graph.edges[0]).toMatchObject({
+      weight: 2,
+      provenance: [{ sourceId: "paragraph", targetId: "future", kind: "reference", weight: 2 }],
+    });
     expect(graph.representatives.get("future")).toBe("B");
     expect(graph.representatives.has("database")).toBe(false);
     expect(graph.representatives.has("item")).toBe(false);
@@ -421,26 +539,31 @@ describe("conservative document-only filters", () => {
   });
 
   it("keeps only in-scope source facts when every content type projects onto the same document", () => {
-    const data = dataset([
-      node("D", 0), block("scope", 1, "h", "D"),
-      block("first", 2, "future-block-kind", "D", "scope"),
-      block("second", 3, "p", "D", "scope"),
-      block("sibling", 4, "future-block-kind", "D"),
-      block("removed", 5, "p", "D", "scope"),
-    ], [
-      ["first", "second", "reference", 2],
-      ["first", "sibling", "reference", 9],
-      ["sibling", "second", "reference", 10],
-      ["D", "first", "reference", 11],
-      ["removed", "second", "reference", 12],
-    ]);
+    const data = dataset(
+      [
+        node("D", 0),
+        block("scope", 1, "h", "D"),
+        block("first", 2, "future-block-kind", "D", "scope"),
+        block("second", 3, "p", "D", "scope"),
+        block("sibling", 4, "future-block-kind", "D"),
+        block("removed", 5, "p", "D", "scope"),
+      ],
+      [
+        ["first", "second", "reference", 2],
+        ["first", "sibling", "reference", 9],
+        ["sibling", "second", "reference", 10],
+        ["D", "first", "reference", 11],
+        ["removed", "second", "reference", 12],
+      ],
+    );
     const scoped = { ...DEFAULT_FILTERS, scopeId: "scope", excludeIds: ["removed"] };
     const graph = projectGraph(data, scoped);
     expect(ids(graph)).toEqual(["D"]);
     expect(pairs(graph, "reference")).toEqual(["D>D"]);
-    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
-      { sourceId: "first", targetId: "second", kind: "reference", weight: 2 },
-    ] });
+    expect(graph.edges[0]).toMatchObject({
+      weight: 2,
+      provenance: [{ sourceId: "first", targetId: "second", kind: "reference", weight: 2 }],
+    });
     expect(graph.sourceIds).toEqual(new Set(["scope", "first", "second"]));
     expect(scopeBackground(data, graph, "scope", true)).toEqual(new Set(["D"]));
     expect(resolveOpenBlock("first", data, graph)).toBe("first");
@@ -496,10 +619,7 @@ describe("source exclusion and current endpoint projection", () => {
         ["kept", "target"],
       ],
     );
-    const graph = projectGraph(
-      data,
-      filters({ excludeIds: ["removed"], hiddenTypes: ["l"] }),
-    );
+    const graph = projectGraph(data, filters({ excludeIds: ["removed"], hiddenTypes: ["l"] }));
     expect(graph.excludedIds).toEqual(new Set(["removed", "removed-child"]));
     expect(pairs(graph, "reference")).toEqual(["A>target"]);
     expect(graph.edges[0].weight).toBe(1);
@@ -512,12 +632,7 @@ describe("source exclusion and current endpoint projection", () => {
 
   it("combines projected references once while retaining every original source relationship", () => {
     const data = dataset(
-      [
-        node("A", 0),
-        node("C", 1),
-        block("a1", 2, "l", "A"),
-        block("a2", 3, "l", "A"),
-      ],
+      [node("A", 0), node("C", 1), block("a1", 2, "l", "A"), block("a2", 3, "l", "A")],
       [
         ["a1", "C", "reference", 2],
         ["a2", "C", "reference", 3],
@@ -531,10 +646,7 @@ describe("source exclusion and current endpoint projection", () => {
       { sourceId: "a2", targetId: "C", kind: "reference", weight: 3 },
     ]);
     expect(data.edges.map((edge) => edge.weight)).toEqual([2, 3]);
-    expect(pairs(projectGraph(data, filters()), "reference")).toEqual([
-      "a1>C",
-      "a2>C",
-    ]);
+    expect(pairs(projectGraph(data, filters()), "reference")).toEqual(["a1>C", "a2>C"]);
   });
 
   it("keeps the source facts when both endpoints project to the same document", () => {
@@ -560,9 +672,7 @@ describe("source exclusion and current endpoint projection", () => {
     const selection = selectNode(EMPTY_SELECTION, "a", true);
     const projected = projectGraph(data, filters({ hiddenTypes: ["l"] }));
     expect(projected.representatives.get("a")).toBe("A");
-    expect(retainSelection(selection, projected.eligibleIds)).toEqual(
-      EMPTY_SELECTION,
-    );
+    expect(retainSelection(selection, projected.eligibleIds)).toEqual(EMPTY_SELECTION);
     expect(pairs(projected, "reference")).toEqual(["A>target"]);
   });
 
@@ -594,11 +704,21 @@ describe("source exclusion and current endpoint projection", () => {
 });
 
 describe("optional virtual containment", () => {
-  const searchTree = () => dataset([
-    node("D", 0), block("H", 1, "h", "D"),
-    block("list", 2, "l", "D", "H"), block("item", 3, "i", "D", "list"),
-    block("child", 4, "p", "D", "item"), node("target", 5),
-  ], [["list", "target"], ["item", "target"]]);
+  const searchTree = () =>
+    dataset(
+      [
+        node("D", 0),
+        block("H", 1, "h", "D"),
+        block("list", 2, "l", "D", "H"),
+        block("item", 3, "i", "D", "list"),
+        block("child", 4, "p", "D", "item"),
+        node("target", 5),
+      ],
+      [
+        ["list", "target"],
+        ["item", "target"],
+      ],
+    );
 
   it("connects search hits through unmatched containers without importing their nodes or references", () => {
     const data = searchTree();
@@ -610,7 +730,7 @@ describe("optional virtual containment", () => {
     expect(pairs(graph, "reference")).toEqual([]);
     expect(pairs(disabled, "hierarchy")).toEqual([]);
     expect(pairs(graph, "hierarchy")).toEqual(["D>H", "H>child"]);
-    expect(graph.edges.find(edge => edge.target === 4)?.provenance).toEqual([
+    expect(graph.edges.find((edge) => edge.target === 4)?.provenance).toEqual([
       { sourceId: "H", targetId: "child", kind: "hierarchy", weight: 1, viaIds: ["list", "item"] },
     ]);
     expect(reached(graph, ["H"], 1)).toEqual(new Set([1, 4]));
@@ -622,7 +742,9 @@ describe("optional virtual containment", () => {
     const hits = new Set(["H", "list", "child"]);
     const graph = projectGraph(data, filters({ hierarchy: true }), hits);
     expect(pairs(graph, "hierarchy")).toEqual(["H>list", "list>child"]);
-    expect(graph.edges.find(edge => edge.target === 4)?.provenance?.[0]?.viaIds).toEqual(["item"]);
+    expect(graph.edges.find((edge) => edge.target === 4)?.provenance?.[0]?.viaIds).toEqual([
+      "item",
+    ]);
     const hidden = projectGraph(data, filters({ hierarchy: true, hiddenTypes: ["l"] }), hits);
     expect(pairs(hidden, "hierarchy")).toEqual(["H>child"]);
     expect(hidden.edges[0].provenance?.[0]?.viaIds).toEqual(["list", "item"]);
@@ -631,16 +753,43 @@ describe("optional virtual containment", () => {
   it("keeps scope, child-document, notebook and exclusion boundaries while tracing unmatched ancestors", () => {
     const data = searchTree();
     const hits = new Set(["H", "child"]);
-    expect(pairs(projectGraph(data, filters({ hierarchy: true, scopeId: "list" }), hits), "hierarchy")).toEqual([]);
-    expect(ids(projectGraph(data, filters({ hierarchy: true, excludeIds: ["item"] }), hits))).toEqual(["H"]);
-    const otherNotebook = { ...data, nodes: data.nodes.map(node => node.id === "item" ? { ...node, notebook: "other" } : node) };
-    expect(pairs(projectGraph(otherNotebook, filters({ hierarchy: true, notebook: "book" }), hits), "hierarchy")).toEqual([]);
-    const documents = dataset([node("D", 0), node("subdoc", 1), block("child", 2, "p", "subdoc")], [["D", "subdoc", "hierarchy"]]);
-    expect(ids(projectGraph(documents, filters({ hierarchy: true, scopeId: "D", includeChildDocuments: false }), new Set(["D", "child"])))).toEqual(["D"]);
+    expect(
+      pairs(projectGraph(data, filters({ hierarchy: true, scopeId: "list" }), hits), "hierarchy"),
+    ).toEqual([]);
+    expect(
+      ids(projectGraph(data, filters({ hierarchy: true, excludeIds: ["item"] }), hits)),
+    ).toEqual(["H"]);
+    const otherNotebook = {
+      ...data,
+      nodes: data.nodes.map((node) => (node.id === "item" ? { ...node, notebook: "other" } : node)),
+    };
+    expect(
+      pairs(
+        projectGraph(otherNotebook, filters({ hierarchy: true, notebook: "book" }), hits),
+        "hierarchy",
+      ),
+    ).toEqual([]);
+    const documents = dataset(
+      [node("D", 0), node("subdoc", 1), block("child", 2, "p", "subdoc")],
+      [["D", "subdoc", "hierarchy"]],
+    );
+    expect(
+      ids(
+        projectGraph(
+          documents,
+          filters({ hierarchy: true, scopeId: "D", includeChildDocuments: false }),
+          new Set(["D", "child"]),
+        ),
+      ),
+    ).toEqual(["D"]);
   });
 
   it("does not use an unmatched document representative as a containment source", () => {
-    const graph = projectGraph(searchTree(), filters({ hierarchy: true, hiddenTypes: ["p"] }), new Set(["H", "child"]));
+    const graph = projectGraph(
+      searchTree(),
+      filters({ hierarchy: true, hiddenTypes: ["p"] }),
+      new Set(["H", "child"]),
+    );
     expect(ids(graph)).toEqual(["D", "H"]);
     expect(pairs(graph, "hierarchy")).toEqual([]);
     expect(graph.sourceIds.has("D")).toBe(false);
@@ -648,7 +797,7 @@ describe("optional virtual containment", () => {
 
   it("terminates a cycle through unmatched parents without inventing a connection", () => {
     const data = searchTree();
-    data.nodes.find(node => node.id === "list")!.parentId = "item";
+    data.nodes.find((node) => node.id === "list")!.parentId = "item";
     const graph = projectGraph(data, filters({ hierarchy: true }), new Set(["H", "child"]));
     expect(pairs(graph, "hierarchy")).toEqual([]);
   });
@@ -694,16 +843,11 @@ describe("optional virtual containment", () => {
         ["child", "target"],
       ],
     );
-    const graph = projectGraph(
-      data,
-      filters({ hierarchy: true, hiddenTypes: ["s", "l"] }),
-    );
+    const graph = projectGraph(data, filters({ hierarchy: true, hiddenTypes: ["s", "l"] }));
     expect(ids(graph)).toEqual(["D", "H", "child", "target"]);
     expect(pairs(graph, "reference")).toEqual(["D>target", "child>target"]);
     expect(pairs(graph, "hierarchy")).toEqual(["D>H", "H>child"]);
-    const connection = graph.edges.find(
-      (edge) => edge.kind === "hierarchy" && edge.target === 4,
-    )!;
+    const connection = graph.edges.find((edge) => edge.kind === "hierarchy" && edge.target === 4)!;
     expect(connection.provenance).toEqual([
       {
         sourceId: "H",
@@ -742,29 +886,11 @@ describe("contained background and chosen exploration roots", () => {
     const background = scopeBackground(data, graph, "D", true);
     const chosen = new Set(["seed"]);
     expect(background).toEqual(new Set(["D", "seed", "background"]));
-    const two = scopeGraph(
-      graph,
-      background,
-      chosen,
-      reached(graph, [...chosen], 2),
-      false,
-    );
+    const two = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 2), false);
     expect(ids(two)).toEqual(["D", "background", "seed"]);
-    const one = scopeGraph(
-      graph,
-      background,
-      chosen,
-      reached(graph, [...chosen], 1),
-      false,
-    );
+    const one = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 1), false);
     expect(ids(one)).toEqual(["D", "background", "seed"]);
-    const zero = scopeGraph(
-      graph,
-      background,
-      chosen,
-      reached(graph, [...chosen], 0),
-      false,
-    );
+    const zero = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 0), false);
     expect(ids(zero)).toEqual(["D", "background", "seed"]);
     expect(chosen).toEqual(new Set(["seed"]));
     expect(reached(graph, ["seed"], 0)).toEqual(new Set([1]));
@@ -776,12 +902,7 @@ describe("contained background and chosen exploration roots", () => {
 
   it("hides current isolates while retaining eligible chosen members", () => {
     const data = dataset(
-      [
-        node("background-isolate", 0),
-        node("chosen-isolate", 1),
-        node("u", 2),
-        node("v", 3),
-      ],
+      [node("background-isolate", 0), node("chosen-isolate", 1), node("u", 2), node("v", 3)],
       [["u", "v"]],
     );
     const graph = projectGraph(data, filters());
@@ -811,12 +932,8 @@ describe("contained background and chosen exploration roots", () => {
         ],
         [],
       );
-      const expected = includeChildDocuments
-        ? ["A", "a", "B", "b"]
-        : ["A", "a"];
-      expect(containedIds(data, "A", includeChildDocuments)).toEqual(
-        new Set(expected),
-      );
+      const expected = includeChildDocuments ? ["A", "a", "B", "b"] : ["A", "a"];
+      expect(containedIds(data, "A", includeChildDocuments)).toEqual(new Set(expected));
       const hidden = projectGraph(
         data,
         filters({ scopeId: "A", includeChildDocuments, hierarchy: false, hiddenTypes: ["p"] }),
@@ -840,50 +957,74 @@ describe("contained background and chosen exploration roots", () => {
     const graph = projectGraph(data, filters({ scopeId: "scope", hiddenTypes: ["p"] }));
     const background = scopeBackground(data, graph, "scope", true);
     expect(background).toEqual(new Set(["scope", "D"]));
-    expect(ids(scopeGraph(graph, background, new Set(), null, false))).toEqual([
-      "D",
-      "scope",
-    ]);
+    expect(ids(scopeGraph(graph, background, new Set(), null, false))).toEqual(["D", "scope"]);
   });
 });
 
 describe("strict source scope before projection and traversal", () => {
-  it.each(["out", "in", "both"] as const)("does not leave and re-enter B during %s traversal or shortest paths", (direction) => {
-    const data = dataset([
-      node("D", 0), block("a", 10, "p", "D"), block("b", 20, "p", "D"),
-      node("child-doc", 30, { parentId: "D" }),
-      block("child-bridge", 40, "p", "child-doc"), node("outside", 90),
-    ], [
-      ["a", "child-bridge"], ["child-bridge", "b"],
-      ["a", "outside"], ["outside", "b"], ["b", "b"],
-    ]);
-    const source = direction === "in" ? "b" : "a";
-    const target = direction === "in" ? "a" : "b";
-    expect(shortestPath(projectGraph(data, filters()), source, target, direction)).not.toBeNull();
-    const bounded = projectGraph(data, filters({ scopeId: "D", includeChildDocuments: false }));
-    expect(ids(bounded)).toEqual(["D", "a", "b"]);
-    expect([...numericTopology(bounded).endpoints]).toEqual([2, 2]);
-    expect(shortestPath(bounded, source, target, direction)).toBeNull();
-    expect(reached(bounded, [source], 100, direction)).toEqual(new Set([source === "a" ? 10 : 20]));
-    const expandedScope = projectGraph(data, filters({ scopeId: "D", includeChildDocuments: true }));
-    expect(shortestPath(expandedScope, source, target, direction)).toEqual(
-      direction === "in" ? ["b", "child-bridge", "a"] : ["a", "child-bridge", "b"],
-    );
-    expect(ids(expandedScope)).not.toContain("outside");
-  });
+  it.each(["out", "in", "both"] as const)(
+    "does not leave and re-enter B during %s traversal or shortest paths",
+    (direction) => {
+      const data = dataset(
+        [
+          node("D", 0),
+          block("a", 10, "p", "D"),
+          block("b", 20, "p", "D"),
+          node("child-doc", 30, { parentId: "D" }),
+          block("child-bridge", 40, "p", "child-doc"),
+          node("outside", 90),
+        ],
+        [
+          ["a", "child-bridge"],
+          ["child-bridge", "b"],
+          ["a", "outside"],
+          ["outside", "b"],
+          ["b", "b"],
+        ],
+      );
+      const source = direction === "in" ? "b" : "a";
+      const target = direction === "in" ? "a" : "b";
+      expect(shortestPath(projectGraph(data, filters()), source, target, direction)).not.toBeNull();
+      const bounded = projectGraph(data, filters({ scopeId: "D", includeChildDocuments: false }));
+      expect(ids(bounded)).toEqual(["D", "a", "b"]);
+      expect([...numericTopology(bounded).endpoints]).toEqual([2, 2]);
+      expect(shortestPath(bounded, source, target, direction)).toBeNull();
+      expect(reached(bounded, [source], 100, direction)).toEqual(
+        new Set([source === "a" ? 10 : 20]),
+      );
+      const expandedScope = projectGraph(
+        data,
+        filters({ scopeId: "D", includeChildDocuments: true }),
+      );
+      expect(shortestPath(expandedScope, source, target, direction)).toEqual(
+        direction === "in" ? ["b", "child-bridge", "a"] : ["a", "child-bridge", "b"],
+      );
+      expect(ids(expandedScope)).not.toContain("outside");
+    },
+  );
 
   it("keeps a document representative openable while rejecting its outside facts and hidden siblings", () => {
-    const data = dataset([
-      node("D", 0), block("scope", 1, "h", "D"),
-      block("a", 10, "p", "D", "scope"), block("b", 20, "p", "D", "scope"),
-      block("hidden-in", 30, "l", "D", "scope"),
-      block("hidden-out", 40, "l", "D"), node("outside", 50),
-    ], [
-      ["hidden-in", "b", "reference", 2],
-      ["a", "hidden-out", "reference", 3], ["hidden-out", "b", "reference", 4],
-      ["D", "a", "reference", 100], ["a", "D", "reference", 200],
-      ["a", "outside"], ["outside", "b"], ["D", "D", "reference", 300],
-    ]);
+    const data = dataset(
+      [
+        node("D", 0),
+        block("scope", 1, "h", "D"),
+        block("a", 10, "p", "D", "scope"),
+        block("b", 20, "p", "D", "scope"),
+        block("hidden-in", 30, "l", "D", "scope"),
+        block("hidden-out", 40, "l", "D"),
+        node("outside", 50),
+      ],
+      [
+        ["hidden-in", "b", "reference", 2],
+        ["a", "hidden-out", "reference", 3],
+        ["hidden-out", "b", "reference", 4],
+        ["D", "a", "reference", 100],
+        ["a", "D", "reference", 200],
+        ["a", "outside"],
+        ["outside", "b"],
+        ["D", "D", "reference", 300],
+      ],
+    );
     const scoped = filters({ scopeId: "scope", hiddenTypes: ["l"] });
     const graph = projectGraph(data, scoped);
     expect(ids(graph)).toEqual(["D", "a", "b", "scope"]);
@@ -891,24 +1032,43 @@ describe("strict source scope before projection and traversal", () => {
     expect(graph.representatives.get("hidden-in")).toBe("D");
     expect(graph.representatives.has("hidden-out")).toBe(false);
     expect(graph.eligibleIds.has("hidden-in")).toBe(false);
-    expect(retainSelection(selectNode(EMPTY_SELECTION, "D"), graph.eligibleIds).chosenIds).toEqual(["D"]);
+    expect(retainSelection(selectNode(EMPTY_SELECTION, "D"), graph.eligibleIds).chosenIds).toEqual([
+      "D",
+    ]);
     expect(resolveOpenBlock("D", data, graph)).toBe("D");
     expect(resolveOpenBlock("hidden-in", data, graph)).toBe("hidden-in");
     expect(resolveOpenBlock("hidden-out", data, graph)).toBeNull();
     expect(pairs(graph, "reference")).toEqual(["D>b"]);
-    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
-      { sourceId: "hidden-in", targetId: "b", kind: "reference", weight: 2 },
-    ] });
+    expect(graph.edges[0]).toMatchObject({
+      weight: 2,
+      provenance: [{ sourceId: "hidden-in", targetId: "b", kind: "reference", weight: 2 }],
+    });
     for (const direction of ["out", "in", "both"] as const)
-      expect(shortestPath(graph, direction === "in" ? "b" : "a", direction === "in" ? "a" : "b", direction)).toBeNull();
+      expect(
+        shortestPath(
+          graph,
+          direction === "in" ? "b" : "a",
+          direction === "in" ? "a" : "b",
+          direction,
+        ),
+      ).toBeNull();
 
-    const insideReferences = dataset(data.nodes, [["a", "hidden-in"], ["hidden-in", "b"]]);
-    expect(shortestPath(projectGraph(insideReferences, scoped), "a", "b", "out")).toEqual(["a", "D", "b"]);
+    const insideReferences = dataset(data.nodes, [
+      ["a", "hidden-in"],
+      ["hidden-in", "b"],
+    ]);
+    expect(shortestPath(projectGraph(insideReferences, scoped), "a", "b", "out")).toEqual([
+      "a",
+      "D",
+      "b",
+    ]);
     const withHierarchy = projectGraph(data, { ...scoped, hierarchy: true });
     expect(pairs(withHierarchy, "hierarchy")).toEqual(["scope>a", "scope>b"]);
-    expect(withHierarchy.edges.filter((edge) => edge.kind === "hierarchy").every((edge) =>
-      edge.provenance?.every((origin) => origin.sourceId === "scope"),
-    )).toBe(true);
+    expect(
+      withHierarchy.edges
+        .filter((edge) => edge.kind === "hierarchy")
+        .every((edge) => edge.provenance?.every((origin) => origin.sourceId === "scope")),
+    ).toBe(true);
     const excluded = projectGraph(data, { ...scoped, excludeIds: ["hidden-in"] });
     expect(ids(excluded)).toEqual(["a", "b", "scope"]);
     expect(excluded.edges).toEqual([]);
@@ -917,45 +1077,98 @@ describe("strict source scope before projection and traversal", () => {
   });
 
   it("preserves in-scope projected self references without importing an outside source with the same representative", () => {
-    const data = dataset([
-      node("D", 0), block("scope", 1, "h", "D"),
-      block("first", 2, "l", "D", "scope"), block("second", 3, "l", "D", "scope"),
-      block("sibling", 4, "l", "D"),
-    ], [["first", "second", "reference", 2], ["first", "sibling", "reference", 9]]);
+    const data = dataset(
+      [
+        node("D", 0),
+        block("scope", 1, "h", "D"),
+        block("first", 2, "l", "D", "scope"),
+        block("second", 3, "l", "D", "scope"),
+        block("sibling", 4, "l", "D"),
+      ],
+      [
+        ["first", "second", "reference", 2],
+        ["first", "sibling", "reference", 9],
+      ],
+    );
     const graph = projectGraph(data, filters({ scopeId: "scope", hiddenTypes: ["l"] }));
     expect(pairs(graph, "reference")).toEqual(["D>D"]);
-    expect(graph.edges[0]).toMatchObject({ weight: 2, provenance: [
-      { sourceId: "first", targetId: "second", kind: "reference", weight: 2 },
-    ] });
+    expect(graph.edges[0]).toMatchObject({
+      weight: 2,
+      provenance: [{ sourceId: "first", targetId: "second", kind: "reference", weight: 2 }],
+    });
   });
 
   it("does not invent database membership inside native scope and retains notebook-filtered databases without that scope", () => {
-    const data = dataset([
-      node("D", 0), block("carrier", 1, "av", "D"), block("inside", 2, "p", "D"),
-      node("other", 3, { notebook: "other-book" }),
-      node("av:db", 4, { entity: "database", rootId: undefined, databaseId: "db", notebook: "" }),
-      node("item:inside", 5, { entity: "database-item", rootId: undefined, databaseId: "db", boundBlockId: "inside", notebook: "" }),
-      node("item:detached", 6, { entity: "database-item", rootId: undefined, databaseId: "db", notebook: "" }),
-      node("item:other", 7, { entity: "database-item", rootId: undefined, databaseId: "db", boundBlockId: "other", notebook: "" }),
-    ], [
-      ["carrier", "av:db", "database-embedding"],
-      ["av:db", "item:inside", "database-membership"],
-      ["av:db", "item:detached", "database-membership"],
-      ["av:db", "item:other", "database-membership"],
-      ["item:inside", "inside", "database-binding"], ["item:other", "other", "database-binding"],
-      ["item:inside", "item:detached", "database-relation"],
-      ["item:detached", "item:other", "database-relation"], ["carrier", "inside"],
-    ]);
+    const data = dataset(
+      [
+        node("D", 0),
+        block("carrier", 1, "av", "D"),
+        block("inside", 2, "p", "D"),
+        node("other", 3, { notebook: "other-book" }),
+        node("av:db", 4, { entity: "database", rootId: undefined, databaseId: "db", notebook: "" }),
+        node("item:inside", 5, {
+          entity: "database-item",
+          rootId: undefined,
+          databaseId: "db",
+          boundBlockId: "inside",
+          notebook: "",
+        }),
+        node("item:detached", 6, {
+          entity: "database-item",
+          rootId: undefined,
+          databaseId: "db",
+          notebook: "",
+        }),
+        node("item:other", 7, {
+          entity: "database-item",
+          rootId: undefined,
+          databaseId: "db",
+          boundBlockId: "other",
+          notebook: "",
+        }),
+      ],
+      [
+        ["carrier", "av:db", "database-embedding"],
+        ["av:db", "item:inside", "database-membership"],
+        ["av:db", "item:detached", "database-membership"],
+        ["av:db", "item:other", "database-membership"],
+        ["item:inside", "inside", "database-binding"],
+        ["item:other", "other", "database-binding"],
+        ["item:inside", "item:detached", "database-relation"],
+        ["item:detached", "item:other", "database-relation"],
+        ["carrier", "inside"],
+      ],
+    );
     const scoped = projectGraph(data, filters({ scopeId: "D", notebook: "book", hierarchy: true }));
     expect(ids(scoped)).toEqual(["D", "carrier", "inside"]);
     expect(scopeBackground(data, scoped, "D", true)).toEqual(scoped.eligibleIds);
-    expect(scoped.edges.map((edge) => edge.kind).sort()).toEqual(["hierarchy", "hierarchy", "reference"]);
+    expect(scoped.edges.map((edge) => edge.kind).sort()).toEqual([
+      "hierarchy",
+      "hierarchy",
+      "reference",
+    ]);
     expect(pairs(scoped, "hierarchy")).toEqual(["D>carrier", "D>inside"]);
     const notebook = projectGraph(data, filters({ notebook: "book" }));
-    expect(ids(notebook)).toEqual(["D", "av:db", "carrier", "inside", "item:detached", "item:inside"]);
-    for (const kind of ["database-embedding", "database-membership", "database-binding", "database-relation"] as const)
+    expect(ids(notebook)).toEqual([
+      "D",
+      "av:db",
+      "carrier",
+      "inside",
+      "item:detached",
+      "item:inside",
+    ]);
+    for (const kind of [
+      "database-embedding",
+      "database-membership",
+      "database-binding",
+      "database-relation",
+    ] as const)
       expect(pairs(notebook, kind).length).toBeGreaterThan(0);
-    expect(shortestPath(notebook, "carrier", "item:detached", "out")).toEqual(["carrier", "av:db", "item:detached"]);
+    expect(shortestPath(notebook, "carrier", "item:detached", "out")).toEqual([
+      "carrier",
+      "av:db",
+      "item:detached",
+    ]);
     expect(shortestPath(scoped, "carrier", "item:detached", "out")).toBeNull();
     expect(projectGraph(data, filters({ scopeId: "D", notebook: "other-book" })).nodes).toEqual([]);
     expect(projectGraph(data, filters({ scopeId: "missing" })).nodes).toEqual([]);
@@ -1006,25 +1219,12 @@ describe("database items under source exclusions", () => {
         ["item:kept", "item:removed", "database-relation"],
       ],
     );
-    const graph = projectGraph(
-      data,
-      filters({ excludeIds: ["removed-doc"], hiddenTypes: ["p"] }),
-    );
-    expect(ids(graph)).toEqual([
-      "av:db",
-      "item:detached",
-      "item:kept",
-      "kept-doc",
-    ]);
+    const graph = projectGraph(data, filters({ excludeIds: ["removed-doc"], hiddenTypes: ["p"] }));
+    expect(ids(graph)).toEqual(["av:db", "item:detached", "item:kept", "kept-doc"]);
     expect(pairs(graph, "database-relation")).toEqual([]);
     expect(pairs(graph, "database-binding")).toEqual(["item:kept>kept-doc"]);
-    expect(pairs(graph, "database-membership")).toEqual([
-      "av:db>item:detached",
-      "av:db>item:kept",
-    ]);
+    expect(pairs(graph, "database-membership")).toEqual(["av:db>item:detached", "av:db>item:kept"]);
     expect(graph.representatives.has("item:removed")).toBe(false);
-    expect(
-      graph.nodes.find((item) => item.id === "item:detached")?.rootId,
-    ).toBeUndefined();
+    expect(graph.nodes.find((item) => item.id === "item:detached")?.rootId).toBeUndefined();
   });
 });

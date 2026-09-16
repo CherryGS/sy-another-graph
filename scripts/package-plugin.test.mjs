@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  linkSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -16,39 +25,65 @@ function fixture(t) {
     rmSync(target, { recursive: true, force: true });
   });
   const distribution = join(root, "dist");
-  const manifest = { name: "example", author: "Owner", url: "https://github.com/Owner/example", version: "0.1.0",
-    minAppVersion: "3.8.3", displayName: { default: "Example" }, description: { default: "Example graph" },
-    readme: { default: "README.md", "zh-CN": "README_zh_CN.md" } };
+  const manifest = {
+    name: "example",
+    author: "Owner",
+    url: "https://github.com/Owner/example",
+    version: "0.1.0",
+    minAppVersion: "3.8.3",
+    displayName: { default: "Example" },
+    description: { default: "Example graph" },
+    readme: { default: "README.md", "zh-CN": "README_zh_CN.md" },
+  };
   const write = (name, text) => {
     const path = join(distribution, name);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, text);
   };
-  for (const [name, text] of Object.entries({ "plugin.json": JSON.stringify(manifest), "index.js": "module.exports = Plugin",
-    "index.css": "body{}", "README.md": "Docs", "README_zh_CN.md": "Localized docs",
-    "third-party-mentions.txt": "Parser notices", "third-party-communities.txt": "Rust notices",
-    "ui/index.html": '<script src="assets/app.js"></script>', "ui/assets/app.js": "console.log('ready')" })) write(name, text);
+  for (const [name, text] of Object.entries({
+    "plugin.json": JSON.stringify(manifest),
+    "index.js": "module.exports = Plugin",
+    "index.css": "body{}",
+    "README.md": "Docs",
+    "README_zh_CN.md": "Localized docs",
+    "third-party-mentions.txt": "Parser notices",
+    "third-party-communities.txt": "Rust notices",
+    "ui/index.html": '<script src="assets/app.js"></script>',
+    "ui/assets/app.js": "console.log('ready')",
+  }))
+    write(name, text);
   write("ui/assets/graph.wasm", Uint8Array.of(0, 97, 115, 109, 255));
-  return { root, write, manifest, args: { distribution, expectedManifest: manifest,
-    expectedPackage: { name: "example", version: "0.1.0" }, license: "Project license", notice: "Source notices",
-    runtimeNotices: "Library notices", tag: "v0.1.0" } };
+  return {
+    root,
+    write,
+    manifest,
+    args: {
+      distribution,
+      expectedManifest: manifest,
+      expectedPackage: { name: "example", version: "0.1.0" },
+      license: "Project license",
+      notice: "Source notices",
+      runtimeNotices: "Library notices",
+      tag: "v0.1.0",
+    },
+  };
 }
 
-test("the release archive preserves runtime assets, notices, root paths and contents", t => {
+test("the release archive preserves runtime assets, notices, root paths and contents", (t) => {
   const f = fixture(t);
   const result = packagePlugin(f.args);
   const files = unzipSync(readFileSync(result.path));
   assert.equal(result.files, 13);
   assert.equal(result.version, "0.1.0");
   assert.match(result.sha256, /^[a-f0-9]{64}$/);
-  assert.ok(Object.keys(files).every(name => !name.includes("\\") && !name.startsWith("dist/")));
+  assert.ok(Object.keys(files).every((name) => !name.includes("\\") && !name.startsWith("dist/")));
   assert.deepEqual(files["ui/assets/graph.wasm"], Uint8Array.of(0, 97, 115, 109, 255));
   assert.deepEqual(JSON.parse(Buffer.from(files["plugin.json"]).toString()), f.manifest);
   assert.equal(Buffer.from(files.LICENSE).toString(), "Project license");
   assert.equal(Buffer.from(files["third-party-runtime.txt"]).toString(), "Library notices");
 });
 
-test("repeated packaging is deterministic and never includes the previous archive", t => {
+test("repeated packaging is deterministic and never includes the previous archive", (t) => {
   const f = fixture(t);
   const first = packagePlugin(f.args);
   const second = packagePlugin(f.args);
@@ -56,7 +91,7 @@ test("repeated packaging is deterministic and never includes the previous archiv
   assert.equal(unzipSync(readFileSync(second.path))["package.zip"], undefined);
 });
 
-test("stale build metadata and mismatched release tags fail before replacing an archive", t => {
+test("stale build metadata and mismatched release tags fail before replacing an archive", (t) => {
   const f = fixture(t);
   const first = packagePlugin(f.args);
   const before = readFileSync(first.path);
@@ -66,7 +101,7 @@ test("stale build metadata and mismatched release tags fail before replacing an 
   assert.deepEqual(readFileSync(first.path), before);
 });
 
-test("unrelated files and linked inputs cannot enter the release archive", t => {
+test("unrelated files and linked inputs cannot enter the release archive", (t) => {
   const f = fixture(t);
   f.write("credentials.txt", "not a build asset");
   assert.throws(() => packagePlugin(f.args), /Unexpected build file/);
@@ -76,7 +111,7 @@ test("unrelated files and linked inputs cannot enter the release archive", t => 
   assert.throws(() => packagePlugin(f.args), /must not contain links/);
 });
 
-test("linked archive output cannot overwrite its target", t => {
+test("linked archive output cannot overwrite its target", (t) => {
   const f = fixture(t);
   const outside = join(f.root, "unrelated.zip");
   writeFileSync(outside, "keep");
@@ -85,16 +120,34 @@ test("linked archive output cannot overwrite its target", t => {
   assert.equal(readFileSync(outside, "utf8"), "keep");
 });
 
-test("incomplete runtime assets and unsafe readme paths are rejected", t => {
+test("incomplete runtime assets and unsafe readme paths are rejected", (t) => {
   const f = fixture(t);
   rmSync(join(f.args.distribution, "ui", "index.html"));
   assert.throws(() => packagePlugin(f.args), /Missing package asset: ui\/index.html/);
-  assert.throws(() => validateMarketplaceManifest({ ...f.manifest, readme: { default: "../private.md" } }, f.args.expectedPackage), /Unsafe archive path/);
+  assert.throws(
+    () =>
+      validateMarketplaceManifest(
+        { ...f.manifest, readme: { default: "../private.md" } },
+        f.args.expectedPackage,
+      ),
+    /Unsafe archive path/,
+  );
 });
 
-test("marketplace metadata rejects empty authors, invalid URLs and legacy locale keys", t => {
+test("marketplace metadata rejects empty authors, invalid URLs and legacy locale keys", (t) => {
   const f = fixture(t);
-  assert.throws(() => validateMarketplaceManifest({ ...f.manifest, author: "" }, f.args.expectedPackage), /author is required/);
-  assert.throws(() => validateMarketplaceManifest({ ...f.manifest, url: "" }, f.args.expectedPackage), /repository URL/);
-  assert.throws(() => validateMarketplaceManifest({ ...f.manifest, readme: { default: "README.md", zh_CN: "README_zh_CN.md" } }, f.args.expectedPackage));
+  assert.throws(
+    () => validateMarketplaceManifest({ ...f.manifest, author: "" }, f.args.expectedPackage),
+    /author is required/,
+  );
+  assert.throws(
+    () => validateMarketplaceManifest({ ...f.manifest, url: "" }, f.args.expectedPackage),
+    /repository URL/,
+  );
+  assert.throws(() =>
+    validateMarketplaceManifest(
+      { ...f.manifest, readme: { default: "README.md", zh_CN: "README_zh_CN.md" } },
+      f.args.expectedPackage,
+    ),
+  );
 });

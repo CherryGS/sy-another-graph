@@ -55,11 +55,7 @@ describe("equal chosen membership and independent inspection", () => {
       multiple: true,
     });
     expect(selectNode(inspected, "a").chosenIds).toEqual(["a", "b"]);
-    expect(selectNode(inspected, "neighbor", true).chosenIds).toEqual([
-      "a",
-      "b",
-      "neighbor",
-    ]);
+    expect(selectNode(inspected, "neighbor", true).chosenIds).toEqual(["a", "b", "neighbor"]);
   });
 
   it("preserves explicit multiple-selection behavior with just one remaining member", () => {
@@ -72,16 +68,9 @@ describe("equal chosen membership and independent inspection", () => {
 
 describe("selection retention after independent graph eligibility changes", () => {
   it("drops a type-hidden original choice without migrating membership to its document", () => {
-    const previous = selectNode(
-      selectNode(EMPTY_SELECTION, "hidden-block"),
-      "visible-block",
-      true,
-    );
+    const previous = selectNode(selectNode(EMPTY_SELECTION, "hidden-block"), "visible-block", true);
     const inspected = selectNode(previous, "hidden-block");
-    const next = retainSelection(
-      inspected,
-      new Set(["owning-document", "visible-block"]),
-    );
+    const next = retainSelection(inspected, new Set(["owning-document", "visible-block"]));
     expect(next).toEqual({
       chosenIds: ["visible-block"],
       inspectedId: null,
@@ -114,8 +103,6 @@ describe("selection retention after independent graph eligibility changes", () =
       inspectedId: "neighbor",
       multiple: true,
     });
-    expect(retainSelection(next, new Set(["a", "neighbor", "unrelated"]))).toBe(
-      next,
-    );
+    expect(retainSelection(next, new Set(["a", "neighbor", "unrelated"]))).toBe(next);
   });
 });

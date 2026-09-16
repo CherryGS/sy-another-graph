@@ -7,7 +7,10 @@ const missing = Symbol("missing");
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 }
 
@@ -20,39 +23,69 @@ function harness(initial: unknown = missing, useNativeFetch = false) {
   const origin = "http://127.0.0.1:6806";
   const responses: PresetResponse[] = [];
   const waiters = new Map<string, (response: PresetResponse) => void>();
-  const source = { postMessage: vi.fn((response: PresetResponse) => {
-    responses.push(response);
-    waiters.get(response.request)?.(response);
-    waiters.delete(response.request);
-  }) };
-  const port = {
-    loadData: vi.fn(async (): Promise<unknown> => disk === missing ? "" : disk),
-    saveData: vi.fn(async (_name: string, store: PresetStore): Promise<unknown> => { disk = store; return { code: 0 }; }),
+  const source = {
+    postMessage: vi.fn((response: PresetResponse) => {
+      responses.push(response);
+      waiters.get(response.request)?.(response);
+      waiters.delete(response.request);
+    }),
   };
-  const fetcher = vi.fn(async () => disk === missing
-    ? new Response(JSON.stringify({ code: 404, msg: "file does not exist" }), { status: 202 })
-    : new Response(JSON.stringify(disk), { status: 200 }));
-  const bridge = new PresetStorage(port, event => event.source === (source as unknown as Window), origin, useNativeFetch ? undefined : fetcher);
-  const send = (data: Record<string, unknown>, event: Record<string, unknown> = {}) => bridge.handle({
-    source, origin, data: { channel: "sy-another-graph", ...data }, ...event,
-  } as unknown as MessageEvent);
+  const port = {
+    loadData: vi.fn(async (): Promise<unknown> => (disk === missing ? "" : disk)),
+    saveData: vi.fn(async (_name: string, store: PresetStore): Promise<unknown> => {
+      disk = store;
+      return { code: 0 };
+    }),
+  };
+  const fetcher = vi.fn(async () =>
+    disk === missing
+      ? new Response(JSON.stringify({ code: 404, msg: "file does not exist" }), { status: 202 })
+      : new Response(JSON.stringify(disk), { status: 200 }),
+  );
+  const bridge = new PresetStorage(
+    port,
+    (event) => event.source === (source as unknown as Window),
+    origin,
+    useNativeFetch ? undefined : fetcher,
+  );
+  const send = (data: Record<string, unknown>, event: Record<string, unknown> = {}) =>
+    bridge.handle({
+      source,
+      origin,
+      data: { channel: "sy-another-graph", ...data },
+      ...event,
+    } as unknown as MessageEvent);
   let sequence = 0;
   const request = (type = "preset-load", store?: unknown) => {
     const id = `request-${++sequence}`;
-    return new Promise<PresetResponse>(resolve => {
+    return new Promise<PresetResponse>((resolve) => {
       waiters.set(id, resolve);
       send({ type, request: id, store });
     });
   };
-  return { bridge, port, fetcher, source, responses, request, send, setDisk: (value: unknown) => { disk = value; } };
+  return {
+    bridge,
+    port,
+    fetcher,
+    source,
+    responses,
+    request,
+    send,
+    setDisk: (value: unknown) => {
+      disk = value;
+    },
+  };
 }
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("host preset storage", () => {
   it("invokes the native default fetch without binding it to the storage adapter", async () => {
     const store = createPresetStore();
-    const nativeFetch = vi.fn(async function(this: unknown) {
+    const nativeFetch = vi.fn(async function (this: unknown) {
       if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
       return new Response(JSON.stringify(store), { status: 200 });
     });
@@ -67,22 +100,40 @@ describe("host preset storage", () => {
     const h = harness();
     expect(await h.request()).toMatchObject({ request: "request-1", ok: true, store: null });
     expect(h.port.loadData).toHaveBeenCalledWith(PRESET_STORAGE_FILE);
-    expect(h.fetcher).toHaveBeenCalledWith("/api/file/getFile", expect.objectContaining({
-      method: "POST", body: JSON.stringify({ path: "/data/storage/petal/sy-another-graph/filter-presets.json" }),
-    }));
+    expect(h.fetcher).toHaveBeenCalledWith(
+      "/api/file/getFile",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ path: "/data/storage/petal/sy-another-graph/filter-presets.json" }),
+      }),
+    );
     const store = createPresetStore();
-    expect(await h.request("preset-save", store)).toMatchObject({ request: "request-2", ok: true, store });
+    expect(await h.request("preset-save", store)).toMatchObject({
+      request: "request-2",
+      ok: true,
+      store,
+    });
     expect(h.port.saveData).toHaveBeenCalledWith(PRESET_STORAGE_FILE, store);
     expect(await h.request()).toMatchObject({ request: "request-3", ok: true, store });
-    expect(h.source.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "preset-response" }), "http://127.0.0.1:6806");
+    expect(h.source.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "preset-response" }),
+      "http://127.0.0.1:6806",
+    );
     h.bridge.dispose();
   });
 
   it("rejects wrong sources, origins, channels, invalid requests, and invalid writes", async () => {
     const h = harness();
     const load = { type: "preset-load", request: "request" };
-    for (const event of [{ source: {} }, { origin: "https://foreign.example" }]) expect(h.send(load, event)).toBe(false);
-    for (const data of [{ ...load, channel: "other" }, { ...load, request: "../file" }, { ...load, request: "a".repeat(129) }, { ...load, type: "other" }]) expect(h.send(data)).toBe(false);
+    for (const event of [{ source: {} }, { origin: "https://foreign.example" }])
+      expect(h.send(load, event)).toBe(false);
+    for (const data of [
+      { ...load, channel: "other" },
+      { ...load, request: "../file" },
+      { ...load, request: "a".repeat(129) },
+      { ...load, type: "other" },
+    ])
+      expect(h.send(data)).toBe(false);
     expect(h.port.loadData).not.toHaveBeenCalled();
     expect(h.responses).toEqual([]);
     expect(await h.request("preset-save", { version: 42 })).toMatchObject({ ok: false });
@@ -94,7 +145,10 @@ describe("host preset storage", () => {
   it("preserves malformed files and detects failures that loadData hides as empty/cached data", async () => {
     const h = harness({ version: 42 });
     h.port.loadData.mockResolvedValue("");
-    expect(await h.request()).toMatchObject({ ok: false, error: expect.stringContaining("原文件已保留") });
+    expect(await h.request()).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("原文件已保留"),
+    });
     h.setDisk(createPresetStore());
     expect(await h.request()).toMatchObject({ ok: true });
     h.setDisk({ broken: true });
@@ -104,8 +158,13 @@ describe("host preset storage", () => {
     expect(await h.request()).toMatchObject({ ok: false, error: expect.stringContaining("JSON") });
     h.fetcher.mockRejectedValueOnce(new Error("offline"));
     expect(await h.request()).toMatchObject({ ok: false, error: "offline" });
-    h.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ code: 403, msg: "forbidden" }), { status: 202 }));
-    expect(await h.request()).toMatchObject({ ok: false, error: expect.stringContaining("forbidden") });
+    h.fetcher.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 403, msg: "forbidden" }), { status: 202 }),
+    );
+    expect(await h.request()).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("forbidden"),
+    });
     h.fetcher.mockResolvedValueOnce(new Response("missing route", { status: 404 }));
     expect(await h.request()).toMatchObject({ ok: false });
     h.bridge.dispose();
@@ -129,7 +188,10 @@ describe("host preset storage", () => {
     expect(await nextResponse).toMatchObject({ ok: true, store: nextStore });
     expect(await lastRead).toMatchObject({ ok: true, store: nextStore });
     h.port.saveData.mockResolvedValueOnce({ code: -1, msg: "disk full" });
-    expect(await h.request("preset-save", initialStore)).toMatchObject({ ok: false, error: expect.stringContaining("disk full") });
+    expect(await h.request("preset-save", initialStore)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("disk full"),
+    });
     expect(await h.request("preset-save", initialStore)).toMatchObject({ ok: true });
     h.bridge.dispose();
   });
@@ -149,7 +211,7 @@ describe("host preset storage", () => {
     expect(h.port.saveData).toHaveBeenCalledTimes(1);
     first.resolve({ code: 0 });
     await settle();
-    expect(h.responses.filter(item => item.request === "request-2")).toHaveLength(1);
+    expect(h.responses.filter((item) => item.request === "request-2")).toHaveLength(1);
     expect(h.port.saveData).toHaveBeenCalledTimes(1);
     expect(await h.request("preset-save", createPresetStore())).toMatchObject({ ok: true });
     h.bridge.dispose();

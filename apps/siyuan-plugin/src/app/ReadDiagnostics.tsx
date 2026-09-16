@@ -4,7 +4,14 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { NativePreviewButton } from "./NativePreviewButton";
 import { readReport } from "./read-report";
@@ -20,7 +27,10 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
     const signature = JSON.stringify(data?.warnings ?? []);
     if (signature === previous.current) return;
     previous.current = signature;
-    if (!data?.warnings.length) { toast.dismiss(TOAST_ID); return; }
+    if (!data?.warnings.length) {
+      toast.dismiss(TOAST_ID);
+      return;
+    }
     toast.warning(`图谱读取有 ${data.warnings.length} 项提示`, {
       id: TOAST_ID,
       position: "bottom-left",
@@ -29,7 +39,12 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
       action: { label: "查看详情", onClick: () => setReadIssuesOpen(true) },
     });
   }, [data, setReadIssuesOpen]);
-  useEffect(() => () => { toast.dismiss(TOAST_ID); }, []);
+  useEffect(
+    () => () => {
+      toast.dismiss(TOAST_ID);
+    },
+    [],
+  );
 
   const copyReport = async () => {
     if (!data) return;
@@ -44,25 +59,43 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
     <>
       {!!data?.warnings.length && (
         <div className="read-issues-trigger">
-          <Button ref={trigger} variant="secondary" size="xs" onClick={() => setReadIssuesOpen(true)} aria-label={`读取提示：${data.warnings.length} 项，查看详情`}>
-            <TriangleAlert data-icon="inline-start" />读取提示 {data.warnings.length}
+          <Button
+            ref={trigger}
+            variant="secondary"
+            size="xs"
+            onClick={() => setReadIssuesOpen(true)}
+            aria-label={`读取提示：${data.warnings.length} 项，查看详情`}
+          >
+            <TriangleAlert data-icon="inline-start" />
+            读取提示 {data.warnings.length}
           </Button>
         </div>
       )}
       <Dialog open={readIssuesOpen} onOpenChange={setReadIssuesOpen}>
-        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl" onCloseAutoFocus={event => {
-          if (trigger.current) { event.preventDefault(); trigger.current.focus(); }
-        }}>
+        <DialogContent
+          className="flex max-h-[85vh] flex-col sm:max-w-3xl"
+          onCloseAutoFocus={(event) => {
+            if (trigger.current) {
+              event.preventDefault();
+              trigger.current.focus();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>图谱读取详情</DialogTitle>
             <DialogDescription>
-              {data ? `读取时间 ${new Date(data.loadedAt).toLocaleString("zh-CN")} · ${data.loadMs.toFixed(0)} ms` : "尚未完成读取"}
+              {data
+                ? `读取时间 ${new Date(data.loadedAt).toLocaleString("zh-CN")} · ${data.loadMs.toFixed(0)} ms`
+                : "尚未完成读取"}
               {state.loading && " · 正在重新读取，下面是上次完成的结果"}
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto" data-scroll-panel>
-            <p className="text-sm text-muted-foreground">以下诊断针对本次工作空间索引读取，不受图谱显示筛选影响。每类最多保留 20 条明细，影响总数完整计数。</p>
-            {data?.warnings.map(issue => (
+            <p className="text-sm text-muted-foreground">
+              以下诊断针对本次工作空间索引读取，不受图谱显示筛选影响。每类最多保留 20
+              条明细，影响总数完整计数。
+            </p>
+            {data?.warnings.map((issue) => (
               <Alert key={issue.code}>
                 <TriangleAlert />
                 <AlertTitle>{issue.title}</AlertTitle>
@@ -102,7 +135,12 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
                           )}
                         </div>
                       ))}
-                      {issue.detailCount > issue.details.length && <p>另有 {issue.detailCount - issue.details.length} 条明细未保留，以上为前 {issue.details.length} 条。</p>}
+                      {issue.detailCount > issue.details.length && (
+                        <p>
+                          另有 {issue.detailCount - issue.details.length} 条明细未保留，以上为前{" "}
+                          {issue.details.length} 条。
+                        </p>
+                      )}
                     </CollapsibleContent>
                   </Collapsible>
                 </AlertDescription>
@@ -111,9 +149,16 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
             {data && !data.warnings.length && <p>本次读取未发现需要提示的问题。</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" disabled={!data} onClick={() => void copyReport()}><Copy data-icon="inline-start" />复制报告</Button>
+            <Button variant="outline" disabled={!data} onClick={() => void copyReport()}>
+              <Copy data-icon="inline-start" />
+              复制报告
+            </Button>
             <Button disabled={!!state.loading} onClick={() => void state.load()}>
-              {state.loading ? <Spinner data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+              {state.loading ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RefreshCw data-icon="inline-start" />
+              )}
               重新读取
             </Button>
           </DialogFooter>

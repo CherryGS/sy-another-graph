@@ -38,15 +38,20 @@ describe("visual preference normalization", () => {
   });
 
   it("restores false toggles while refusing truthy strings and numeric booleans", () => {
-    expect(normalizeVisualPreferences({ showLabels: false, showLinks: false }))
-      .toMatchObject({ showLabels: false, showLinks: false });
+    expect(normalizeVisualPreferences({ showLabels: false, showLinks: false })).toMatchObject({
+      showLabels: false,
+      showLinks: false,
+    });
     for (const value of ["false", "true", 0, 1, null, [], {}])
-      expect(normalizeVisualPreferences({ showLabels: value, showLinks: value }))
-        .toMatchObject({ showLabels: true, showLinks: true });
+      expect(normalizeVisualPreferences({ showLabels: value, showLinks: value })).toMatchObject({
+        showLabels: true,
+        showLinks: true,
+      });
   });
 
   it("validates nested settings independently without losing valid appearance choices", () => {
-    const restored = normalizeVisualPreferences(JSON.parse(`{
+    const restored = normalizeVisualPreferences(
+      JSON.parse(`{
       "colorBy": "notebook",
       "pointSize": 7.5,
       "showLinks": false,
@@ -64,7 +69,8 @@ describe("visual preference normalization", () => {
         "curvedLinks": false,
         "simulationSpaceSize": 1000000
       }
-    }`));
+    }`),
+    );
     expect(restored).toMatchObject({
       colorBy: "notebook",
       pointSize: 7.5,
@@ -86,8 +92,9 @@ describe("visual preference normalization", () => {
     });
     expect(restored.graphSettings).not.toHaveProperty("simulationSpaceSize");
     for (const graphSettings of [null, [], true, 3, "legacy"])
-      expect(normalizeVisualPreferences({ graphSettings }).graphSettings)
-        .toEqual(DEFAULT_GRAPH_SETTINGS);
+      expect(normalizeVisualPreferences({ graphSettings }).graphSettings).toEqual(
+        DEFAULT_GRAPH_SETTINGS,
+      );
   });
 
   it("preserves a valid serialized preference snapshot while dropping unrelated persisted keys", () => {
@@ -115,8 +122,7 @@ describe("visual preference normalization", () => {
     expect(restored).toEqual(saved);
     expect(restored).not.toHaveProperty("chosenIds");
     expect(restored).not.toHaveProperty("paused");
-    expect(normalizeVisualPreferences(JSON.parse(JSON.stringify(restored))))
-      .toEqual(restored);
+    expect(normalizeVisualPreferences(JSON.parse(JSON.stringify(restored)))).toEqual(restored);
   });
 
   it("recovers numeric nulls produced by JSON serialization without discarding valid neighbors", () => {
@@ -178,10 +184,7 @@ describe("versioned visual preference restoration", () => {
       ...legacy,
       graphSettings: { ...legacy.graphSettings, linkSpring: 0.4 },
     });
-    expect(storage.getItem.mock.calls).toEqual([
-      [VISUAL_PREFERENCES_KEY],
-      [legacyKey],
-    ]);
+    expect(storage.getItem.mock.calls).toEqual([[VISUAL_PREFERENCES_KEY], [legacyKey]]);
     expect(storage.getItem(legacyKey)).toBe(text);
   });
 
@@ -236,8 +239,9 @@ describe("versioned visual preference restoration", () => {
     expect(JSON.parse(entries[legacyKey]).graphSettings.linkSpring).toBe(1);
   });
 
-  it.each(["{broken", "null", "[]", "false", '"old-format"'])
-    ("recovers a valid legacy record when v2 contains %s", (invalid) => {
+  it.each(["{broken", "null", "[]", "false", '"old-format"'])(
+    "recovers a valid legacy record when v2 contains %s",
+    (invalid) => {
       const storage = stored({
         [VISUAL_PREFERENCES_KEY]: invalid,
         [legacyKey]: JSON.stringify({
@@ -251,7 +255,8 @@ describe("versioned visual preference restoration", () => {
         showLinks: false,
         graphSettings: { linkSpring: 0.4, repulsion: 1.5 },
       });
-    });
+    },
+  );
 
   it("normalizes invalid v2 fields while retaining its valid values and explicit spring", () => {
     const storage = stored({
@@ -274,13 +279,21 @@ describe("versioned visual preference restoration", () => {
 
   it("restores defaults when neither version is usable or storage reads are blocked", () => {
     expect(readVisualPreferences(stored({}))).toEqual(defaults);
-    expect(readVisualPreferences(stored({
-      [VISUAL_PREFERENCES_KEY]: "{broken",
-      [legacyKey]: "[broken",
-    }))).toEqual(defaults);
-    expect(readVisualPreferences({
-      getItem() { throw new Error("Storage access blocked"); },
-    })).toEqual(defaults);
+    expect(
+      readVisualPreferences(
+        stored({
+          [VISUAL_PREFERENCES_KEY]: "{broken",
+          [legacyKey]: "[broken",
+        }),
+      ),
+    ).toEqual(defaults);
+    expect(
+      readVisualPreferences({
+        getItem() {
+          throw new Error("Storage access blocked");
+        },
+      }),
+    ).toEqual(defaults);
   });
 
   it("can still recover legacy preferences if only the v2 read fails", () => {

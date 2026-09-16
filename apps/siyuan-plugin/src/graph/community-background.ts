@@ -1,9 +1,18 @@
 import type { AsyncPointGeometry } from "./geometry";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CommunityPartition } from "./community-client";
-import { communityColor, relativeTransform, territoryRaster, type Affine2D } from "./community-territory";
+import {
+  communityColor,
+  relativeTransform,
+  territoryRaster,
+  type Affine2D,
+} from "./community-territory";
 
-interface Capture { controller: AbortController; generation: number; started: number }
+interface Capture {
+  controller: AbortController;
+  generation: number;
+  started: number;
+}
 
 /** Decorative 2D layer. Async captures share the renderer's PBO readback;
  * bounded low-resolution geometry updates are independent of mouse hit testing. */
@@ -57,9 +66,10 @@ export class CommunityBackground {
       this.partition = partition;
       this.enabled = enabled;
       this.colors.clear();
-      if (partition && data) for (let i = 0; i < partition.sizes.length; i++) {
-        if (partition.sizes[i] > 1) this.colors.set(i, communityColor(data.indexToId[i]));
-      }
+      if (partition && data)
+        for (let i = 0; i < partition.sizes.length; i++) {
+          if (partition.sizes[i] > 1) this.colors.set(i, communityColor(data.indexToId[i]));
+        }
     }
     this.refresh("projection");
   }
@@ -75,11 +85,20 @@ export class CommunityBackground {
 
   refresh(kind: "projection" | "simulation" | "positions" = "positions") {
     if (this.disposed) return;
-    if (!this.usable()) { this.canvas.hidden = true; return; }
-    if (this.failed && kind !== "positions") { this.canvas.hidden = true; return; }
+    if (!this.usable()) {
+      this.canvas.hidden = true;
+      return;
+    }
+    if (this.failed && kind !== "positions") {
+      this.canvas.hidden = true;
+      return;
+    }
     this.canvas.hidden = false;
     if (kind !== "projection") this.readWanted = true;
-    if (kind === "positions") { this.failed = false; this.nextReadAt = 0; }
+    if (kind === "positions") {
+      this.failed = false;
+      this.nextReadAt = 0;
+    }
     if (kind === "projection") this.rasterDirty = true;
     this.schedule();
   }
@@ -92,8 +111,14 @@ export class CommunityBackground {
   }
 
   private usable() {
-    return !this.disposed && this.active && this.enabled && !!this.partition?.count &&
-      !!this.data?.pointsCount && !this.geometry.is3D;
+    return (
+      !this.disposed &&
+      this.active &&
+      this.enabled &&
+      !!this.partition?.count &&
+      !!this.data?.pointsCount &&
+      !this.geometry.is3D
+    );
   }
 
   private schedule() {
@@ -103,7 +128,11 @@ export class CommunityBackground {
       if (!this.usable()) return;
       const now = performance.now();
       if (this.readWanted && !this.pending && !this.failed && now >= this.nextReadAt) {
-        const capture = { controller: new AbortController(), generation: this.generation, started: now };
+        const capture = {
+          controller: new AbortController(),
+          generation: this.generation,
+          started: now,
+        };
         this.pending = capture;
         this.readWanted = false;
         void this.capture(capture);
@@ -115,22 +144,35 @@ export class CommunityBackground {
         this.positions && this.rasterDirty ? this.nextRasterAt : Infinity,
       );
       if (Number.isFinite(wake) && this.timer === undefined) {
-        this.timer = window.setTimeout(() => { this.timer = undefined; this.schedule(); }, Math.max(16, wake - performance.now()));
+        this.timer = window.setTimeout(
+          () => {
+            this.timer = undefined;
+            this.schedule();
+          },
+          Math.max(16, wake - performance.now()),
+        );
       }
     });
   }
 
   private async capture(capture: Capture) {
     try {
-      const positions = await this.geometry.getPointPositionsAsync({ dimensions: 2, signal: capture.controller.signal });
-      if (this.pending !== capture || capture.generation !== this.generation || !this.usable()) return;
-      if (positions.length !== this.data!.pointsCount * 2) throw new Error("社区坐标与当前图不一致。");
+      const positions = await this.geometry.getPointPositionsAsync({
+        dimensions: 2,
+        signal: capture.controller.signal,
+      });
+      if (this.pending !== capture || capture.generation !== this.generation || !this.usable())
+        return;
+      if (positions.length !== this.data!.pointsCount * 2)
+        throw new Error("社区坐标与当前图不一致。");
       this.positions = positions;
       this.readCount++;
       this.canvas.dataset.positionReads = String(this.readCount);
       this.rasterDirty = true;
       this.abortRetries = 0;
-      this.nextReadAt = performance.now() + Math.min(1000, Math.max(250, (performance.now() - capture.started) * 4));
+      this.nextReadAt =
+        performance.now() +
+        Math.min(1000, Math.max(250, (performance.now() - capture.started) * 4));
     } catch (error) {
       if (this.pending !== capture || capture.generation !== this.generation) return;
       if (error instanceof Error && error.name === "AbortError" && this.abortRetries++ === 0) {
@@ -155,15 +197,27 @@ export class CommunityBackground {
     const y = this.geometry.spaceToScreenPosition([0, 1]);
     if (!p || !x || !y) return null;
     const result: Affine2D = [x[0] - p[0], x[1] - p[1], y[0] - p[0], y[1] - p[1], p[0], p[1]];
-    return result.every(Number.isFinite) && Math.abs(result[0] * result[3] - result[1] * result[2]) > 1e-12 ? result : null;
+    return result.every(Number.isFinite) &&
+      Math.abs(result[0] * result[3] - result[1] * result[2]) > 1e-12
+      ? result
+      : null;
   }
 
   private rebuild() {
     const basis = this.transform();
-    const width = this.canvas.clientWidth, height = this.canvas.clientHeight;
+    const width = this.canvas.clientWidth,
+      height = this.canvas.clientHeight;
     if (!basis || !width || !height || !this.positions || !this.partition) return;
     const start = performance.now();
-    const raster = territoryRaster(this.positions, this.partition.membership, this.partition.sizes, this.colors, basis, width, height);
+    const raster = territoryRaster(
+      this.positions,
+      this.partition.membership,
+      this.partition.sizes,
+      this.colors,
+      basis,
+      width,
+      height,
+    );
     this.raster.width = raster.width;
     this.raster.height = raster.height;
     const image = this.rasterContext.createImageData(raster.width, raster.height);
@@ -184,13 +238,21 @@ export class CommunityBackground {
     const basis = this.transform();
     if (!basis) return;
     const ratio = Math.min(2, window.devicePixelRatio || 1);
-    const width = Math.round(this.canvas.clientWidth * ratio), height = Math.round(this.canvas.clientHeight * ratio);
+    const width = Math.round(this.canvas.clientWidth * ratio),
+      height = Math.round(this.canvas.clientHeight * ratio);
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
     this.context.resetTransform();
     this.context.clearRect(0, 0, width, height);
     const transform = relativeTransform(this.basis, basis);
-    this.context.setTransform(transform[0] * ratio, transform[1] * ratio, transform[2] * ratio, transform[3] * ratio, transform[4] * ratio, transform[5] * ratio);
+    this.context.setTransform(
+      transform[0] * ratio,
+      transform[1] * ratio,
+      transform[2] * ratio,
+      transform[3] * ratio,
+      transform[4] * ratio,
+      transform[5] * ratio,
+    );
     this.context.imageSmoothingEnabled = true;
     this.context.drawImage(this.raster, 0, 0, this.imageWidth, this.imageHeight);
   }
@@ -210,7 +272,10 @@ export class CommunityBackground {
     this.failed = false;
     this.abortRetries = 0;
     this.canvas.hidden = true;
-    if (clear) { this.positions = null; this.basis = null; }
+    if (clear) {
+      this.positions = null;
+      this.basis = null;
+    }
   }
 
   dispose() {

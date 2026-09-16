@@ -11,6 +11,4 @@ const target = deployPlugin({
   distribution: resolve(repository, "apps/siyuan-plugin/dist"),
 });
 console.log(`Plugin deployed: ${target}`);
-console.log(
-  "Reload SiYuan and enable 一个思源图谱 in the downloaded plugins list.",
-);
+console.log("Reload SiYuan and enable 一个思源图谱 in the downloaded plugins list.");

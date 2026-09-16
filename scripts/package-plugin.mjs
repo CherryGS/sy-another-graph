@@ -8,7 +8,7 @@ import { packagePlugin } from "./lib/marketplace.mjs";
 const { values } = parseArgs({ options: { tag: { type: "string" } } });
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const plugin = resolve(repository, "apps/siyuan-plugin");
-const json = path => JSON.parse(readFileSync(path, "utf8"));
+const json = (path) => JSON.parse(readFileSync(path, "utf8"));
 const result = packagePlugin({
   distribution: resolve(plugin, "dist"),
   expectedManifest: json(resolve(plugin, "public/plugin.json")),

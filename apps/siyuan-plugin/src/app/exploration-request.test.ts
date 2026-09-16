@@ -36,9 +36,7 @@ describe("exploration requests within one topology revision", () => {
     const { engine, neighbors } = engineHarness();
     const old = deferred<Neighborhood>();
     const latest = deferred<Neighborhood>();
-    neighbors
-      .mockReturnValueOnce(old.promise)
-      .mockReturnValueOnce(latest.promise);
+    neighbors.mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
     const queries = new ExplorationRequest();
     const first = queries.neighborhood(engine, [2], "out", 1);
     const second = queries.neighborhood(engine, [2], "out", 3);
@@ -58,9 +56,7 @@ describe("exploration requests within one topology revision", () => {
     const { engine, neighbors } = engineHarness();
     const old = deferred<Neighborhood>();
     const latest = deferred<Neighborhood>();
-    neighbors
-      .mockReturnValueOnce(old.promise)
-      .mockReturnValueOnce(latest.promise);
+    neighbors.mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
     const queries = new ExplorationRequest();
     const first = queries.neighborhood(engine, [1, 2], "out", 2);
     const second = queries.neighborhood(engine, [4, 5], "in", 2);
@@ -128,18 +124,16 @@ describe("exploration requests within one topology revision", () => {
     const expected = neighborhood(...seeds);
     neighbors.mockResolvedValueOnce(expected);
     const queries = new ExplorationRequest();
-    await expect(queries.neighborhood(engine, seeds, "both", 0)).resolves.toBe(
-      expected,
-    );
+    await expect(queries.neighborhood(engine, seeds, "both", 0)).resolves.toBe(expected);
     expect(neighbors).toHaveBeenCalledWith(seeds, "both", 0, 10_001);
   });
 
   it("propagates failure of the currently owned request", async () => {
     const { engine, neighbors } = engineHarness();
     neighbors.mockRejectedValueOnce(new Error("Graph worker failed"));
-    await expect(
-      new ExplorationRequest().neighborhood(engine, [0], "out", 1),
-    ).rejects.toThrow("Graph worker failed");
+    await expect(new ExplorationRequest().neighborhood(engine, [0], "out", 1)).rejects.toThrow(
+      "Graph worker failed",
+    );
   });
 
   it("suppresses an obsolete neighborhood rejection after a newer result is available", async () => {
@@ -149,9 +143,7 @@ describe("exploration requests within one topology revision", () => {
     neighbors.mockReturnValueOnce(old.promise).mockResolvedValueOnce(latest);
     const queries = new ExplorationRequest();
     const first = queries.neighborhood(engine, [1], "out", 1);
-    await expect(queries.neighborhood(engine, [8], "in", 2)).resolves.toBe(
-      latest,
-    );
+    await expect(queries.neighborhood(engine, [8], "in", 2)).resolves.toBe(latest);
     const obsolete = expect(first).resolves.toBeNull();
     old.reject(new Error("The old graph snapshot was replaced"));
     await obsolete;
@@ -165,9 +157,7 @@ describe("exploration requests within one topology revision", () => {
     neighbors.mockResolvedValueOnce(latest);
     const queries = new ExplorationRequest();
     const first = queries.path(engine, 0, 2, "out");
-    await expect(queries.neighborhood(engine, [4], "both", 1)).resolves.toBe(
-      latest,
-    );
+    await expect(queries.neighborhood(engine, [4], "both", 1)).resolves.toBe(latest);
     const obsolete = expect(first).resolves.toBeNull();
     old.reject(new Error("The old graph snapshot was replaced"));
     await obsolete;
@@ -176,8 +166,8 @@ describe("exploration requests within one topology revision", () => {
   it("propagates failure of the currently owned path", async () => {
     const { engine, paths } = engineHarness();
     paths.mockRejectedValueOnce(new Error("Path computation failed"));
-    await expect(
-      new ExplorationRequest().path(engine, 0, 1, "out"),
-    ).rejects.toThrow("Path computation failed");
+    await expect(new ExplorationRequest().path(engine, 0, 1, "out")).rejects.toThrow(
+      "Path computation failed",
+    );
   });
 });

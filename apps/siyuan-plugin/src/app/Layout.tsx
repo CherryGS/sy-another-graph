@@ -15,11 +15,7 @@ export function Layout() {
   }, [state.toast]);
   return (
     <TooltipProvider>
-      <div
-        className="workbench"
-        data-host-active={hostActive}
-        data-snapshot={state.data?.loadedAt}
-      >
+      <div className="workbench" data-host-active={hostActive} data-snapshot={state.data?.loadedAt}>
         <main className="main-content">
           <ExplorePage active={hostActive} />
           <Outlet />

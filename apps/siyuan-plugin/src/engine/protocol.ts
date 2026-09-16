@@ -1,9 +1,4 @@
-import type {
-  EngineStats,
-  GraphDirection,
-  GraphTransport,
-  Neighborhood,
-} from "./types";
+import type { EngineStats, GraphDirection, GraphTransport, Neighborhood } from "./types";
 
 interface RequestIdentity {
   id: number;
@@ -55,17 +50,11 @@ export function directionCode(direction: GraphDirection): number {
 }
 
 export function supportsSharedTransport(): boolean {
-  return (
-    globalThis.crossOriginIsolated === true &&
-    typeof SharedArrayBuffer !== "undefined"
-  );
+  return globalThis.crossOriginIsolated === true && typeof SharedArrayBuffer !== "undefined";
 }
 
 /** The producer writes before posting; receivers treat the result as immutable. */
-export function copyForTransport(
-  values: Uint32Array,
-  transport: GraphTransport,
-): Uint32Array {
+export function copyForTransport(values: Uint32Array, transport: GraphTransport): Uint32Array {
   if (transport === "shared") {
     const result = new Uint32Array(new SharedArrayBuffer(values.byteLength));
     result.set(values);
@@ -79,9 +68,7 @@ export function transferableBuffers(...values: Uint32Array[]): ArrayBuffer[] {
     ...new Set(
       values
         .map((value) => value.buffer)
-        .filter(
-          (buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer,
-        ),
+        .filter((buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer),
     ),
   ];
 }

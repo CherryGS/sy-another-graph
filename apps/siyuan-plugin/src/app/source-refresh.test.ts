@@ -1,17 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  SourceRefresh,
-  subscribeSourceRefresh,
-  type RefreshScheduler,
-} from "./source-refresh";
+import { SourceRefresh, subscribeSourceRefresh, type RefreshScheduler } from "./source-refresh";
 
 class Clock implements RefreshScheduler {
   private now = 0;
   private nextId = 0;
-  private readonly timers = new Map<
-    number,
-    { due: number; callback: () => void }
-  >();
+  private readonly timers = new Map<number, { due: number; callback: () => void }>();
   readonly callbacks: (() => void)[] = [];
 
   delay(callback: () => void, milliseconds: number) {
@@ -32,9 +25,7 @@ class Clock implements RefreshScheduler {
   advance(milliseconds: number) {
     const end = this.now + milliseconds;
     while (true) {
-      const next = [...this.timers].sort(
-        (left, right) => left[1].due - right[1].due,
-      )[0];
+      const next = [...this.timers].sort((left, right) => left[1].due - right[1].due)[0];
       if (!next || next[1].due > end) break;
       this.timers.delete(next[0]);
       this.now = next[1].due;
@@ -62,15 +53,8 @@ function host(initialVisibility = "visible") {
     versions.push(refresh.beginLoad());
   });
   refresh = new SourceRefresh(reload, clock);
-  const unsubscribe = subscribeSourceRefresh(
-    target as unknown as Window,
-    refresh,
-  );
-  const message = (
-    data: unknown,
-    origin = target.location.origin,
-    source: unknown = parent,
-  ) => {
+  const unsubscribe = subscribeSourceRefresh(target as unknown as Window, refresh);
+  const message = (data: unknown, origin = target.location.origin, source: unknown = parent) => {
     const event = new MessageEvent("message", { origin, data });
     Object.defineProperty(event, "source", { value: source });
     target.dispatchEvent(event);

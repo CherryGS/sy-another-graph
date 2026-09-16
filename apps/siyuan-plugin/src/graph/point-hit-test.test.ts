@@ -6,7 +6,12 @@ describe("point hit testing", () => {
   it("uses 3D coordinates and chooses the frontmost rendered point when projected circles overlap", () => {
     const geometry = {
       is3D: true,
-      getCameraState: () => ({ target: [0, 0, 0] as [number, number, number], distance: 100, azimuth: 0, polar: Math.PI / 2 }),
+      getCameraState: () => ({
+        target: [0, 0, 0] as [number, number, number],
+        distance: 100,
+        azimuth: 0,
+        polar: Math.PI / 2,
+      }),
       findPointsInRect: vi.fn(() => [0, 1]),
       getPointPositions: vi.fn(() => new Float32Array([10, 20, 0, 10, 20, 50])),
       spaceToScreenPosition: vi.fn((_position: PointPosition): [number, number] => [100, 100]),
@@ -25,8 +30,12 @@ describe("point hit testing", () => {
     const screen: [number, number] = [320, 210];
     const geometry = {
       findPointsInRect: vi.fn((rect: [[number, number], [number, number]]) =>
-        rect[0][0] <= screen[0] && rect[1][0] >= screen[0] &&
-        rect[0][1] <= screen[1] && rect[1][1] >= screen[1] ? [0] : [],
+        rect[0][0] <= screen[0] &&
+        rect[1][0] >= screen[0] &&
+        rect[0][1] <= screen[1] &&
+        rect[1][1] >= screen[1]
+          ? [0]
+          : [],
       ),
       getPointPositions: vi.fn(() => new Float32Array(world)),
       spaceToScreenPosition: vi.fn((position: PointPosition): [number, number] => [
@@ -36,7 +45,10 @@ describe("point hit testing", () => {
       getPointScreenRadiusByIndex: vi.fn(() => 6),
     };
     expect(hitTestPoint(geometry, screen)).toBe(0);
-    expect(geometry.findPointsInRect).toHaveBeenCalledExactlyOnceWith([[284, 174], [356, 246]]);
+    expect(geometry.findPointsInRect).toHaveBeenCalledExactlyOnceWith([
+      [284, 174],
+      [356, 246],
+    ]);
   });
 
   it("checks the rendered radius and chooses the nearest point with one position readback", () => {

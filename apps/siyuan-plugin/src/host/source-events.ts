@@ -77,10 +77,7 @@ export function isSourceChange(message: unknown): boolean {
     if (!Array.isArray(transaction?.doOperations)) return false;
     return transaction.doOperations.some((value: unknown) => {
       const operation = record(value);
-      return (
-        typeof operation?.action === "string" &&
-        SOURCE_ACTIONS.has(operation.action)
-      );
+      return typeof operation?.action === "string" && SOURCE_ACTIONS.has(operation.action);
     });
   });
 }

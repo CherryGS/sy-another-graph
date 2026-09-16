@@ -10,20 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { WorkbenchState } from "./state";
 import { nodeColor } from "../graph/node-colors";
 import { nodeType } from "../data/graph-model";
@@ -39,9 +31,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
   const node = state.selected;
   if (!node) return null;
   const nativeId = state.nativeBlockId(node.id);
-  const notebook = state.data?.notebooks.find(
-    (book) => book.id === node.notebook,
-  );
+  const notebook = state.data?.notebooks.find((book) => book.id === node.notebook);
 
   return (
     <aside className="inspector-panel" aria-label="节点详情">
@@ -87,44 +77,40 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
             </Tooltip>
           </CardAction>
           <CardDescription className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">
-              {NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node)}
-            </Badge>
+            <Badge variant="secondary">{NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node)}</Badge>
             <SearchOriginBadge id={node.id} origins={state.searchOrigins} />
             {node.notebook && (
-              <span className="break-words">
-                {notebook?.name ?? node.notebook}
-              </span>
+              <span className="break-words">{notebook?.name ?? node.notebook}</span>
             )}
           </CardDescription>
         </CardHeader>
         <ScrollArea data-scroll-panel className="min-h-0 flex-1">
           <CardContent className="flex min-w-0 flex-col gap-4">
-            {state.searchOrigins && <p className="text-xs text-muted-foreground">{searchOriginDescription(node.id, state.searchOrigins)}</p>}
+            {state.searchOrigins && (
+              <p className="text-xs text-muted-foreground">
+                {searchOriginDescription(node.id, state.searchOrigins)}
+              </p>
+            )}
             {(node.humanPath || node.documentLabel) && (
               <p className="break-words text-xs leading-relaxed text-muted-foreground">
                 {node.humanPath || node.documentLabel}
                 {node.heading && ` › ${node.heading}`}
               </p>
             )}
-            {node.content && (node.blockType !== "d" || node.content.trim() !== node.label.trim()) && (
-              <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed">
-                {node.content}
-              </p>
-            )}
+            {node.content &&
+              (node.blockType !== "d" || node.content.trim() !== node.label.trim()) && (
+                <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  {node.content}
+                </p>
+              )}
             <p className="text-xs text-muted-foreground">
-              {nativeId
-                ? "悬浮上方标题预览原文，点击标题打开。"
-                : "该节点暂无可预览的原生上下文。"}
+              {nativeId ? "悬浮上方标题预览原文，点击标题打开。" : "该节点暂无可预览的原生上下文。"}
             </p>
             <Separator />
             <NodeRelations node={node} state={state} />
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="group w-full justify-between"
-                >
+                <Button variant="ghost" className="group w-full justify-between">
                   节点信息
                   <ChevronDown
                     data-icon="inline-end"
@@ -136,21 +122,14 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
                   <code className="break-all">{node.id}</code>
                   {node.path && <p className="break-all">{node.path}</p>}
-                  {node.databaseId && (
-                    <p className="break-all">数据库：{node.databaseId}</p>
-                  )}
-                  {node.itemId && (
-                    <p className="break-all">条目：{node.itemId}</p>
-                  )}
+                  {node.databaseId && <p className="break-all">数据库：{node.databaseId}</p>}
+                  {node.itemId && <p className="break-all">条目：{node.itemId}</p>}
                 </div>
               </CollapsibleContent>
             </Collapsible>
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="group w-full justify-between"
-                >
+                <Button variant="ghost" className="group w-full justify-between">
                   已有路径工具
                   <ChevronDown
                     data-icon="inline-end"

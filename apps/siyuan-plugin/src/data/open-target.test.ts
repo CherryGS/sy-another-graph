@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { projectGraph, resolveOpenBlock } from "./graph-model";
-import {
-  DEFAULT_FILTERS,
-  type GraphDataset,
-  type GraphEdgeKind,
-  type GraphNode,
-} from "./types";
+import { DEFAULT_FILTERS, type GraphDataset, type GraphEdgeKind, type GraphNode } from "./types";
 
 const ALL_TYPE_FILTERS = { ...DEFAULT_FILTERS, documentsOnly: false };
 
@@ -32,11 +27,7 @@ function source(
   };
 }
 
-function mediator(
-  id: string,
-  index: number,
-  fields: Partial<GraphNode>,
-): GraphNode {
+function mediator(id: string, index: number, fields: Partial<GraphNode>): GraphNode {
   return {
     id,
     index,
@@ -100,9 +91,7 @@ describe("native contexts for the current graph", () => {
     const data = databaseFixture();
     const graph = projectGraph(data, { ...ALL_TYPE_FILTERS, notebook: "B" });
     expect(resolveOpenBlock("av:db", data, graph)).toBe("carrier-b");
-    expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBe(
-      "carrier-b",
-    );
+    expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBe("carrier-b");
     expect(resolveOpenBlock("carrier-a", data, graph)).toBeNull();
     expect(data.nodes[5].openBlockId).toBe("carrier-a");
   });
@@ -113,15 +102,9 @@ describe("native contexts for the current graph", () => {
       ...ALL_TYPE_FILTERS,
       excludeIds: ["doc-a", "carrier-a", "bound-b", "doc-a", "missing"],
     });
-    expect([...graph.excludedIds].sort()).toEqual([
-      "bound-b",
-      "carrier-a",
-      "doc-a",
-    ]);
+    expect([...graph.excludedIds].sort()).toEqual(["bound-b", "carrier-a", "doc-a"]);
     expect(resolveOpenBlock("av:db", data, graph)).toBe("carrier-b");
-    expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBe(
-      "carrier-b",
-    );
+    expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBe("carrier-b");
     expect(resolveOpenBlock("av-item:db:bound", data, graph)).toBeNull();
     expect(resolveOpenBlock("bound-b", data, graph)).toBeNull();
   });
@@ -146,9 +129,7 @@ describe("native contexts for the current graph", () => {
       hiddenTypes: ["p"],
     });
     expect(resolveOpenBlock("av-item:db:bound", data, graph)).toBe("bound-b");
-    expect(resolveOpenBlock("av-item:db:bound", data, graph)).not.toBe(
-      "carrier-a",
-    );
+    expect(resolveOpenBlock("av-item:db:bound", data, graph)).not.toBe("carrier-a");
   });
 
   it("returns no database context when every embedding is excluded, even if binding relationships keep the database visible", () => {
@@ -166,9 +147,7 @@ describe("native contexts for the current graph", () => {
 
   it("does not use detached item IDs or stale openBlockId metadata as native targets", () => {
     const data = databaseFixture();
-    data.edges = data.edges.filter(
-      (edge) => edge.kind !== "database-embedding",
-    );
+    data.edges = data.edges.filter((edge) => edge.kind !== "database-embedding");
     const graph = projectGraph(data, ALL_TYPE_FILTERS);
     expect(resolveOpenBlock("av-item:db:detached", data, graph)).toBeNull();
     expect(resolveOpenBlock("av:db", data, graph)).toBeNull();

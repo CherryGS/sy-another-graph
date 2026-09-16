@@ -18,14 +18,23 @@ describe("cached node type counts", () => {
       node("second-document", 6, 0, "d"),
     ]);
     expect(getNodeTypeCounts(nodes)).toEqual([
-      ["d", 2], ["p", 2], ["database", 1], ["database-item", 1], ["__proto__", 1],
+      ["d", 2],
+      ["p", 2],
+      ["database", 1],
+      ["database-item", 1],
+      ["__proto__", 1],
     ]);
   });
 
   it("does not recount one published array after remount, and refreshes changed type facts", () => {
     let reads = 0;
     const paragraph = node("source", 0);
-    Object.defineProperty(paragraph, "blockType", { get: () => { reads++; return "p"; } });
+    Object.defineProperty(paragraph, "blockType", {
+      get: () => {
+        reads++;
+        return "p";
+      },
+    });
     const before = Object.freeze([paragraph]);
     const original = getNodeTypeCounts(before);
     const firstReads = reads;

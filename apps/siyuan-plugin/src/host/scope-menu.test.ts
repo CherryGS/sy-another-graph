@@ -22,10 +22,7 @@ function blockDetail(...ids: unknown[]) {
   } as unknown as IEventBusMap["click-blockicon"];
 }
 
-function treeDetail(
-  type: IEventBusMap["open-menu-doctree"]["type"],
-  ...ids: unknown[]
-) {
+function treeDetail(type: IEventBusMap["open-menu-doctree"]["type"], ...ids: unknown[]) {
   return {
     type,
     items: ids.map((id) => ({ id, path: "/source.sy", notebookId: "book" })),
@@ -44,10 +41,7 @@ function menuHarness() {
     }),
   };
   const open = vi.fn();
-  const dispose = registerScopeMenus(
-    bus as unknown as Pick<EventBus, "on" | "off">,
-    open,
-  );
+  const dispose = registerScopeMenus(bus as unknown as Pick<EventBus, "on" | "off">, open);
   const items: { id: string; label: string; click: () => void }[] = [];
   const newMenu = () => {
     const menus: (typeof items)[number][] = [];
@@ -60,8 +54,7 @@ function menuHarness() {
     };
   };
   const menu = newMenu();
-  const emit = (type: string, detail: unknown) =>
-    listeners.get(type)?.({ detail } as CustomEvent);
+  const emit = (type: string, detail: unknown) => listeners.get(type)?.({ detail } as CustomEvent);
   return { bus, listeners, open, dispose, items, menu, newMenu, emit };
 }
 
@@ -139,10 +132,7 @@ describe("native document and block graph entry", () => {
     host.emit("click-blockicon", { ...blockDetail(BLOCK_ID), menu: host.newMenu() });
     host.items[1].click();
     expect(host.open).toHaveBeenLastCalledWith(BLOCK_ID);
-    expect(host.items.map((item) => item.label)).toEqual([
-      "在图谱中查看",
-      "在图谱中查看",
-    ]);
+    expect(host.items.map((item) => item.label)).toEqual(["在图谱中查看", "在图谱中查看"]);
     host.dispose();
   });
 

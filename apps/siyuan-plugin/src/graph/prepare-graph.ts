@@ -74,11 +74,7 @@ export async function prepareGraph(
       position++
     ) {
       const node = nodes[position];
-      if (
-        !node.id ||
-        idToIndex.has(node.id) ||
-        originalToDense.has(node.index)
-      ) {
+      if (!node.id || idToIndex.has(node.id) || originalToDense.has(node.index)) {
         throw new Error("图谱包含空白或重复的节点标识。");
       }
       if (!Number.isSafeInteger(node.index) || node.index < 0) {
@@ -100,9 +96,7 @@ export async function prepareGraph(
       degreeColor[position] = nodeColor(node, "degree");
       typeColor[position] = nodeColor(node, "type");
       index[position] = position;
-      degree[position] = Number.isFinite(node.degree)
-        ? Math.max(0, node.degree)
-        : 0;
+      degree[position] = Number.isFinite(node.degree) ? Math.max(0, node.degree) : 0;
       maximumDegree = Math.max(maximumDegree, degree[position]);
       originalToDense.set(node.index, position);
       idToIndex.set(node.id, position);
@@ -138,13 +132,9 @@ export async function prepareGraph(
       const reference = edge.kind === "reference";
       const hierarchy = edge.kind === "hierarchy";
       linkColor.push(EDGE_COLORS[edge.kind]);
-      weight[linkCount] = Number.isFinite(edge.weight)
-        ? Math.max(1, edge.weight)
-        : 1;
+      weight[linkCount] = Number.isFinite(edge.weight) ? Math.max(1, edge.weight) : 1;
       const emphasis = Math.min(1, Math.log2(weight[linkCount]) / 4);
-      width[linkCount] = reference
-        ? 1.55 + emphasis * 0.8
-        : 0.95 + emphasis * 0.35;
+      width[linkCount] = reference ? 1.55 + emphasis * 0.8 : 0.95 + emphasis * 0.35;
       style[linkCount] = edge.kind === "text-mention" ? 2 : hierarchy ? 1 : 0;
       // Preserve the exact source edge, including self-loops and original provenance.
       indexToEdge.push(edge);

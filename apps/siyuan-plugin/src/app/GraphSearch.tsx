@@ -1,10 +1,6 @@
 import { useId, useMemo, useRef, useState, type RefObject } from "react";
 import { Search, X } from "lucide-react";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import {
   InputGroup,
   InputGroupAddon,
@@ -13,12 +9,7 @@ import {
 } from "@/components/ui/input-group";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import type { WorkbenchState } from "./state";
 import { nodeColor } from "../graph/node-colors";
 import { nodeType } from "../data/graph-model";
@@ -41,8 +32,7 @@ export function GraphSearch({
   const restoreInputAfterEscape = useRef(false);
   const chosen = useMemo(() => new Set(state.chosenIds), [state.chosenIds]);
   const notebooks = useMemo(
-    () =>
-      new Map(state.data?.notebooks.map((book) => [book.id, book.name]) ?? []),
+    () => new Map(state.data?.notebooks.map((book) => [book.id, book.name]) ?? []),
     [state.data?.notebooks],
   );
   return (
@@ -85,9 +75,7 @@ export function GraphSearch({
             <InputGroupButton
               size="icon-xs"
               aria-label="清空搜索"
-              onClick={() =>
-                setFilters((previous) => ({ ...previous, query: "" }))
-              }
+              onClick={() => setFilters((previous) => ({ ...previous, query: "" }))}
             >
               <X />
             </InputGroupButton>

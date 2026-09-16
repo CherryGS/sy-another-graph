@@ -18,14 +18,8 @@ interface NodeLookups {
 }
 
 const nodeCache = new WeakMap<readonly GraphNode[], NodeLookups>();
-const edgeCache = new WeakMap<
-  readonly GraphEdge[],
-  ReadonlyMap<number, readonly GraphEdge[]>
->();
-const graphCache = new WeakMap<
-  readonly GraphNode[],
-  WeakMap<readonly GraphEdge[], GraphLookups>
->();
+const edgeCache = new WeakMap<readonly GraphEdge[], ReadonlyMap<number, readonly GraphEdge[]>>();
+const graphCache = new WeakMap<readonly GraphNode[], WeakMap<readonly GraphEdge[], GraphLookups>>();
 const searchCache = new WeakMap<readonly GraphNode[], (string | undefined)[]>();
 const NO_EDGES: readonly GraphEdge[] = Object.freeze([]);
 
@@ -99,7 +93,7 @@ export function searchGraphNodes(
   const result: GraphNode[] = [];
   for (let index = 0; index < graph.nodes.length; index++) {
     const node = graph.nodes[index];
-    const label = labels[index] ??= node.label.toLocaleLowerCase();
+    const label = (labels[index] ??= node.label.toLocaleLowerCase());
     // IDs intentionally keep their original case-sensitive includes semantics.
     if (!label.includes(needle) && !node.id.includes(needle)) continue;
     result.push(node);

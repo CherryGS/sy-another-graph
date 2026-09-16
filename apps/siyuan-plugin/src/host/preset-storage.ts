@@ -15,12 +15,21 @@ interface PluginDataStorage {
 }
 
 function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message :
-    typeof error === "object" && error !== null && "msg" in error && typeof error.msg === "string" ? error.msg : "存储请求失败";
-  return Array.from(message, character => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" &&
+          error !== null &&
+          "msg" in error &&
+          typeof error.msg === "string"
+        ? error.msg
+        : "存储请求失败";
+  return Array.from(message, (character) => {
     const code = character.charCodeAt(0);
     return code < 32 || (code >= 127 && code <= 159) ? " " : character;
-  }).join("").slice(0, 240);
+  })
+    .join("")
+    .slice(0, 240);
 }
 
 /** Only the owned iframe can read/write this one plugin data file. */
@@ -51,27 +60,46 @@ export class PresetStorage {
   handle(event: MessageEvent): boolean {
     if (this.disposed || event.origin !== this.origin || !this.ownsMessage(event)) return false;
     const data = event.data as Record<string, unknown> | null;
-    if (data?.channel !== WORKBENCH_PRESET_CHANNEL ||
+    if (
+      data?.channel !== WORKBENCH_PRESET_CHANNEL ||
       (data.type !== "preset-load" && data.type !== "preset-save") ||
-      !isPresetRequestId(data.request)) return false;
+      !isPresetRequestId(data.request)
+    )
+      return false;
     const request = data.request;
     if (this.pending.has(request)) return true;
     const store = data.type === "preset-save" ? readPresetStore(data.store) : null;
     if (data.type === "preset-save" && !store) {
-      this.reply(event, { channel: WORKBENCH_PRESET_CHANNEL, type: "preset-response", request, ok: false, error: "预设内容无效，未保存。" });
+      this.reply(event, {
+        channel: WORKBENCH_PRESET_CHANNEL,
+        type: "preset-response",
+        request,
+        ok: false,
+        error: "预设内容无效，未保存。",
+      });
       return true;
     }
     this.pending.add(request);
     let replied = false;
-    const respond = (result: { ok: true; store: PresetStore | null } | { ok: false; error: string }) => {
+    const respond = (
+      result: { ok: true; store: PresetStore | null } | { ok: false; error: string },
+    ) => {
       if (replied) return;
       replied = true;
       clearTimeout(timer);
       this.timers.delete(timer);
       this.pending.delete(request);
-      this.reply(event, { channel: WORKBENCH_PRESET_CHANNEL, type: "preset-response", request, ...result });
+      this.reply(event, {
+        channel: WORKBENCH_PRESET_CHANNEL,
+        type: "preset-response",
+        request,
+        ...result,
+      });
     };
-    const timer = setTimeout(() => respond({ ok: false, error: "预设存储未完成，请稍后重试；若持续失败，请重载思源。" }), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => respond({ ok: false, error: "预设存储未完成，请稍后重试；若持续失败，请重载思源。" }),
+      REQUEST_TIMEOUT_MS,
+    );
     this.timers.add(timer);
     this.queue = this.queue.then(async () => {
       // An expired request must not later start a stale write behind a retry.
@@ -83,7 +111,12 @@ export class PresetStorage {
           await this.readVerifiedFile();
           if (this.disposed || replied) return;
           const result = await this.storage.saveData(PRESET_STORAGE_FILE, store);
-          if (typeof result !== "object" || result === null || !("code" in result) || result.code !== 0) {
+          if (
+            typeof result !== "object" ||
+            result === null ||
+            !("code" in result) ||
+            result.code !== 0
+          ) {
             throw new Error(`保存失败：${errorMessage(result)}`);
           }
           respond({ ok: true, store });
@@ -142,7 +175,8 @@ export class PresetStorage {
         throw new Error("预设文件不是有效的 JSON，原文件已保留。");
       }
       if (response.status === 202) {
-        if (typeof data === "object" && data !== null && "code" in data && data.code === 404) return null;
+        if (typeof data === "object" && data !== null && "code" in data && data.code === 404)
+          return null;
         throw new Error(`读取预设失败：${errorMessage(data)}`);
       }
       const store = readPresetStore(data);

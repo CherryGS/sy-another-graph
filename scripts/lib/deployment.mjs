@@ -9,15 +9,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import {
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-  win32,
-} from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 
 const markerName = ".atlas-deployment.json";
 
@@ -60,21 +52,12 @@ function safeFile(file) {
   const parts = file.split(/[\\/]/);
   assert.ok(
     parts.every(
-      (part) =>
-        part &&
-        part !== "." &&
-        part !== ".." &&
-        !part.includes(":") &&
-        !/[. ]$/.test(part),
+      (part) => part && part !== "." && part !== ".." && !part.includes(":") && !/[. ]$/.test(part),
     ),
     "Deployment file paths must be safe relative paths",
   );
   const normalized = parts.join(sep);
-  assert.notEqual(
-    parts[0].toLowerCase(),
-    markerName,
-    "The deployment marker is reserved",
-  );
+  assert.notEqual(parts[0].toLowerCase(), markerName, "The deployment marker is reserved");
   return normalized;
 }
 
@@ -98,15 +81,9 @@ function filesBelow(distribution, directory = distribution) {
     // Marketplace archives are delivery artifacts, not plugin runtime assets.
     if (directory === distribution && entry.name === "package.zip") return [];
     const path = join(directory, entry.name);
-    assert.ok(
-      !entry.isSymbolicLink(),
-      `Build output must not contain links: ${path}`,
-    );
+    assert.ok(!entry.isSymbolicLink(), `Build output must not contain links: ${path}`);
     if (entry.isDirectory()) return filesBelow(distribution, path);
-    assert.ok(
-      entry.isFile(),
-      `Build output must contain ordinary files: ${path}`,
-    );
+    assert.ok(entry.isFile(), `Build output must contain ordinary files: ${path}`);
     return [relative(distribution, path)];
   });
 }
@@ -134,13 +111,8 @@ export function deployPlugin({ workspace, distribution }) {
   ordinaryDirectory(distribution, true);
 
   const files = uniqueFiles(filesBelow(distribution));
-  assert.ok(
-    files.includes(join("ui", "index.html")),
-    "Build the complete plugin before deploying",
-  );
-  const manifest = JSON.parse(
-    readFileSync(join(distribution, "plugin.json"), "utf8"),
-  );
+  assert.ok(files.includes(join("ui", "index.html")), "Build the complete plugin before deploying");
+  const manifest = JSON.parse(readFileSync(join(distribution, "plugin.json"), "utf8"));
   assert.match(
     manifest.name,
     /^[a-z0-9-]+$/,
@@ -169,11 +141,7 @@ export function deployPlugin({ workspace, distribution }) {
       "An unmanaged plugin occupies the target; it will not be overwritten",
     );
     const previous = JSON.parse(readFileSync(markerPath, "utf8"));
-    assert.equal(
-      previous?.source,
-      distribution,
-      "This target belongs to a different build",
-    );
+    assert.equal(previous?.source, distribution, "This target belongs to a different build");
     previousFiles = uniqueFiles(previous.files);
   }
 
@@ -205,9 +173,6 @@ export function deployPlugin({ workspace, distribution }) {
       if (statIfPresent(path)) unlinkSync(path);
     }
   }
-  writeFileSync(
-    markerPath,
-    JSON.stringify({ source: distribution, files }, null, 2) + "\n",
-  );
+  writeFileSync(markerPath, JSON.stringify({ source: distribution, files }, null, 2) + "\n");
   return target;
 }

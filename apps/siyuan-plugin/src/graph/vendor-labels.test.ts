@@ -25,12 +25,18 @@ function labelContext(dimensions: 2 | 3 = 2) {
       config: { showLabels: true },
       configManager: { configVersion: 1 },
       crossfilter: { isHighlightActive: false },
-      public: { is3D: dimensions === 3, isSimulationRunning: true, getSampledPointPositionsMap: vi.fn() },
+      public: {
+        is3D: dimensions === 3,
+        isSimulationRunning: true,
+        getSampledPointPositionsMap: vi.fn(),
+      },
       cosmos: {
         getPointPositions: vi.fn(),
-        getPointPositionsAsync: vi.fn((_options: { dimensions: number; signal: AbortSignal }) => capture.promise),
+        getPointPositionsAsync: vi.fn(
+          (_options: { dimensions: number; signal: AbortSignal }) => capture.promise,
+        ),
         getTrackedPointPositionsMap: vi.fn(),
-        getClusterPositions: vi.fn(() => dimensions === 3 ? [20, 21, 22] : [20, 21]),
+        getClusterPositions: vi.fn(() => (dimensions === 3 ? [20, 21, 22] : [20, 21])),
       },
       removeEventListener: vi.fn(),
     },
@@ -39,7 +45,10 @@ function labelContext(dimensions: 2 | 3 = 2) {
     _selectedLabelsMap: new Map(),
     _dynamicLabelsMap: new Map(),
     _sanitizedLabelTextCache: new Map(),
-    _cachedSampledPointsPositions: new Map([[0, [-3, -4]], [1, [-1, -2]]]),
+    _cachedSampledPointsPositions: new Map([
+      [0, [-3, -4]],
+      [1, [-1, -2]],
+    ]),
     _isZooming: false,
     _renderLabels: vi.fn(),
     render: vi.fn(),
@@ -47,10 +56,18 @@ function labelContext(dimensions: 2 | 3 = 2) {
   };
   Object.setPrototypeOf(context, Labels.prototype);
   return {
-    context, point, cluster, capture, positions,
+    context,
+    point,
+    cluster,
+    capture,
+    positions,
     update: () => Reflect.apply(Labels.prototype.updatePositions, context, []),
-    invoke: (method: string, ...args: unknown[]) => Reflect.apply(Reflect.get(Labels.prototype, method), context, args),
-    async complete() { capture.resolve(positions); await capture.promise; },
+    invoke: (method: string, ...args: unknown[]) =>
+      Reflect.apply(Reflect.get(Labels.prototype, method), context, args),
+    async complete() {
+      capture.resolve(positions);
+      await capture.promise;
+    },
   };
 }
 
@@ -58,7 +75,10 @@ function eventContext(readMs = 0, pending?: Promise<void>) {
   let now = 0;
   vi.spyOn(performance, "now").mockImplementation(() => now);
   const labels = {
-    updatePositions: vi.fn(() => { now += readMs; return pending; }),
+    updatePositions: vi.fn(() => {
+      now += readMs;
+      return pending;
+    }),
     flushPositions: vi.fn(async () => {}),
     render: vi.fn(async () => {}),
     update: vi.fn(async () => {}),
@@ -76,42 +96,60 @@ function eventContext(readMs = 0, pending?: Promise<void>) {
     },
     dispatchEvent: vi.fn(),
   };
-  const manager = new CosmographEventManager(context as unknown as ConstructorParameters<typeof CosmographEventManager>[0]);
+  const manager = new CosmographEventManager(
+    context as unknown as ConstructorParameters<typeof CosmographEventManager>[0],
+  );
   return {
-    context, manager, labels,
-    at(time: number) { now = time; },
+    context,
+    manager,
+    labels,
+    at(time: number) {
+      now = time;
+    },
     tick: () => manager.onSimulationTick(0.5, undefined, undefined),
   };
 }
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("Cosmograph 2.5.1 label readback patch", () => {
-  it.each(["hidden", "empty"] as const)("skips point and cluster GPU reads for a %s label layer", (state) => {
-    const h = labelContext();
-    if (state === "hidden") h.context._.config.showLabels = false;
-    else h.context._labelDataMap.clear();
-    h.update();
-    expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
-    expect(h.context._.cosmos.getPointPositionsAsync).not.toHaveBeenCalled();
-    expect(h.context._.cosmos.getClusterPositions).not.toHaveBeenCalled();
-    expect(h.context._renderLabels).toHaveBeenCalledTimes(1);
-  });
+  it.each(["hidden", "empty"] as const)(
+    "skips point and cluster GPU reads for a %s label layer",
+    (state) => {
+      const h = labelContext();
+      if (state === "hidden") h.context._.config.showLabels = false;
+      else h.context._labelDataMap.clear();
+      h.update();
+      expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
+      expect(h.context._.cosmos.getPointPositionsAsync).not.toHaveBeenCalled();
+      expect(h.context._.cosmos.getClusterPositions).not.toHaveBeenCalled();
+      expect(h.context._renderLabels).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it.each([2, 3] as const)("applies completed %sD coordinates without a synchronous point read", async (dimensions) => {
-    const h = labelContext(dimensions);
-    h.context._labelDataMap.set("cluster-0", h.cluster);
-    h.update();
-    expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledExactlyOnceWith({ dimensions, signal: expect.any(AbortSignal) });
-    expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
-    expect(h.point.position).toEqual([-1, -1]);
-    await h.complete();
-    expect(h.point.position).toEqual(dimensions === 3 ? [4, 5, 6] : [4, 5]);
-    expect(h.cluster.position).toEqual(dimensions === 3 ? [20, 21, 22] : [20, 21]);
-    expect(h.context._renderLabels).toHaveBeenCalledTimes(2);
-    expect(h.context.render).not.toHaveBeenCalled();
-    expect(h.context._.public.getSampledPointPositionsMap).not.toHaveBeenCalled();
-  });
+  it.each([2, 3] as const)(
+    "applies completed %sD coordinates without a synchronous point read",
+    async (dimensions) => {
+      const h = labelContext(dimensions);
+      h.context._labelDataMap.set("cluster-0", h.cluster);
+      h.update();
+      expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledExactlyOnceWith({
+        dimensions,
+        signal: expect.any(AbortSignal),
+      });
+      expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
+      expect(h.point.position).toEqual([-1, -1]);
+      await h.complete();
+      expect(h.point.position).toEqual(dimensions === 3 ? [4, 5, 6] : [4, 5]);
+      expect(h.cluster.position).toEqual(dimensions === 3 ? [20, 21, 22] : [20, 21]);
+      expect(h.context._renderLabels).toHaveBeenCalledTimes(2);
+      expect(h.context.render).not.toHaveBeenCalled();
+      expect(h.context._.public.getSampledPointPositionsMap).not.toHaveBeenCalled();
+    },
+  );
 
   it("coalesces repeated ticks and redraws the completed world coordinates while the next capture is pending", async () => {
     const h = labelContext();
@@ -131,20 +169,27 @@ describe("Cosmograph 2.5.1 label readback patch", () => {
     h.invoke("clear");
   });
 
-  it.each(["hidden", "empty", "clear", "destroy"] as const)("cancels demand and discards late completion after %s", async (change) => {
-    const h = labelContext();
-    h.update();
-    const signal = h.context._.cosmos.getPointPositionsAsync.mock.calls[0]![0].signal;
-    if (change === "hidden") { h.context._.config.showLabels = false; h.update(); }
-    else if (change === "empty") { h.context._labelDataMap.clear(); h.update(); }
-    else h.invoke(change);
-    const renders = h.context._renderLabels.mock.calls.length;
-    expect(signal.aborted).toBe(true);
-    await h.complete();
-    expect(h.point.position).toEqual([-1, -1]);
-    expect(h.context._renderLabels).toHaveBeenCalledTimes(renders);
-    expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
-  });
+  it.each(["hidden", "empty", "clear", "destroy"] as const)(
+    "cancels demand and discards late completion after %s",
+    async (change) => {
+      const h = labelContext();
+      h.update();
+      const signal = h.context._.cosmos.getPointPositionsAsync.mock.calls[0]![0].signal;
+      if (change === "hidden") {
+        h.context._.config.showLabels = false;
+        h.update();
+      } else if (change === "empty") {
+        h.context._labelDataMap.clear();
+        h.update();
+      } else h.invoke(change);
+      const renders = h.context._renderLabels.mock.calls.length;
+      expect(signal.aborted).toBe(true);
+      await h.complete();
+      expect(h.point.position).toEqual([-1, -1]);
+      expect(h.context._renderLabels).toHaveBeenCalledTimes(renders);
+      expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
+    },
+  );
 
   it("aborts hidden label demand during config population even when simulation ticks are paused", async () => {
     const h = labelContext();
@@ -158,23 +203,32 @@ describe("Cosmograph 2.5.1 label readback patch", () => {
     expect(h.point.position).toEqual([-1, -1]);
   });
 
-  it.each(["source", "dimensions", "cosmos"] as const)("rejects obsolete snapshots after a %s change", async (change) => {
-    const h = labelContext();
-    h.update();
-    const oldSignal = h.context._.cosmos.getPointPositionsAsync.mock.calls[0]![0].signal;
-    const next = deferredPositions();
-    if (change === "source") h.context._.configManager.configVersion++;
-    if (change === "dimensions") h.context._.public.is3D = true;
-    if (change === "cosmos") h.context._.cosmos = { ...h.context._.cosmos, getPointPositionsAsync: vi.fn(() => next.promise) };
-    else h.context._.cosmos.getPointPositionsAsync.mockReturnValue(next.promise);
-    h.update();
-    expect(oldSignal.aborted).toBe(true);
-    await h.complete();
-    expect(h.point.position).toEqual([-1, -1]);
-    next.resolve(new Float32Array(change === "dimensions" ? [7, 8, 9, 10, 11, 12] : [7, 8, 10, 11]));
-    await next.promise;
-    expect(h.point.position).toEqual(change === "dimensions" ? [10, 11, 12] : [10, 11]);
-  });
+  it.each(["source", "dimensions", "cosmos"] as const)(
+    "rejects obsolete snapshots after a %s change",
+    async (change) => {
+      const h = labelContext();
+      h.update();
+      const oldSignal = h.context._.cosmos.getPointPositionsAsync.mock.calls[0]![0].signal;
+      const next = deferredPositions();
+      if (change === "source") h.context._.configManager.configVersion++;
+      if (change === "dimensions") h.context._.public.is3D = true;
+      if (change === "cosmos")
+        h.context._.cosmos = {
+          ...h.context._.cosmos,
+          getPointPositionsAsync: vi.fn(() => next.promise),
+        };
+      else h.context._.cosmos.getPointPositionsAsync.mockReturnValue(next.promise);
+      h.update();
+      expect(oldSignal.aborted).toBe(true);
+      await h.complete();
+      expect(h.point.position).toEqual([-1, -1]);
+      next.resolve(
+        new Float32Array(change === "dimensions" ? [7, 8, 9, 10, 11, 12] : [7, 8, 10, 11]),
+      );
+      await next.promise;
+      expect(h.point.position).toEqual(change === "dimensions" ? [10, 11, 12] : [10, 11]);
+    },
+  );
 
   it("reports an operational failure once and never starts a synchronous fallback or repeated retry", async () => {
     vi.stubGlobal("window", {});
@@ -204,23 +258,30 @@ describe("Cosmograph 2.5.1 label readback patch", () => {
     h.invoke("clear");
   });
 
-  it.each([2, 3] as const)("reprojects known tracked and sampled labels from cached %sD world positions during zoom", async (dimensions) => {
-    const h = labelContext(dimensions);
-    h.update();
-    await h.complete();
-    h.context._isZooming = true;
-    expect(h.invoke("_getTrackedPositions", true)).toEqual(new Map([[1, dimensions === 3 ? [4, 5, 6] : [4, 5]]]));
-    expect(h.invoke("_getSampledPositions")).toEqual(new Map([
-      [0, dimensions === 3 ? [1, 2, 3] : [1, 2]],
-      [1, dimensions === 3 ? [4, 5, 6] : [4, 5]],
-    ]));
-    expect(h.context._.cosmos.getTrackedPointPositionsMap).not.toHaveBeenCalled();
-    expect(h.context._.public.getSampledPointPositionsMap).not.toHaveBeenCalled();
-    // Releasing zoom preserves the vendor's original candidate-sampling path.
-    h.context._isZooming = false;
-    h.invoke("_getSampledPositions");
-    expect(h.context._.public.getSampledPointPositionsMap).toHaveBeenCalledTimes(1);
-  });
+  it.each([2, 3] as const)(
+    "reprojects known tracked and sampled labels from cached %sD world positions during zoom",
+    async (dimensions) => {
+      const h = labelContext(dimensions);
+      h.update();
+      await h.complete();
+      h.context._isZooming = true;
+      expect(h.invoke("_getTrackedPositions", true)).toEqual(
+        new Map([[1, dimensions === 3 ? [4, 5, 6] : [4, 5]]]),
+      );
+      expect(h.invoke("_getSampledPositions")).toEqual(
+        new Map([
+          [0, dimensions === 3 ? [1, 2, 3] : [1, 2]],
+          [1, dimensions === 3 ? [4, 5, 6] : [4, 5]],
+        ]),
+      );
+      expect(h.context._.cosmos.getTrackedPointPositionsMap).not.toHaveBeenCalled();
+      expect(h.context._.public.getSampledPointPositionsMap).not.toHaveBeenCalled();
+      // Releasing zoom preserves the vendor's original candidate-sampling path.
+      h.context._isZooming = false;
+      h.invoke("_getSampledPositions");
+      expect(h.context._.public.getSampledPointPositionsMap).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("returns the same pending native snapshot promise until coordinates have been applied", async () => {
     const h = labelContext();
@@ -234,63 +295,78 @@ describe("Cosmograph 2.5.1 label readback patch", () => {
     expect(h.context._renderLabels).toHaveBeenCalledTimes(3);
   });
 
-  it.each(["AbortError", "Error"])("settles the native snapshot promise after %s without a synchronous fallback", async (name) => {
-    vi.stubGlobal("window", {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const h = labelContext();
-    const pending = h.update();
-    const failure = new Error("read ended");
-    failure.name = name;
-    h.capture.reject(failure);
-    await expect(pending).resolves.toBeUndefined();
-    expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
-  });
+  it.each(["AbortError", "Error"])(
+    "settles the native snapshot promise after %s without a synchronous fallback",
+    async (name) => {
+      vi.stubGlobal("window", {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const h = labelContext();
+      const pending = h.update();
+      const failure = new Error("read ended");
+      failure.name = name;
+      h.capture.reject(failure);
+      await expect(pending).resolves.toBeUndefined();
+      expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     { completedAt: 10, nextAt: 60 },
     { completedAt: 20, nextAt: 80 },
     { completedAt: 120, nextAt: 370 },
-  ])("waits for async completion at $completedAt ms, then applies cooldown until $nextAt ms", async ({ completedAt, nextAt }) => {
-    const read = deferredPositions();
-    const pending = read.promise.then(() => {});
-    const h = eventContext(0, pending);
-    const timer = vi.spyOn(globalThis, "setTimeout");
-    h.tick();
-    for (let time = 1; time < completedAt; time++) { h.at(time); h.tick(); }
-    expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
-    h.at(completedAt);
-    read.resolve(new Float32Array());
-    await pending;
-    h.at(nextAt - 1);
-    h.tick();
-    expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
-    h.at(nextAt);
-    h.tick();
-    expect(h.labels.updatePositions).toHaveBeenCalledTimes(2);
-    expect(h.context.config.onSimulationTick).toHaveBeenCalledTimes(completedAt + 2);
-    expect(h.context.annotations.updatePositions).toHaveBeenCalledTimes(completedAt + 2);
-    expect(h.context.dispatchEvent).toHaveBeenCalledTimes(completedAt + 2);
-    expect(timer).not.toHaveBeenCalled();
-    await pending;
-  });
+  ])(
+    "waits for async completion at $completedAt ms, then applies cooldown until $nextAt ms",
+    async ({ completedAt, nextAt }) => {
+      const read = deferredPositions();
+      const pending = read.promise.then(() => {});
+      const h = eventContext(0, pending);
+      const timer = vi.spyOn(globalThis, "setTimeout");
+      h.tick();
+      for (let time = 1; time < completedAt; time++) {
+        h.at(time);
+        h.tick();
+      }
+      expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
+      h.at(completedAt);
+      read.resolve(new Float32Array());
+      await pending;
+      h.at(nextAt - 1);
+      h.tick();
+      expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
+      h.at(nextAt);
+      h.tick();
+      expect(h.labels.updatePositions).toHaveBeenCalledTimes(2);
+      expect(h.context.config.onSimulationTick).toHaveBeenCalledTimes(completedAt + 2);
+      expect(h.context.annotations.updatePositions).toHaveBeenCalledTimes(completedAt + 2);
+      expect(h.context.dispatchEvent).toHaveBeenCalledTimes(completedAt + 2);
+      expect(timer).not.toHaveBeenCalled();
+      await pending;
+    },
+  );
 
-  it.each(["AbortError", "Error"])("releases the event-manager pending state after %s and waits through cooldown before retry", async (name) => {
-    const read = deferredPositions();
-    const pending = read.promise.then(() => {});
-    const h = eventContext(0, pending);
-    h.tick();
-    h.at(120);
-    const failure = new Error("snapshot rejected");
-    failure.name = name;
-    read.reject(failure);
-    await pending.catch(() => {});
-    for (let time = 121; time < 370; time++) { h.at(time); h.tick(); }
-    expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
-    h.at(370);
-    h.tick();
-    expect(h.labels.updatePositions).toHaveBeenCalledTimes(2);
-    await pending.catch(() => {});
-  });
+  it.each(["AbortError", "Error"])(
+    "releases the event-manager pending state after %s and waits through cooldown before retry",
+    async (name) => {
+      const read = deferredPositions();
+      const pending = read.promise.then(() => {});
+      const h = eventContext(0, pending);
+      h.tick();
+      h.at(120);
+      const failure = new Error("snapshot rejected");
+      failure.name = name;
+      read.reject(failure);
+      await pending.catch(() => {});
+      for (let time = 121; time < 370; time++) {
+        h.at(time);
+        h.tick();
+      }
+      expect(h.labels.updatePositions).toHaveBeenCalledTimes(1);
+      h.at(370);
+      h.tick();
+      expect(h.labels.updatePositions).toHaveBeenCalledTimes(2);
+      await pending.catch(() => {});
+    },
+  );
 
   it("keeps drag, transition, resize and zoom projections immediate while the simulation snapshot is pending", async () => {
     const read = deferredPositions();
@@ -330,41 +406,47 @@ describe("Cosmograph 2.5.1 label readback patch", () => {
     expect(h.context._.public.getSampledPointPositionsMap).not.toHaveBeenCalled();
   });
 
-  it.each(["completed", "cancelled"])("queues exactly one fresh final snapshot after a %s older request", async (ending) => {
-    const h = labelContext();
-    const old = h.update();
-    const next = deferredPositions();
-    h.context._.cosmos.getPointPositionsAsync.mockReturnValue(next.promise);
-    const final = h.invoke("flushPositions");
-    expect(h.invoke("flushPositions")).toBe(final);
-    expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(1);
-    if (ending === "completed") h.capture.resolve(h.positions);
-    else h.capture.reject(new DOMException("simulation stopped", "AbortError"));
-    await old;
-    expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(2);
-    next.resolve(new Float32Array([10, 20, 30, 40]));
-    await final;
-    expect(h.point.position).toEqual([30, 40]);
-    expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(2);
-    expect(h.context.render).not.toHaveBeenCalled();
-    expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
-  });
+  it.each(["completed", "cancelled"])(
+    "queues exactly one fresh final snapshot after a %s older request",
+    async (ending) => {
+      const h = labelContext();
+      const old = h.update();
+      const next = deferredPositions();
+      h.context._.cosmos.getPointPositionsAsync.mockReturnValue(next.promise);
+      const final = h.invoke("flushPositions");
+      expect(h.invoke("flushPositions")).toBe(final);
+      expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(1);
+      if (ending === "completed") h.capture.resolve(h.positions);
+      else h.capture.reject(new DOMException("simulation stopped", "AbortError"));
+      await old;
+      expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(2);
+      next.resolve(new Float32Array([10, 20, 30, 40]));
+      await final;
+      expect(h.point.position).toEqual([30, 40]);
+      expect(h.context._.cosmos.getPointPositionsAsync).toHaveBeenCalledTimes(2);
+      expect(h.context.render).not.toHaveBeenCalled();
+      expect(h.context._.cosmos.getPointPositions).not.toHaveBeenCalled();
+    },
+  );
 
-  it.each(["hidden", "clear", "destroy", "source", "dimensions", "cosmos"] as const)("discards queued final demand after %s", async (change) => {
-    const h = labelContext();
-    h.update();
-    const final = h.invoke("flushPositions");
-    const reads = h.context._.cosmos.getPointPositionsAsync;
-    if (change === "hidden") h.context._.config.showLabels = false;
-    else if (change === "source") h.context._.configManager.configVersion++;
-    else if (change === "dimensions") h.context._.public.is3D = true;
-    else if (change === "cosmos") h.context._.cosmos = { ...h.context._.cosmos };
-    else h.invoke(change);
-    h.capture.resolve(h.positions);
-    await final;
-    expect(reads).toHaveBeenCalledTimes(1);
-    expect(h.point.position).toEqual([-1, -1]);
-  });
+  it.each(["hidden", "clear", "destroy", "source", "dimensions", "cosmos"] as const)(
+    "discards queued final demand after %s",
+    async (change) => {
+      const h = labelContext();
+      h.update();
+      const final = h.invoke("flushPositions");
+      const reads = h.context._.cosmos.getPointPositionsAsync;
+      if (change === "hidden") h.context._.config.showLabels = false;
+      else if (change === "source") h.context._.configManager.configVersion++;
+      else if (change === "dimensions") h.context._.public.is3D = true;
+      else if (change === "cosmos") h.context._.cosmos = { ...h.context._.cosmos };
+      else h.invoke(change);
+      h.capture.resolve(h.positions);
+      await final;
+      expect(reads).toHaveBeenCalledTimes(1);
+      expect(h.point.position).toEqual([-1, -1]);
+    },
+  );
 
   it("settles final demand after an operational failure without retrying or falling back", async () => {
     vi.stubGlobal("window", {});

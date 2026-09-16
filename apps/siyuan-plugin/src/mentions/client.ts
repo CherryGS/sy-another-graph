@@ -1,5 +1,12 @@
 import type { MentionRequest, MentionResponse } from "./protocol";
-import { EMPTY_MENTION_PROGRESS, type MentionBlock, type MentionMode, type MentionProgress, type MentionResult, type MentionScope } from "./types";
+import {
+  EMPTY_MENTION_PROGRESS,
+  type MentionBlock,
+  type MentionMode,
+  type MentionProgress,
+  type MentionResult,
+  type MentionScope,
+} from "./types";
 import { normalizeExcludedPhrases } from "./keywords";
 
 export interface MentionInput {
@@ -23,10 +30,18 @@ export interface MentionWorkerPort {
   removeEventListener(type: "message" | "error" | "messageerror", listener: EventListener): void;
   terminate(): void;
 }
-export const EMPTY_MENTION_RESULT: MentionResult = { edges: [], truncated: false, ambiguousEdges: 0 };
+export const EMPTY_MENTION_RESULT: MentionResult = {
+  edges: [],
+  truncated: false,
+  ambiguousEdges: 0,
+};
 export const EMPTY_MENTION_SNAPSHOT: MentionSnapshot = {
-  input: null, ready: false, pending: false, progress: EMPTY_MENTION_PROGRESS,
-  result: EMPTY_MENTION_RESULT, error: "",
+  input: null,
+  ready: false,
+  pending: false,
+  progress: EMPTY_MENTION_PROGRESS,
+  result: EMPTY_MENTION_RESULT,
+  error: "",
 };
 
 export class MentionClient {
@@ -57,7 +72,11 @@ export class MentionClient {
       return;
     }
     try {
-      if (this.fatalError) { this.stopWorker(); this.blocks = null; this.fatalError = ""; }
+      if (this.fatalError) {
+        this.stopWorker();
+        this.blocks = null;
+        this.fatalError = "";
+      }
       if (!this.worker) {
         this.worker = this.create();
         this.worker.addEventListener("message", this.onMessage);
@@ -72,21 +91,44 @@ export class MentionClient {
         this.revision++;
         this.scopeRevision = 0;
         this.snapshot = { ...EMPTY_MENTION_SNAPSHOT };
-        this.worker.postMessage(sourceChanged
-          ? { kind: "load", revision: this.revision, blocks: input.blocks, excludedPhrases }
-          : { kind: "exclusions", revision: this.revision, excludedPhrases });
+        this.worker.postMessage(
+          sourceChanged
+            ? { kind: "load", revision: this.revision, blocks: input.blocks, excludedPhrases }
+            : { kind: "exclusions", revision: this.revision, excludedPhrases },
+        );
       }
       if (this.scope !== input.scope) {
         this.scope = input.scope;
         this.scopeRevision++;
-        this.worker.postMessage({ kind: "scope", revision: this.revision, scopeRevision: this.scopeRevision, scope: input.scope });
+        this.worker.postMessage({
+          kind: "scope",
+          revision: this.revision,
+          scopeRevision: this.scopeRevision,
+          scope: input.scope,
+        });
       }
       this.request++;
-      this.set({ input, pending: input.mode !== "off" && !(input.mode === "selected" && !input.chosenIds.length), result: EMPTY_MENTION_RESULT, error: "" });
-      this.worker.postMessage({ kind: "query", revision: this.revision, scopeRevision: this.scopeRevision, request: this.request, mode: input.mode, chosenIds: input.chosenIds });
+      this.set({
+        input,
+        pending: input.mode !== "off" && !(input.mode === "selected" && !input.chosenIds.length),
+        result: EMPTY_MENTION_RESULT,
+        error: "",
+      });
+      this.worker.postMessage({
+        kind: "query",
+        revision: this.revision,
+        scopeRevision: this.scopeRevision,
+        request: this.request,
+        mode: input.mode,
+        chosenIds: input.chosenIds,
+      });
     } catch (error) {
-      this.set({ input, pending: false, result: EMPTY_MENTION_RESULT,
-        error: error instanceof Error ? error.message : String(error) });
+      this.set({
+        input,
+        pending: false,
+        result: EMPTY_MENTION_RESULT,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -100,7 +142,10 @@ export class MentionClient {
     this.update(input);
   }
 
-  dispose(): void { this.closed = true; this.stopWorker(); }
+  dispose(): void {
+    this.closed = true;
+    this.stopWorker();
+  }
 
   private stopWorker(): void {
     this.worker?.removeEventListener("message", this.onMessage);
@@ -110,16 +155,20 @@ export class MentionClient {
     this.worker = null;
   }
 
-  private onMessage: EventListener = event => {
+  private onMessage: EventListener = (event) => {
     const message = (event as MessageEvent<MentionResponse>).data;
     if (this.closed || message.revision !== this.revision) return;
     if (message.kind === "progress" || message.kind === "ready") {
-      this.set({ progress: message.progress, ...(message.kind === "ready" ? { ready: true } : {}) });
+      this.set({
+        progress: message.progress,
+        ...(message.kind === "ready" ? { ready: true } : {}),
+      });
     } else if (message.kind === "result") {
       if (message.scopeRevision === this.scopeRevision && message.request === this.request)
         this.set({ pending: false, result: message.result });
     } else if (message.kind === "error") {
-      if (message.scopeRevision !== undefined && message.scopeRevision !== this.scopeRevision) return;
+      if (message.scopeRevision !== undefined && message.scopeRevision !== this.scopeRevision)
+        return;
       if (message.request !== undefined && message.request !== this.request) return;
       if (message.scopeRevision === undefined) this.fatalError = message.message;
       this.set({ pending: false, result: EMPTY_MENTION_RESULT, error: message.message });
@@ -129,7 +178,12 @@ export class MentionClient {
   private onError: EventListener = () => {
     if (this.closed) return;
     this.fatalError = "文本提及索引未能完成，可重试；现有关系仍可使用。";
-    this.set({ ready: false, pending: false, result: EMPTY_MENTION_RESULT, error: this.fatalError });
+    this.set({
+      ready: false,
+      pending: false,
+      result: EMPTY_MENTION_RESULT,
+      error: this.fatalError,
+    });
   };
 
   private set(patch: Partial<MentionSnapshot>): void {

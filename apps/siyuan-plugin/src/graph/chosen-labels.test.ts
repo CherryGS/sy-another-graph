@@ -33,7 +33,10 @@ class ElementStub extends EventTarget {
   }
 }
 
-function prepared(count: number, order = Array.from({ length: count }, (_, index) => index)): PreparedGraph {
+function prepared(
+  count: number,
+  order = Array.from({ length: count }, (_, index) => index),
+): PreparedGraph {
   const indexToNode = order.map((index) => ({
     id: `id-${index}`,
     label: index ? `Node ${index}` : "<img src='invalid'>",
@@ -77,15 +80,22 @@ function harness(count = 2) {
     getPointPositions: vi.fn(() => {
       throw new Error("Label reads must never fall back to synchronous GPU access");
     }),
-    getPointPositionsAsync: vi.fn((options?: { dimensions?: Dimensions; signal?: AbortSignal }) =>
-      new Promise<Float32Array>((resolve, reject) => {
-        // Intentionally ignore abort: the consumer must reject even a late successful result.
-        requests.push({ dimensions: options?.dimensions ?? 2, signal: options?.signal, resolve, reject });
-      }),
+    getPointPositionsAsync: vi.fn(
+      (options?: { dimensions?: Dimensions; signal?: AbortSignal }) =>
+        new Promise<Float32Array>((resolve, reject) => {
+          // Intentionally ignore abort: the consumer must reject even a late successful result.
+          requests.push({
+            dimensions: options?.dimensions ?? 2,
+            signal: options?.signal,
+            resolve,
+            reject,
+          });
+        }),
     ),
-    spaceToScreenPosition: vi.fn(
-      (position: PointPosition): [number, number] => [position[0] * 2, position[1] * 2],
-    ),
+    spaceToScreenPosition: vi.fn((position: PointPosition): [number, number] => [
+      position[0] * 2,
+      position[1] * 2,
+    ]),
     getPointScreenRadiusByIndex: vi.fn(() => 4),
   };
   const labels = new ChosenLabels(
@@ -112,7 +122,9 @@ function harness(count = 2) {
   };
   const resolve = async (positions?: Float32Array, index = requests.length - 1) => {
     const read = requests[index];
-    read.resolve(positions ?? Float32Array.from({ length: count * read.dimensions }, (_, item) => item + 10));
+    read.resolve(
+      positions ?? Float32Array.from({ length: count * read.dimensions }, (_, item) => item + 10),
+    );
     await Promise.resolve();
   };
   const reject = async (error: unknown, index = requests.length - 1) => {
@@ -124,9 +136,27 @@ function harness(count = 2) {
     await resolve(positions);
     draw();
   };
-  const button = (id: string) => host.children[0].children.find((child) => child.dataset.graphNodeId === id)!;
-  const setTime = (value: number) => { now = value; };
-  return { host, frames, requests, geometry, labels, clicked, hover, reportError, draw, resolve, reject, ready, button, setTime };
+  const button = (id: string) =>
+    host.children[0].children.find((child) => child.dataset.graphNodeId === id)!;
+  const setTime = (value: number) => {
+    now = value;
+  };
+  return {
+    host,
+    frames,
+    requests,
+    geometry,
+    labels,
+    clicked,
+    hover,
+    reportError,
+    draw,
+    resolve,
+    reject,
+    ready,
+    button,
+    setTime,
+  };
 }
 
 describe("persistent chosen labels", () => {
@@ -157,7 +187,10 @@ describe("persistent chosen labels", () => {
       h.draw();
     }
     expect(h.requests).toHaveLength(1);
-    h.geometry.spaceToScreenPosition.mockImplementation((position) => [position[0] * 3, position[1] * 3]);
+    h.geometry.spaceToScreenPosition.mockImplementation((position) => [
+      position[0] * 3,
+      position[1] * 3,
+    ]);
     h.labels.refresh("projection");
     h.labels.setActive(true);
     h.draw();
@@ -209,7 +242,10 @@ describe("persistent chosen labels", () => {
     h.setTime(50);
     h.labels.refresh("simulation");
     h.draw();
-    h.geometry.spaceToScreenPosition.mockImplementation((position) => [position[0] * 3, position[1] * 3]);
+    h.geometry.spaceToScreenPosition.mockImplementation((position) => [
+      position[0] * 3,
+      position[1] * 3,
+    ]);
     h.labels.refresh("projection");
     h.draw();
     expect(h.button("id-0").style.left).toBe("30px");
@@ -217,7 +253,10 @@ describe("persistent chosen labels", () => {
     expect(h.requests).toHaveLength(2);
     expect(h.requests[1].signal?.aborted).toBe(false);
     await h.resolve(new Float32Array([10, 11, 70, 80]));
-    h.geometry.spaceToScreenPosition.mockImplementation((position) => [position[0] * 4, position[1] * 4]);
+    h.geometry.spaceToScreenPosition.mockImplementation((position) => [
+      position[0] * 4,
+      position[1] * 4,
+    ]);
     h.draw();
     expect(h.button("id-0").style.left).toBe("40px");
     expect(h.button("id-1").style.left).toBe("280px");
@@ -229,61 +268,70 @@ describe("persistent chosen labels", () => {
     [0, 50],
     [20, 60],
     [120, 250],
-  ])("waits after a %d ms moving read for a %d ms cooldown without idle polling", async (duration, cooldown) => {
-    const h = harness();
-    h.labels.update(prepared(2), ["id-0"], ["id-1"]);
-    await h.ready();
-    h.setTime(50);
-    h.labels.refresh("simulation");
-    h.draw();
-    h.labels.refresh("simulation");
-    h.draw();
-    expect(h.requests).toHaveLength(2);
-    const completedAt = 50 + duration;
-    h.setTime(completedAt);
-    await h.resolve(new Float32Array([10, 11, 50, 60]));
-    h.draw();
-    expect(h.frames.size).toBe(0);
-    expect(h.requests).toHaveLength(2);
-    for (const time of [completedAt, completedAt + cooldown - 1]) {
-      h.setTime(time);
+  ])(
+    "waits after a %d ms moving read for a %d ms cooldown without idle polling",
+    async (duration, cooldown) => {
+      const h = harness();
+      h.labels.update(prepared(2), ["id-0"], ["id-1"]);
+      await h.ready();
+      h.setTime(50);
+      h.labels.refresh("simulation");
+      h.draw();
+      h.labels.refresh("simulation");
+      h.draw();
+      expect(h.requests).toHaveLength(2);
+      const completedAt = 50 + duration;
+      h.setTime(completedAt);
+      await h.resolve(new Float32Array([10, 11, 50, 60]));
+      h.draw();
+      expect(h.frames.size).toBe(0);
+      expect(h.requests).toHaveLength(2);
+      for (const time of [completedAt, completedAt + cooldown - 1]) {
+        h.setTime(time);
+        h.labels.refresh("simulation");
+        expect(h.frames.size).toBe(0);
+        h.draw();
+      }
+      h.setTime(completedAt + cooldown);
+      expect(h.frames.size).toBe(0);
+      h.labels.refresh("simulation");
+      h.draw();
+      expect(h.requests).toHaveLength(3);
+      h.labels.dispose();
+    },
+  );
+
+  it.each(["positions", "membership", "data", "dimensions"])(
+    "lets an explicit %s change bypass moving-read cooldown",
+    async (change) => {
+      const h = harness();
+      const data = prepared(2);
+      h.labels.update(data, ["id-0"], ["id-1"]);
+      await h.ready();
+      h.setTime(1);
       h.labels.refresh("simulation");
       expect(h.frames.size).toBe(0);
-      h.draw();
-    }
-    h.setTime(completedAt + cooldown);
-    expect(h.frames.size).toBe(0);
-    h.labels.refresh("simulation");
-    h.draw();
-    expect(h.requests).toHaveLength(3);
-    h.labels.dispose();
-  });
-
-  it.each(["positions", "membership", "data", "dimensions"])("lets an explicit %s change bypass moving-read cooldown", async (change) => {
-    const h = harness();
-    const data = prepared(2);
-    h.labels.update(data, ["id-0"], ["id-1"]);
-    await h.ready();
-    h.setTime(1);
-    h.labels.refresh("simulation");
-    expect(h.frames.size).toBe(0);
-    h.geometry.spaceToScreenPosition.mockImplementation((position) => [position[0] * 3, position[1] * 3]);
-    h.labels.refresh("projection");
-    h.draw();
-    expect(h.requests).toHaveLength(1);
-    expect(h.button("id-0").style.left).toBe("30px");
-    if (change === "positions") h.labels.refresh();
-    else if (change === "membership") h.labels.update(data, ["id-1"], ["id-0"]);
-    else if (change === "data") h.labels.update(prepared(2, [1, 0]), ["id-0"], ["id-1"]);
-    else {
-      h.geometry.is3D = true;
+      h.geometry.spaceToScreenPosition.mockImplementation((position) => [
+        position[0] * 3,
+        position[1] * 3,
+      ]);
       h.labels.refresh("projection");
-    }
-    h.draw();
-    expect(h.requests).toHaveLength(2);
-    expect(h.requests[1].dimensions).toBe(change === "dimensions" ? 3 : 2);
-    h.labels.dispose();
-  });
+      h.draw();
+      expect(h.requests).toHaveLength(1);
+      expect(h.button("id-0").style.left).toBe("30px");
+      if (change === "positions") h.labels.refresh();
+      else if (change === "membership") h.labels.update(data, ["id-1"], ["id-0"]);
+      else if (change === "data") h.labels.update(prepared(2, [1, 0]), ["id-0"], ["id-1"]);
+      else {
+        h.geometry.is3D = true;
+        h.labels.refresh("projection");
+      }
+      h.draw();
+      expect(h.requests).toHaveLength(2);
+      expect(h.requests[1].dimensions).toBe(change === "dimensions" ? 3 : 2);
+      h.labels.dispose();
+    },
+  );
 
   it("does not let a late result from an older generation postpone the current moving read", async () => {
     const h = harness();
@@ -508,23 +556,28 @@ describe("persistent chosen labels", () => {
     h.labels.dispose();
   });
 
-  it.each(["refresh", "completion"])("rejects an old dimensional snapshot on %s", async (trigger) => {
-    const h = harness();
-    h.labels.update(prepared(2), ["id-0"]);
-    h.draw();
-    h.geometry.is3D = true;
-    if (trigger === "refresh") h.labels.refresh("projection");
-    else await h.resolve(new Float32Array([10, 20, 30, 40]), 0);
-    expect(h.requests[0].signal?.aborted).toBe(true);
-    h.draw();
-    expect(h.requests[1].dimensions).toBe(3);
-    if (trigger === "refresh") await h.resolve(new Float32Array([10, 20, 30, 40]), 0);
-    await h.resolve(new Float32Array([50, 60, 70, 80, 90, 100]), 1);
-    h.draw();
-    expect(h.geometry.spaceToScreenPosition).toHaveBeenCalledWith([50, 60, 70], { dimensions: 3 });
-    expect(h.button("id-0").style.left).toBe("100px");
-    h.labels.dispose();
-  });
+  it.each(["refresh", "completion"])(
+    "rejects an old dimensional snapshot on %s",
+    async (trigger) => {
+      const h = harness();
+      h.labels.update(prepared(2), ["id-0"]);
+      h.draw();
+      h.geometry.is3D = true;
+      if (trigger === "refresh") h.labels.refresh("projection");
+      else await h.resolve(new Float32Array([10, 20, 30, 40]), 0);
+      expect(h.requests[0].signal?.aborted).toBe(true);
+      h.draw();
+      expect(h.requests[1].dimensions).toBe(3);
+      if (trigger === "refresh") await h.resolve(new Float32Array([10, 20, 30, 40]), 0);
+      await h.resolve(new Float32Array([50, 60, 70, 80, 90, 100]), 1);
+      h.draw();
+      expect(h.geometry.spaceToScreenPosition).toHaveBeenCalledWith([50, 60, 70], {
+        dimensions: 3,
+      });
+      expect(h.button("id-0").style.left).toBe("100px");
+      h.labels.dispose();
+    },
+  );
 
   it("bounds operational failures per generation until explicit demand retries", async () => {
     const h = harness();

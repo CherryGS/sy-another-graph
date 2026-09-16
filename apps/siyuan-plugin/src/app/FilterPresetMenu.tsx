@@ -32,8 +32,7 @@ import { GraphFiltersPanel } from "./GraphFiltersPanel";
 import type { WorkbenchState } from "./state";
 
 type NamingAction =
-  | { kind: "create" | "saveAs" }
-  | { kind: "copy" | "rename"; preset: FilterPreset };
+  { kind: "create" | "saveAs" } | { kind: "copy" | "rename"; preset: FilterPreset };
 
 const NAMING_TITLES = {
   create: "新增筛选预设",
@@ -65,25 +64,19 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
   async function editPreset(preset: FilterPreset) {
     const request = ++editRequest.current;
     // Reopening the current preset must retain its unsaved filter changes.
-    const editable = preset.id === presets.activeId || await presets.apply(preset.id);
+    const editable = preset.id === presets.activeId || (await presets.apply(preset.id));
     if (editable && request === editRequest.current) setDetails(true);
   }
 
   const saveActions = !presets.temporaryActive && (presets.modified || !presets.activeId) && (
     <div className="flex flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-xs text-muted-foreground">
-          当前：{presets.activeName}
-        </span>
+        <span className="truncate text-xs text-muted-foreground">当前：{presets.activeName}</span>
         {presets.modified && <Badge variant="secondary">已修改</Badge>}
       </div>
       <div className="flex gap-2">
         {presets.activeId && (
-          <Button
-            size="sm"
-            disabled={disabled}
-            onClick={() => void presets.update()}
-          >
+          <Button size="sm" disabled={disabled} onClick={() => void presets.update()}>
             更新预设
           </Button>
         )}
@@ -104,12 +97,22 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       {presets.temporaryActive && presets.temporary && (
         <Alert role="status">
           <AlertDescription className="flex flex-col gap-2">
-            <p>临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中 + {presets.searchAncestorCount.toLocaleString()} 个上级节点。沿包含关系上溯至顶层文档。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。</p>
+            <p>
+              临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中 +{" "}
+              {presets.searchAncestorCount.toLocaleString()}{" "}
+              个上级节点。沿包含关系上溯至顶层文档。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。
+            </p>
             <p className="break-words">搜索：{presets.temporary.snapshot.label}</p>
             {presets.missingSearchIds.length > 0 && (
-              <p>当前图谱数据缺少 {presets.missingSearchIds.length.toLocaleString()} 个命中块，图谱不完整。请重新读取数据；已删除、加密或未能读取的块无法显示。缺失 ID 示例：{presets.missingSearchIds.slice(0, 5).join("、")}</p>
+              <p>
+                当前图谱数据缺少 {presets.missingSearchIds.length.toLocaleString()}{" "}
+                个命中块，图谱不完整。请重新读取数据；已删除、加密或未能读取的块无法显示。缺失 ID
+                示例：{presets.missingSearchIds.slice(0, 5).join("、")}
+              </p>
             )}
-            <Button variant="outline" size="sm" onClick={presets.leaveSearch}>返回原配置</Button>
+            <Button variant="outline" size="sm" onClick={presets.leaveSearch}>
+              返回原配置
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -131,9 +134,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       )}
       {presets.deleted && (
         <Alert role="status">
-          <AlertDescription className="truncate">
-            已删除「{presets.deleted.name}」
-          </AlertDescription>
+          <AlertDescription className="truncate">已删除「{presets.deleted.name}」</AlertDescription>
           <AlertAction>
             <Button
               variant="ghost"
@@ -158,7 +159,10 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
         aria-label={details ? `编辑筛选：${presets.activeName}` : "筛选预设"}
         onCloseAutoFocus={(event) => {
           if (naming) event.preventDefault();
-          else { editRequest.current++; setDetails(false); }
+          else {
+            editRequest.current++;
+            setDetails(false);
+          }
         }}
       >
         {details ? (
@@ -202,15 +206,24 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                         className="min-w-0 flex-1 justify-start"
                         aria-pressed={presets.temporaryActive}
                         title={presets.temporary.snapshot.label}
-                        onClick={() => { presets.resumeSearch(); state.setFiltersOpen(false); }}
+                        onClick={() => {
+                          presets.resumeSearch();
+                          state.setFiltersOpen(false);
+                        }}
                       >
                         {presets.temporaryActive && <Check data-icon="inline-start" />}
                         <span className="truncate">搜索：{presets.temporary.snapshot.label}</span>
                         <Badge variant="outline">临时</Badge>
                       </Button>
                       <PresetAction
-                        label="编辑临时搜索筛选" hint="编辑筛选" icon={SlidersHorizontal} disabled={false}
-                        onClick={() => { if (!presets.temporaryActive) presets.resumeSearch(); setDetails(true); }}
+                        label="编辑临时搜索筛选"
+                        hint="编辑筛选"
+                        icon={SlidersHorizontal}
+                        disabled={false}
+                        onClick={() => {
+                          if (!presets.temporaryActive) presets.resumeSearch();
+                          setDetails(true);
+                        }}
                       />
                     </li>
                   )}
@@ -239,9 +252,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                   {presets.presets.map((preset) => (
                     <li key={preset.id} className="flex min-w-0 items-center gap-1">
                       <Button
-                        variant={
-                          preset.id === presets.activeId ? "secondary" : "ghost"
-                        }
+                        variant={preset.id === presets.activeId ? "secondary" : "ghost"}
                         className="min-w-0 flex-1 justify-start"
                         disabled={disabled}
                         aria-label={`应用预设：${preset.name}`}
@@ -253,9 +264,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                           });
                         }}
                       >
-                        {preset.id === presets.activeId && (
-                          <Check data-icon="inline-start" />
-                        )}
+                        {preset.id === presets.activeId && <Check data-icon="inline-start" />}
                         <span className="truncate">{preset.name}</span>
                       </Button>
                       <PresetAction
@@ -291,11 +300,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                   ))}
                 </ul>
               )}
-              {full && (
-                <p className="px-2 text-xs text-muted-foreground">
-                  最多保存 50 个预设。
-                </p>
-              )}
+              {full && <p className="px-2 text-xs text-muted-foreground">最多保存 50 个预设。</p>}
               {(saveActions || presets.error || presets.deleted) && <Separator />}
               {saveActions && <div className="p-2">{saveActions}</div>}
               {feedback}
@@ -303,13 +308,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
           </ScrollArea>
         )}
       </PopoverContent>
-      {naming && (
-        <PresetNameDialog
-          action={naming}
-          presets={presets}
-          onClose={finishNaming}
-        />
-      )}
+      {naming && <PresetNameDialog action={naming} presets={presets} onClose={finishNaming} />}
     </>
   );
 }
@@ -418,10 +417,7 @@ function PresetNameDialog({
                   : "保存当前筛选，之后可从菜单快速切换。"}
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => void submit(event)}
-        >
+        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
           <FieldGroup>
             <Field data-invalid={invalid} data-disabled={busy}>
               <FieldLabel htmlFor="filter-preset-name">预设名称</FieldLabel>
@@ -458,12 +454,7 @@ function PresetNameDialog({
             </Alert>
           )}
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={onClose}
-            >
+            <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
               取消
             </Button>
             <Button type="submit" disabled={busy || !presets.available}>

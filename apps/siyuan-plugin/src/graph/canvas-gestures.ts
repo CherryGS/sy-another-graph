@@ -72,11 +72,7 @@ export class CanvasGestures {
     targets.window.addEventListener("mousemove", this.move, this.capture);
     targets.window.addEventListener("mouseup", this.up, this.capture);
     targets.window.addEventListener("wheel", this.wheel, this.capture);
-    targets.window.addEventListener(
-      "pointercancel",
-      this.cancelEvent,
-      this.capture,
-    );
+    targets.window.addEventListener("pointercancel", this.cancelEvent, this.capture);
     targets.window.addEventListener("blur", this.blur, this.capture);
     targets.document.addEventListener("visibilitychange", this.visibility);
   }
@@ -113,10 +109,7 @@ export class CanvasGestures {
       return;
     }
     if (pending.shift) consume(event);
-    if (
-      Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 3 &&
-      !pending.moved
-    )
+    if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 3 && !pending.moved)
       return;
     pending.moved = true;
     this.suppressClick = true;
@@ -176,11 +169,7 @@ export class CanvasGestures {
     if (this.suppressClick || this.scheduler.now() < this.suppressDoubleUntil) {
       return;
     }
-    if (
-      this.options.nodeAt(event) !== null ||
-      this.options.overRelationship(event)
-    )
-      return;
+    if (this.options.nodeAt(event) !== null || this.options.overRelationship(event)) return;
     this.options.onClearChosen();
   };
 
@@ -223,22 +212,11 @@ export class CanvasGestures {
     this.host.removeEventListener("mousedown", this.down, this.capture);
     this.host.removeEventListener("click", this.click, this.capture);
     this.host.removeEventListener("dblclick", this.doubleClick, this.capture);
-    this.targets.window.removeEventListener(
-      "mousemove",
-      this.move,
-      this.capture,
-    );
+    this.targets.window.removeEventListener("mousemove", this.move, this.capture);
     this.targets.window.removeEventListener("mouseup", this.up, this.capture);
     this.targets.window.removeEventListener("wheel", this.wheel, this.capture);
-    this.targets.window.removeEventListener(
-      "pointercancel",
-      this.cancelEvent,
-      this.capture,
-    );
+    this.targets.window.removeEventListener("pointercancel", this.cancelEvent, this.capture);
     this.targets.window.removeEventListener("blur", this.blur, this.capture);
-    this.targets.document.removeEventListener(
-      "visibilitychange",
-      this.visibility,
-    );
+    this.targets.document.removeEventListener("visibilitychange", this.visibility);
   }
 }

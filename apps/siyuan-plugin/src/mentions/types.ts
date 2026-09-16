@@ -50,8 +50,13 @@ export interface MentionResult {
 }
 
 export const EMPTY_MENTION_PROGRESS: MentionProgress = {
-  scanned: 0, total: 0, cached: 0, keywords: 0,
-  skippedKeywords: 0, skippedSources: 0, limitedSources: 0,
+  scanned: 0,
+  total: 0,
+  cached: 0,
+  keywords: 0,
+  skippedKeywords: 0,
+  skippedSources: 0,
+  limitedSources: 0,
 };
 
 export const MENTION_LIMITS = {

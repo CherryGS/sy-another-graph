@@ -35,11 +35,17 @@ const cleanups: Array<() => void> = [];
 function harness() {
   const frames = new Map<number, FrameRequestCallback>();
   let nextFrame = 0;
-  vi.stubGlobal("requestAnimationFrame", vi.fn((callback: FrameRequestCallback) => {
-    frames.set(++nextFrame, callback);
-    return nextFrame;
-  }));
-  vi.stubGlobal("cancelAnimationFrame", vi.fn((id: number) => frames.delete(id)));
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn((callback: FrameRequestCallback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    }),
+  );
+  vi.stubGlobal(
+    "cancelAnimationFrame",
+    vi.fn((id: number) => frames.delete(id)),
+  );
   vi.stubGlobal("window", { clearTimeout: vi.fn() });
   vi.stubGlobal("document", { getElementById: vi.fn(() => null) });
 
@@ -50,17 +56,17 @@ function harness() {
   const fences = new Set<Handle>();
   const copies = new Map<Handle, Float32Array>();
   const initialPacking = [
-    [GL.PACK_ALIGNMENT, 8], [GL.PACK_ROW_LENGTH, 17],
-    [GL.PACK_SKIP_ROWS, 2], [GL.PACK_SKIP_PIXELS, 3],
+    [GL.PACK_ALIGNMENT, 8],
+    [GL.PACK_ROW_LENGTH, 17],
+    [GL.PACK_SKIP_ROWS, 2],
+    [GL.PACK_SKIP_PIXELS, 3],
   ] as const;
   const packing = new Map<number, number>(initialPacking);
-  const pixels = new Float32Array([
-    1, 2, 101, 3,
-    4, 5, 102, 6,
-    7, 8, 103, 9,
-    90, 91, 104, 92,
-  ]);
-  const bindings = { framebuffer: hostFramebuffer as Handle | null, buffer: hostBuffer as Handle | null };
+  const pixels = new Float32Array([1, 2, 101, 3, 4, 5, 102, 6, 7, 8, 103, 9, 90, 91, 104, 92]);
+  const bindings = {
+    framebuffer: hostFramebuffer as Handle | null,
+    buffer: hostBuffer as Handle | null,
+  };
   let serial = 0;
   let status = GL.TIMEOUT_EXPIRED;
   let lastStatus = GL.TIMEOUT_EXPIRED;
@@ -97,17 +103,36 @@ function harness() {
     bufferData: vi.fn((target: number, bytes: number, usage: number) => {
       expect([target, usage]).toEqual([GL.PIXEL_PACK_BUFFER, GL.STREAM_READ]);
       expect(buffers.has(bindings.buffer!)).toBe(true);
-      expect(bytes).toBe(framebuffer.width * framebuffer.height * 4 * Float32Array.BYTES_PER_ELEMENT);
+      expect(bytes).toBe(
+        framebuffer.width * framebuffer.height * 4 * Float32Array.BYTES_PER_ELEMENT,
+      );
     }),
-    readPixels: vi.fn((x: number, y: number, width: number, height: number, format: number, type: number, offset: unknown) => {
-      expect([x, y, width, height, format, type]).toEqual([0, 0, framebuffer.width, framebuffer.height, GL.RGBA, GL.FLOAT]);
-      expect(offset).toBe(0);
-      expect(bindings.framebuffer).toBe(framebuffer.handle);
-      expect(buffers.has(bindings.buffer!)).toBe(true);
-      expect([...packing.values()]).toEqual([4, 0, 0, 0]);
-      copies.set(bindings.buffer!, pixels.slice());
-      lastStatus = GL.TIMEOUT_EXPIRED;
-    }),
+    readPixels: vi.fn(
+      (
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        format: number,
+        type: number,
+        offset: unknown,
+      ) => {
+        expect([x, y, width, height, format, type]).toEqual([
+          0,
+          0,
+          framebuffer.width,
+          framebuffer.height,
+          GL.RGBA,
+          GL.FLOAT,
+        ]);
+        expect(offset).toBe(0);
+        expect(bindings.framebuffer).toBe(framebuffer.handle);
+        expect(buffers.has(bindings.buffer!)).toBe(true);
+        expect([...packing.values()]).toEqual([4, 0, 0, 0]);
+        copies.set(bindings.buffer!, pixels.slice());
+        lastStatus = GL.TIMEOUT_EXPIRED;
+      },
+    ),
     fenceSync: vi.fn((condition: number, flags: number): Handle | null => {
       expect([condition, flags]).toEqual([GL.SYNC_GPU_COMMANDS_COMPLETE, 0]);
       const fence = { id: `fence-${++serial}` };
@@ -120,7 +145,9 @@ function harness() {
       lastStatus = status;
       return status;
     }),
-    deleteSync: vi.fn((fence: Handle) => { expect(fences.delete(fence)).toBe(true); }),
+    deleteSync: vi.fn((fence: Handle) => {
+      expect(fences.delete(fence)).toBe(true);
+    }),
     flush: vi.fn(),
     getBufferSubData: vi.fn((target: number, offset: number, destination: Float32Array) => {
       expect([target, offset]).toEqual([GL.PIXEL_PACK_BUFFER, 0]);
@@ -130,39 +157,59 @@ function harness() {
     }),
   };
   const absent = new Set<number>();
-  const context = Object.setPrototypeOf({
-    _isDestroyed: false,
-    isReady: true,
-    isPointPositionsUpdateNeeded: false,
-    device: { gl },
-    graph: {
-      pointsNumber: 3,
-      pointPositions: new Float32Array([1, 2, 4, 5, 7, 8]),
-      inputPointPositions: undefined as Float32Array | undefined,
-      isPointAbsent: (index: number) => absent.has(index),
+  const context = Object.setPrototypeOf(
+    {
+      _isDestroyed: false,
+      isReady: true,
+      isPointPositionsUpdateNeeded: false,
+      device: { gl },
+      graph: {
+        pointsNumber: 3,
+        pointPositions: new Float32Array([1, 2, 4, 5, 7, 8]),
+        inputPointPositions: undefined as Float32Array | undefined,
+        isPointAbsent: (index: number) => absent.has(index),
+      },
+      points: { currentPositionFbo: framebuffer, updatePinnedStatus: vi.fn(), destroy: vi.fn() },
+      store: { spaceDimensions: 2, screenSize: [0, 0] },
+      camera: { canvasSelection: undefined },
+      transition: { abort: vi.fn() },
+      ensureDevice: vi.fn(() => false),
+      requestRender: vi.fn(),
+      initPrograms: vi.fn(),
+      handOffFramingTo3D: vi.fn(() => true),
+      handOffFramingTo2D: vi.fn(),
+      maybeInitializeCamera: vi.fn(),
+      updateZoomDragBehaviors: vi.fn(),
+      cancelLongPress: vi.fn(),
+      stopFrames: vi.fn(),
+      getPointPositions: vi.fn(() => {
+        throw new Error("Synchronous readback is forbidden");
+      }),
     },
-    points: { currentPositionFbo: framebuffer, updatePinnedStatus: vi.fn(), destroy: vi.fn() },
-    store: { spaceDimensions: 2, screenSize: [0, 0] },
-    camera: { canvasSelection: undefined },
-    transition: { abort: vi.fn() },
-    ensureDevice: vi.fn(() => false),
-    requestRender: vi.fn(),
-    initPrograms: vi.fn(),
-    handOffFramingTo3D: vi.fn(() => true),
-    handOffFramingTo2D: vi.fn(),
-    maybeInitializeCamera: vi.fn(),
-    updateZoomDragBehaviors: vi.fn(),
-    cancelLongPress: vi.fn(),
-    stopFrames: vi.fn(),
-    getPointPositions: vi.fn(() => { throw new Error("Synchronous readback is forbidden"); }),
-  }, Graph.prototype);
-  const dispose = () => Reflect.apply(Graph.prototype._cancelPointPositionsReadback, context, [true]);
+    Graph.prototype,
+  );
+  const dispose = () =>
+    Reflect.apply(Graph.prototype._cancelPointPositionsReadback, context, [true]);
   cleanups.push(dispose);
   return {
-    context, gl, frames, buffers, fences, bindings, framebuffer, pixels, absent, packing, initialPacking,
-    hostFramebuffer, hostBuffer, dispose,
+    context,
+    gl,
+    frames,
+    buffers,
+    fences,
+    bindings,
+    framebuffer,
+    pixels,
+    absent,
+    packing,
+    initialPacking,
+    hostFramebuffer,
+    hostBuffer,
+    dispose,
     read(options: ReadOptions = {}): Promise<Float32Array> {
-      const promise = Reflect.apply(Graph.prototype.getPointPositionsAsync, context, [options]) as Promise<Float32Array>;
+      const promise = Reflect.apply(Graph.prototype.getPointPositionsAsync, context, [
+        options,
+      ]) as Promise<Float32Array>;
       // Cleanup can reject a pending request after an earlier assertion failed.
       // The original promise is still returned and asserted by every test.
       void promise.catch(() => {});
@@ -265,7 +312,9 @@ describe("Cosmos asynchronous point-position snapshots", () => {
   it("keeps at most one pending capture and stops it when every subscriber aborts", async () => {
     const h = harness();
     const controllers = Array.from({ length: 30 }, () => new AbortController());
-    const results = controllers.map((controller) => h.read({ signal: controller.signal }).catch((error: Error) => error.name));
+    const results = controllers.map((controller) =>
+      h.read({ signal: controller.signal }).catch((error: Error) => error.name),
+    );
     expect(h.gl.readPixels).toHaveBeenCalledTimes(1);
     expect(h.frames.size).toBe(1);
     for (const controller of controllers) controller.abort();
@@ -285,7 +334,9 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     async (operation) => {
       const h = harness();
       const failure = new Error(`${operation} failed`);
-      h.gl[operation].mockImplementationOnce(() => { throw failure; });
+      h.gl[operation].mockImplementationOnce(() => {
+        throw failure;
+      });
       const pending = h.read();
       const rejected = expect(pending).rejects.toBe(failure);
       if (operation !== "readPixels") {
@@ -306,56 +357,75 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     },
   );
 
-  it.each(["buffer", "fence"] as const)("rejects unavailable %s allocation without synchronous fallback", async (resource) => {
-    const h = harness();
-    if (resource === "buffer") h.gl.createBuffer.mockReturnValueOnce(null);
-    else h.gl.fenceSync.mockReturnValueOnce(null);
-    await expect(h.read()).rejects.toThrow(/scheduled|unavailable/i);
-    h.expectBindings();
-    expect(h.frames.size).toBe(0);
-    expect(h.fences.size).toBe(0);
-    expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
-    expect(h.context.getPointPositions).not.toHaveBeenCalled();
-    h.dispose();
-    expect(h.buffers.size).toBe(0);
-  });
+  it.each(["buffer", "fence"] as const)(
+    "rejects unavailable %s allocation without synchronous fallback",
+    async (resource) => {
+      const h = harness();
+      if (resource === "buffer") h.gl.createBuffer.mockReturnValueOnce(null);
+      else h.gl.fenceSync.mockReturnValueOnce(null);
+      await expect(h.read()).rejects.toThrow(/scheduled|unavailable/i);
+      h.expectBindings();
+      expect(h.frames.size).toBe(0);
+      expect(h.fences.size).toBe(0);
+      expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
+      expect(h.context.getPointPositions).not.toHaveBeenCalled();
+      h.dispose();
+      expect(h.buffers.size).toBe(0);
+    },
+  );
 
-  it.each(["fence failure", "context loss"] as const)("rejects every subscriber on %s and cancels polling", async (failure) => {
-    const h = harness();
-    const first = h.read();
-    const second = h.read({ dimensions: 3 });
-    const rejections = [expect(first).rejects.toThrow(/fence|context/i), expect(second).rejects.toThrow(/fence|context/i)];
-    if (failure === "context loss") h.gl.isContextLost.mockReturnValue(true);
-    h.frame(failure === "fence failure" ? GL.WAIT_FAILED : GL.CONDITION_SATISFIED);
-    await Promise.all(rejections);
-    h.expectBindings();
-    expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
-    expect(h.frames.size).toBe(0);
-    expect(h.fences.size).toBe(0);
-    expect(h.gl.readPixels).toHaveBeenCalledTimes(1);
-  });
+  it.each(["fence failure", "context loss"] as const)(
+    "rejects every subscriber on %s and cancels polling",
+    async (failure) => {
+      const h = harness();
+      const first = h.read();
+      const second = h.read({ dimensions: 3 });
+      const rejections = [
+        expect(first).rejects.toThrow(/fence|context/i),
+        expect(second).rejects.toThrow(/fence|context/i),
+      ];
+      if (failure === "context loss") h.gl.isContextLost.mockReturnValue(true);
+      h.frame(failure === "fence failure" ? GL.WAIT_FAILED : GL.CONDITION_SATISFIED);
+      await Promise.all(rejections);
+      h.expectBindings();
+      expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
+      expect(h.frames.size).toBe(0);
+      expect(h.fences.size).toBe(0);
+      expect(h.gl.readPixels).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it.each(["device", "points", "count", "committed positions", "pending positions"] as const)("rejects a stale %s owner before copying a completed buffer", async (changed) => {
-    const h = harness();
-    const first = h.read();
-    const second = h.read({ dimensions: 3 });
-    const rejections = [expect(first).rejects.toMatchObject({ name: "AbortError" }), expect(second).rejects.toMatchObject({ name: "AbortError" })];
-    if (changed === "device") h.context.device = { gl: h.gl };
-    else if (changed === "points") h.context.points = { ...h.context.points };
-    else if (changed === "count") h.context.graph.pointsNumber = 4;
-    else if (changed === "committed positions") h.context.graph.pointPositions = h.context.graph.pointPositions.slice();
-    else h.context.graph.inputPointPositions = new Float32Array([20, 30, 40, 50, 60, 70]);
-    h.frame(GL.CONDITION_SATISFIED);
-    await Promise.all(rejections);
-    expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
-    expect(h.frames.size).toBe(0);
-    expect(h.fences.size).toBe(0);
-  });
+  it.each(["device", "points", "count", "committed positions", "pending positions"] as const)(
+    "rejects a stale %s owner before copying a completed buffer",
+    async (changed) => {
+      const h = harness();
+      const first = h.read();
+      const second = h.read({ dimensions: 3 });
+      const rejections = [
+        expect(first).rejects.toMatchObject({ name: "AbortError" }),
+        expect(second).rejects.toMatchObject({ name: "AbortError" }),
+      ];
+      if (changed === "device") h.context.device = { gl: h.gl };
+      else if (changed === "points") h.context.points = { ...h.context.points };
+      else if (changed === "count") h.context.graph.pointsNumber = 4;
+      else if (changed === "committed positions")
+        h.context.graph.pointPositions = h.context.graph.pointPositions.slice();
+      else h.context.graph.inputPointPositions = new Float32Array([20, 30, 40, 50, 60, 70]);
+      h.frame(GL.CONDITION_SATISFIED);
+      await Promise.all(rejections);
+      expect(h.gl.getBufferSubData).not.toHaveBeenCalled();
+      expect(h.frames.size).toBe(0);
+      expect(h.fences.size).toBe(0);
+    },
+  );
 
   it("allows ordinary simulation framebuffer swaps while the captured source revision stays current", async () => {
     const h = harness();
     const pending = h.read({ dimensions: 3 });
-    h.context.points.currentPositionFbo = { ...h.framebuffer, handle: { id: "next-simulation-framebuffer" } };
+    h.context.points.currentPositionFbo = {
+      ...h.framebuffer,
+      handle: { id: "next-simulation-framebuffer" },
+    };
     h.frame(GL.CONDITION_SATISFIED);
     expect([...(await pending)]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(h.gl.readPixels).toHaveBeenCalledTimes(1);
@@ -379,7 +449,10 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     const h = harness();
     const pending = h.read();
     const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    Reflect.apply(Graph.prototype.setPointPositions, h.context, [new Float32Array([20, 30, 40, 50, 60, 70]), { dimensions: 2 }]);
+    Reflect.apply(Graph.prototype.setPointPositions, h.context, [
+      new Float32Array([20, 30, 40, 50, 60, 70]),
+      { dimensions: 2 },
+    ]);
     await rejected;
     expect(h.context.isPointPositionsUpdateNeeded).toBe(true);
     await expect(h.read()).rejects.toMatchObject({ name: "AbortError" });
@@ -392,7 +465,10 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     const h = harness();
     const before = h.read();
     const shared = h.read({ dimensions: 3 });
-    const rejections = [expect(before).rejects.toMatchObject({ name: "AbortError" }), expect(shared).rejects.toMatchObject({ name: "AbortError" })];
+    const rejections = [
+      expect(before).rejects.toMatchObject({ name: "AbortError" }),
+      expect(shared).rejects.toMatchObject({ name: "AbortError" }),
+    ];
     const pinned = [1];
     Reflect.apply(Graph.prototype.setPinnedPoints, h.context, [pinned]);
     await Promise.all(rejections);
@@ -415,7 +491,9 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     async (operation) => {
       const h = harness();
       const simulation = Object.assign(h.context.store, {
-        isSimulationRunning: true, alpha: 0.2, simulationProgress: 0.4,
+        isSimulationRunning: true,
+        alpha: 0.2,
+        simulationProgress: 0.4,
       });
       let final: Promise<Float32Array> | undefined;
       const onStopped = vi.fn(() => {
@@ -445,7 +523,9 @@ describe("Cosmos asynchronous point-position snapshots", () => {
       expect(h.gl.readPixels).toHaveBeenCalledTimes(1);
       h.pixels.set([40, 50, 102, 60], 4);
       if (operation === "disable")
-        Reflect.apply(Graph.prototype.applyEnableSimulationConfigChange, context, [{ enableSimulation: true }]);
+        Reflect.apply(Graph.prototype.applyEnableSimulationConfigChange, context, [
+          { enableSimulation: true },
+        ]);
       else Reflect.apply(Graph.prototype[operation], context, []);
       await Promise.all(rejections);
       expect(onStopped).toHaveBeenCalledTimes(1);
@@ -460,7 +540,8 @@ describe("Cosmos asynchronous point-position snapshots", () => {
       expect(h.frames.size).toBe(0);
       expect(h.fences.size).toBe(0);
       expect(context.getPointPositions).not.toHaveBeenCalled();
-      if (operation === "disable") expect(context.destroySimulationModules).toHaveBeenCalledTimes(1);
+      if (operation === "disable")
+        expect(context.destroySimulationModules).toHaveBeenCalledTimes(1);
       h.expectBindings();
     },
   );
@@ -469,7 +550,10 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     const h = harness();
     const first = h.read();
     const second = h.read({ dimensions: 3 });
-    const rejections = [expect(first).rejects.toMatchObject({ name: "AbortError" }), expect(second).rejects.toMatchObject({ name: "AbortError" })];
+    const rejections = [
+      expect(first).rejects.toMatchObject({ name: "AbortError" }),
+      expect(second).rejects.toMatchObject({ name: "AbortError" }),
+    ];
     Reflect.apply(Graph.prototype.setSpaceDimensions, h.context, [3]);
     await Promise.all(rejections);
     expect(h.context.store.spaceDimensions).toBe(3);
@@ -498,7 +582,10 @@ describe("Cosmos asynchronous point-position snapshots", () => {
     const h = harness();
     const first = h.read();
     const second = h.read({ dimensions: 3 });
-    const rejections = [expect(first).rejects.toMatchObject({ name: "AbortError" }), expect(second).rejects.toMatchObject({ name: "AbortError" })];
+    const rejections = [
+      expect(first).rejects.toMatchObject({ name: "AbortError" }),
+      expect(second).rejects.toMatchObject({ name: "AbortError" }),
+    ];
     Reflect.apply(Graph.prototype.destroy, h.context, []);
     await Promise.all(rejections);
     expect(h.context._isDestroyed).toBe(true);
@@ -521,9 +608,15 @@ describe("public Cosmograph asynchronous position bridge", () => {
     const promise = Promise.resolve(values);
     const source = {
       getPointPositionsAsync: vi.fn((_options?: ReadOptions) => promise),
-      getPointPositions: vi.fn(() => { throw new Error("Synchronous readback is forbidden"); }),
+      getPointPositions: vi.fn(() => {
+        throw new Error("Synchronous readback is forbidden");
+      }),
     };
-    const returned = Reflect.apply(Cosmograph.prototype.getPointPositionsAsync, { _cosmos: source }, [options]);
+    const returned = Reflect.apply(
+      Cosmograph.prototype.getPointPositionsAsync,
+      { _cosmos: source },
+      [options],
+    );
     expect(returned).toBe(promise);
     expect(await returned).toBe(values);
     expect(source.getPointPositionsAsync).toHaveBeenCalledExactlyOnceWith(options);
@@ -532,7 +625,9 @@ describe("public Cosmograph asynchronous position bridge", () => {
   });
 
   it("resolves an empty typed array before a Cosmos source exists", async () => {
-    const returned = Reflect.apply(Cosmograph.prototype.getPointPositionsAsync, {}, [{ dimensions: 3 }]);
+    const returned = Reflect.apply(Cosmograph.prototype.getPointPositionsAsync, {}, [
+      { dimensions: 3 },
+    ]);
     const values = await returned;
     expect(values).toBeInstanceOf(Float32Array);
     expect(values).toHaveLength(0);
@@ -541,8 +636,14 @@ describe("public Cosmograph asynchronous position bridge", () => {
   it("rejects a pre-aborted signal before calling the source", async () => {
     const controller = new AbortController();
     controller.abort();
-    const source = { getPointPositionsAsync: vi.fn(() => Promise.resolve(new Float32Array([1, 2]))) };
-    const returned = Reflect.apply(Cosmograph.prototype.getPointPositionsAsync, { _cosmos: source }, [{ signal: controller.signal }]);
+    const source = {
+      getPointPositionsAsync: vi.fn(() => Promise.resolve(new Float32Array([1, 2]))),
+    };
+    const returned = Reflect.apply(
+      Cosmograph.prototype.getPointPositionsAsync,
+      { _cosmos: source },
+      [{ signal: controller.signal }],
+    );
     await expect(returned).rejects.toMatchObject({ name: "AbortError" });
     expect(source.getPointPositionsAsync).not.toHaveBeenCalled();
   });

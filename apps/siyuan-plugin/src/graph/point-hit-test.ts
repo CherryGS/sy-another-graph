@@ -1,4 +1,10 @@
-import { cameraDepthOffset, pointAt, projectPosition, type CameraState, type PointGeometry } from "./geometry";
+import {
+  cameraDepthOffset,
+  pointAt,
+  projectPosition,
+  type CameraState,
+  type PointGeometry,
+} from "./geometry";
 
 interface HitGeometry extends PointGeometry {
   findPointsInRect(rect: [[number, number], [number, number]]): number[] | undefined;
@@ -6,18 +12,18 @@ interface HitGeometry extends PointGeometry {
 }
 
 /** Both the rectangle query and radius comparison use canvas-local CSS pixels. */
-export function hitTestPoint(
-  geometry: HitGeometry,
-  screen: [number, number],
-): number | undefined {
+export function hitTestPoint(geometry: HitGeometry, screen: [number, number]): number | undefined {
   const dimensions = geometry.is3D ? 3 : 2;
   // The 2D GPU query takes CSS pixels and performs its own framebuffer Y flip.
   // Its 3D counterpart already reads and projects every point. Do that only once
   // here, also checking large perspective circles whose centers lie outside 36px.
-  const candidates = dimensions === 2 ? geometry.findPointsInRect([
-    [screen[0] - 36, screen[1] - 36],
-    [screen[0] + 36, screen[1] + 36],
-  ]) : undefined;
+  const candidates =
+    dimensions === 2
+      ? geometry.findPointsInRect([
+          [screen[0] - 36, screen[1] - 36],
+          [screen[0] + 36, screen[1] + 36],
+        ])
+      : undefined;
   if (dimensions === 2 && !candidates?.length) return;
   // getPointPositionByIndex reads the entire GPU position buffer for each candidate.
   const positions = geometry.getPointPositions({ dimensions });
@@ -34,9 +40,17 @@ export function hitTestPoint(
     const point = projectPosition(geometry, position);
     if (!point) continue;
     const delta = Math.hypot(screen[0] - point[0], screen[1] - point[1]);
-    const radius = geometry.getPointScreenRadiusByIndex(index, position.length === 3 ? position : undefined);
+    const radius = geometry.getPointScreenRadiusByIndex(
+      index,
+      position.length === 3 ? position : undefined,
+    );
     const candidateDepth = camera ? cameraDepthOffset(camera, position) : 0;
-    if (delta <= Math.max(3, Number.isFinite(radius) ? radius : 0) + 2 && (camera ? candidateDepth > depth || candidateDepth === depth && delta < distance : delta < distance)) {
+    if (
+      delta <= Math.max(3, Number.isFinite(radius) ? radius : 0) + 2 &&
+      (camera
+        ? candidateDepth > depth || (candidateDepth === depth && delta < distance)
+        : delta < distance)
+    ) {
       closest = index;
       distance = delta;
       depth = candidateDepth;

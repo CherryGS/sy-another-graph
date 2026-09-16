@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  createGraphEngine,
-  type GraphEngine,
-} from "../engine/client";
+import { createGraphEngine, type GraphEngine } from "../engine/client";
 import { numericTopology, type CurrentGraph } from "../data/graph-model";
 
 export interface LoadedGraphEngine {
@@ -11,10 +8,7 @@ export interface LoadedGraphEngine {
   topology: ReturnType<typeof numericTopology>;
 }
 
-export function useGraphEngine(
-  graph: CurrentGraph | null,
-  reportError: (message: string) => void,
-) {
+export function useGraphEngine(graph: CurrentGraph | null, reportError: (message: string) => void) {
   const [loaded, setLoaded] = useState<LoadedGraphEngine | null>(null);
   const [failure, setFailure] = useState<{
     graph: CurrentGraph;
@@ -37,8 +31,7 @@ export function useGraphEngine(
       })
       .catch((error: unknown) => {
         if (active) {
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : String(error);
           setFailure({ graph, message });
           reportError(message);
         }
@@ -52,8 +45,7 @@ export function useGraphEngine(
   return {
     loaded: loaded?.graph === graph ? loaded : null,
     current,
-    loading:
-      graph !== null && loaded?.graph !== graph && failure?.graph !== graph,
+    loading: graph !== null && loaded?.graph !== graph && failure?.graph !== graph,
     error: failure?.graph === graph ? failure.message : "",
   };
 }

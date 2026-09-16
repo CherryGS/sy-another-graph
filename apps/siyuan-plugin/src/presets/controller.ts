@@ -1,6 +1,15 @@
 import { DEFAULT_FILTERS, type GraphFilters } from "../data/types";
-import { createPresetStore, presetFilters, presetName, readPresetStore, samePresetFilters, PRESET_LIMIT,
-  type FilterPreset, type PresetFilters, type PresetStore } from "./model";
+import {
+  createPresetStore,
+  presetFilters,
+  presetName,
+  readPresetStore,
+  samePresetFilters,
+  PRESET_LIMIT,
+  type FilterPreset,
+  type PresetFilters,
+  type PresetStore,
+} from "./model";
 
 export interface PresetPort {
   load(): Promise<PresetStore | null>;
@@ -23,7 +32,12 @@ interface Context {
   validate: (filters: PresetFilters) => string;
 }
 export const initialPresetSnapshot = (): PresetSnapshot => ({
-  store: createPresetStore(), loading: true, saving: false, available: false, error: "", deleted: null,
+  store: createPresetStore(),
+  loading: true,
+  saving: false,
+  available: false,
+  error: "",
+  deleted: null,
 });
 
 /** A save is committed only after SiYuan acknowledges it. Filter drafts and
@@ -66,14 +80,23 @@ export class PresetController {
   /** Startup preferences wait for actual source availability. Any explicit rule
    * edit, even one later reverted, takes precedence over delayed restoration. */
   hydrate(): void {
-    if (this.closed || !this.pendingRestore || this.snapshot.loading || !this.snapshot.available) return;
-    if (this.context.ruleRevision() !== 0) { this.pendingRestore = false; return; }
+    if (this.closed || !this.pendingRestore || this.snapshot.loading || !this.snapshot.available)
+      return;
+    if (this.context.ruleRevision() !== 0) {
+      this.pendingRestore = false;
+      return;
+    }
     if (!this.context.sourceReady()) return;
     this.pendingRestore = false;
-    const preset = this.snapshot.store.presets.find(item => item.id === this.snapshot.store.activePresetId);
+    const preset = this.snapshot.store.presets.find(
+      (item) => item.id === this.snapshot.store.activePresetId,
+    );
     if (!preset) return;
     const error = this.context.validate(preset.filters);
-    if (error) { this.set({ error: `${error}预设未自动应用。` }); return; }
+    if (error) {
+      this.set({ error: `${error}预设未自动应用。` });
+      return;
+    }
     this.context.applyFilters(preset.filters);
   }
 
@@ -86,13 +109,20 @@ export class PresetController {
       const apply = () => {
         if (this.context.ruleRevision() === revision) this.context.applyFilters(preset.filters);
       };
-      if (this.snapshot.store.activePresetId === id) { apply(); return true; }
+      if (this.snapshot.store.activePresetId === id) {
+        apply();
+        return true;
+      }
       return this.commit({ ...this.snapshot.store, activePresetId: id }, apply);
     });
   }
 
-  create(name: string): Promise<boolean> { return this.add(name, presetFilters(DEFAULT_FILTERS)); }
-  saveAs(name: string): Promise<boolean> { return this.add(name, presetFilters(this.context.getFilters()), false); }
+  create(name: string): Promise<boolean> {
+    return this.add(name, presetFilters(DEFAULT_FILTERS));
+  }
+  saveAs(name: string): Promise<boolean> {
+    return this.add(name, presetFilters(this.context.getFilters()), false);
+  }
   copy(id: string, name: string): Promise<boolean> {
     return this.action(() => this.add(name, this.find(id).filters));
   }
@@ -101,8 +131,12 @@ export class PresetController {
     return this.action(() => {
       this.find(id);
       const normalized = presetName(name);
-      return this.commit({ ...this.snapshot.store,
-        presets: this.snapshot.store.presets.map(item => item.id === id ? { ...item, name: normalized } : item) });
+      return this.commit({
+        ...this.snapshot.store,
+        presets: this.snapshot.store.presets.map((item) =>
+          item.id === id ? { ...item, name: normalized } : item,
+        ),
+      });
     });
   }
 
@@ -111,8 +145,12 @@ export class PresetController {
       const id = this.snapshot.store.activePresetId;
       if (!id) throw new Error("请将当前筛选另存为新预设。");
       const filters = presetFilters(this.context.getFilters());
-      return this.commit({ ...this.snapshot.store,
-        presets: this.snapshot.store.presets.map(item => item.id === id ? { ...item, filters } : item) });
+      return this.commit({
+        ...this.snapshot.store,
+        presets: this.snapshot.store.presets.map((item) =>
+          item.id === id ? { ...item, filters } : item,
+        ),
+      });
     });
   }
 
@@ -120,9 +158,21 @@ export class PresetController {
     return this.action(() => {
       const preset = this.find(id);
       const store = this.snapshot.store;
-      const undo = { preset, index: store.presets.indexOf(preset), active: store.activePresetId === id };
-      return this.commit({ ...store, presets: store.presets.filter(item => item.id !== id),
-        activePresetId: undo.active ? null : store.activePresetId }, () => { this.undo = undo; });
+      const undo = {
+        preset,
+        index: store.presets.indexOf(preset),
+        active: store.activePresetId === id,
+      };
+      return this.commit(
+        {
+          ...store,
+          presets: store.presets.filter((item) => item.id !== id),
+          activePresetId: undo.active ? null : store.activePresetId,
+        },
+        () => {
+          this.undo = undo;
+        },
+      );
     });
   }
 
@@ -130,34 +180,62 @@ export class PresetController {
     return this.action(() => {
       const undo = this.undo;
       if (!undo) return true;
-      if (this.snapshot.store.presets.length >= PRESET_LIMIT) throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
-      if (this.snapshot.store.presets.some(item => item.id === undo.preset.id)) return true;
+      if (this.snapshot.store.presets.length >= PRESET_LIMIT)
+        throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
+      if (this.snapshot.store.presets.some((item) => item.id === undo.preset.id)) return true;
       const presets = [...this.snapshot.store.presets];
       presets.splice(Math.min(undo.index, presets.length), 0, undo.preset);
-      const restoreActive = undo.active && !this.snapshot.store.activePresetId
-        && samePresetFilters(this.context.getFilters(), undo.preset.filters);
-      return this.commit({ ...this.snapshot.store, presets,
-        activePresetId: restoreActive ? undo.preset.id : this.snapshot.store.activePresetId }, () => { this.undo = null; });
+      const restoreActive =
+        undo.active &&
+        !this.snapshot.store.activePresetId &&
+        samePresetFilters(this.context.getFilters(), undo.preset.filters);
+      return this.commit(
+        {
+          ...this.snapshot.store,
+          presets,
+          activePresetId: restoreActive ? undo.preset.id : this.snapshot.store.activePresetId,
+        },
+        () => {
+          this.undo = null;
+        },
+      );
     });
   }
 
-  dispose(): void { this.closed = true; this.generation++; this.port.dispose(); }
+  dispose(): void {
+    this.closed = true;
+    this.generation++;
+    this.port.dispose();
+  }
 
   private add(name: string, filters: PresetFilters, activate = true): Promise<boolean> {
     return this.action(() => {
-      if (this.snapshot.store.presets.length >= PRESET_LIMIT) throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
+      if (this.snapshot.store.presets.length >= PRESET_LIMIT)
+        throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
       const error = activate ? this.context.validate(filters) : "";
       if (error) throw new Error(error);
-      const preset = { id: crypto.randomUUID(), name: presetName(name), filters: presetFilters(filters) };
+      const preset = {
+        id: crypto.randomUUID(),
+        name: presetName(name),
+        filters: presetFilters(filters),
+      };
       const revision = this.context.ruleRevision();
-      return this.commit({ ...this.snapshot.store, presets: [...this.snapshot.store.presets, preset], activePresetId: preset.id }, () => {
-        if (activate && this.context.ruleRevision() === revision) this.context.applyFilters(preset.filters);
-      });
+      return this.commit(
+        {
+          ...this.snapshot.store,
+          presets: [...this.snapshot.store.presets, preset],
+          activePresetId: preset.id,
+        },
+        () => {
+          if (activate && this.context.ruleRevision() === revision)
+            this.context.applyFilters(preset.filters);
+        },
+      );
     });
   }
 
   private find(id: string): FilterPreset {
-    const preset = this.snapshot.store.presets.find(item => item.id === id);
+    const preset = this.snapshot.store.presets.find((item) => item.id === id);
     if (!preset) throw new Error("该预设已不可用，请重新读取预设。");
     return preset;
   }
@@ -168,8 +246,12 @@ export class PresetController {
       this.set({ error: "请先重试读取预设，确认已保存的内容后再操作。" });
       return false;
     }
-    try { return await run(); }
-    catch (error) { if (!this.closed) this.set({ error: this.message(error) }); return false; }
+    try {
+      return await run();
+    } catch (error) {
+      if (!this.closed) this.set({ error: this.message(error) });
+      return false;
+    }
   }
 
   private async commit(value: PresetStore, after?: () => void): Promise<boolean> {
@@ -182,7 +264,13 @@ export class PresetController {
       if (!result || JSON.stringify(result) !== JSON.stringify(next))
         throw new Error("思源返回的预设与本次保存不一致，请重试读取确认。");
       after?.();
-      this.set({ store: result, saving: false, available: true, error: "", deleted: this.undo?.preset ?? null });
+      this.set({
+        store: result,
+        saving: false,
+        available: true,
+        error: "",
+        deleted: this.undo?.preset ?? null,
+      });
       return true;
     } catch (error) {
       if (!this.closed) this.set({ saving: false, available: false, error: this.message(error) });
@@ -190,7 +278,9 @@ export class PresetController {
     }
   }
 
-  private message(error: unknown): string { return error instanceof Error ? error.message : String(error); }
+  private message(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
   private set(patch: Partial<PresetSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
     this.publish(this.snapshot);

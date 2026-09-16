@@ -15,11 +15,7 @@ function host(timeout = 1_000) {
   const removeListener = vi.spyOn(target, "removeEventListener");
   const client = new PresetClient(target as unknown as Window, timeout);
   clients.push(client);
-  const message = (
-    data: unknown,
-    origin = target.location.origin,
-    source: unknown = parent,
-  ) => {
+  const message = (data: unknown, origin = target.location.origin, source: unknown = parent) => {
     const event = new MessageEvent("message", { data, origin });
     Object.defineProperty(event, "source", { value: source });
     target.dispatchEvent(event);
@@ -58,7 +54,7 @@ describe("preset host client", () => {
       store,
     });
     expect(h.request(1).request).not.toBe(h.request().request);
-    expect(h.parent.postMessage.mock.calls.map(call => call[1])).toEqual([
+    expect(h.parent.postMessage.mock.calls.map((call) => call[1])).toEqual([
       h.target.location.origin,
       h.target.location.origin,
     ]);
@@ -94,8 +90,16 @@ describe("preset host client", () => {
   });
 
   it.each([
-    { label: "host failure", payload: { ok: false, error: "Unable to save presets" }, error: "Unable to save presets" },
-    { label: "unsupported store", payload: { ok: true, store: { version: 2 } }, error: "预设数据格式不受支持" },
+    {
+      label: "host failure",
+      payload: { ok: false, error: "Unable to save presets" },
+      error: "Unable to save presets",
+    },
+    {
+      label: "unsupported store",
+      payload: { ok: true, store: { version: 2 } },
+      error: "预设数据格式不受支持",
+    },
     { label: "missing store", payload: { ok: true }, error: "预设数据格式不受支持" },
     { label: "missing status", payload: { store: null }, error: "无效的预设响应" },
     { label: "non-boolean status", payload: { ok: "true", store: null }, error: "无效的预设响应" },
@@ -142,7 +146,9 @@ describe("preset host client", () => {
     expect(vi.getTimerCount()).toBe(0);
     h.message(h.response(h.request().request, { ok: true, store: null }));
     await expect(h.client.load()).rejects.toThrow("请在思源插件页签中读取和保存预设");
-    await expect(h.client.save(createPresetStore())).rejects.toThrow("请在思源插件页签中读取和保存预设");
+    await expect(h.client.save(createPresetStore())).rejects.toThrow(
+      "请在思源插件页签中读取和保存预设",
+    );
     expect(h.parent.postMessage).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -151,16 +157,20 @@ describe("preset host client", () => {
     const h = host();
     Object.defineProperty(h.target, "parent", { value: h.target });
     await expect(h.client.load()).rejects.toThrow("请在思源插件页签中读取和保存预设");
-    await expect(h.client.save(createPresetStore())).rejects.toThrow("请在思源插件页签中读取和保存预设");
+    await expect(h.client.save(createPresetStore())).rejects.toThrow(
+      "请在思源插件页签中读取和保存预设",
+    );
     expect(h.parent.postMessage).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it.each([new Error("Host transport unavailable"), "Host transport unavailable"])(
     "cleans up synchronous postMessage failures and permits retry (%s)",
-    async failure => {
+    async (failure) => {
       const h = host();
-      h.parent.postMessage.mockImplementationOnce(() => { throw failure; });
+      h.parent.postMessage.mockImplementationOnce(() => {
+        throw failure;
+      });
       await expect(h.client.load()).rejects.toThrow("Host transport unavailable");
       expect(vi.getTimerCount()).toBe(0);
       const retried = h.client.load();

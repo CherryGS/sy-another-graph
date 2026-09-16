@@ -37,17 +37,14 @@ class TrackedDuckDB extends AsyncDuckDB {
 }
 
 /** Own the bundled worker explicitly; never fall back to DuckDB's default CDN bundles. */
-export async function createLocalDuckDB(
-  signal: AbortSignal,
-): Promise<LocalDuckDB> {
+export async function createLocalDuckDB(signal: AbortSignal): Promise<LocalDuckDB> {
   signal.throwIfAborted();
   const bundle = await selectBundle({
     mvp: { mainModule: mvpWasmUrl, mainWorker: mvpWorkerUrl },
     eh: { mainModule: ehWasmUrl, mainWorker: ehWorkerUrl },
   });
   signal.throwIfAborted();
-  if (!bundle.mainWorker)
-    throw new Error("当前浏览器没有可用的本地图数据库运行环境。");
+  if (!bundle.mainWorker) throw new Error("当前浏览器没有可用的本地图数据库运行环境。");
   const mainWorkerUrl = new URL(bundle.mainWorker, window.location.href).href;
   const mainModuleUrl = new URL(bundle.mainModule, window.location.href).href;
   // A blob worker inherits the iframe's CSP; a direct URL worker does not.

@@ -18,7 +18,11 @@ function node(id: string, index: number): CanvasNode {
 
 describe("prepareGraph", () => {
   it("marks dense search indices without changing labels, shapes, colors, identities, or interactions", async () => {
-    const nodes = [{ ...node("ancestor", 30), degree: 500 }, { ...node("hit", 4), label: '<img src="https://invalid.example/pixel"> & Hit' }, node("projection", 90)];
+    const nodes = [
+      { ...node("ancestor", 30), degree: 500 },
+      { ...node("hit", 4), label: '<img src="https://invalid.example/pixel"> & Hit' },
+      node("projection", 90),
+    ];
     const edges = [{ source: 30, target: 4, kind: "hierarchy" as const, weight: 1 }];
     const origins = { matches: new Set(["hit"]), projected: new Map([["projection", 2]]) };
     const marked = await prepareGraph(nodes, edges, new AbortController().signal, origins);
@@ -29,15 +33,23 @@ describe("prepareGraph", () => {
     expect(marked.config.accentedPointIndices).toEqual([1, 2]);
     expect(ordinary.config.accentedPointIndices).toEqual([]);
     expect(marked.config.pointLabelWeightBy).toBe("labelWeight");
-    expect(markedPoints.getChild("labelWeight")!.get(1)).toBeGreaterThan(markedPoints.getChild("labelWeight")!.get(0));
-    expect(Array.from(ordinaryPoints.getChild("labelWeight")!)).toEqual(Array.from(ordinaryPoints.getChild("degree")!));
-    expect(markedPoints.getChild("label")!.get(1)).toBe("&lt;img src=&quot;https://invalid.example/pixel&quot;&gt; &amp; Hit");
+    expect(markedPoints.getChild("labelWeight")!.get(1)).toBeGreaterThan(
+      markedPoints.getChild("labelWeight")!.get(0),
+    );
+    expect(Array.from(ordinaryPoints.getChild("labelWeight")!)).toEqual(
+      Array.from(ordinaryPoints.getChild("degree")!),
+    );
+    expect(markedPoints.getChild("label")!.get(1)).toBe(
+      "&lt;img src=&quot;https://invalid.example/pixel&quot;&gt; &amp; Hit",
+    );
     expect(markedPoints.getChild("label")!.get(2)).toBe("projection");
-    expect(marked.indexToLabel).toEqual(nodes.map(node => node.label));
+    expect(marked.indexToLabel).toEqual(nodes.map((node) => node.label));
     expect(marked.indexToId).toEqual(ordinary.indexToId);
     expect(marked.indexToEdge).toEqual(ordinary.indexToEdge);
     for (const column of ["label", "color", "branchColor", "degreeColor", "typeColor", "degree"])
-      expect(Array.from(markedPoints.getChild(column)!)).toEqual(Array.from(ordinaryPoints.getChild(column)!));
+      expect(Array.from(markedPoints.getChild(column)!)).toEqual(
+        Array.from(ordinaryPoints.getChild(column)!),
+      );
     expect(marked.config.outlinedPointIndices).toBeUndefined();
     expect(marked.searchOrigins).toBe(origins);
     expect(ordinary.searchOrigins).toBeUndefined();
@@ -62,10 +74,7 @@ describe("prepareGraph", () => {
     expect(Array.from(links.getChild("targetIndex")!)).toEqual([0, 1]);
     expect(Array.from(links.getChild("source")!)).toEqual(["alpha", "gamma"]);
     expect(Array.from(links.getChild("target")!)).toEqual(["gamma", "alpha"]);
-    expect(Array.from(links.getChild("color")!)).toEqual([
-      "#91b7df",
-      "#60728d",
-    ]);
+    expect(Array.from(links.getChild("color")!)).toEqual(["#91b7df", "#60728d"]);
     expect(Array.from(links.getChild("style")!)).toEqual([0, 1]);
     const widths = Array.from(links.getChild("width")!) as number[];
     expect(widths[0]).toBeGreaterThan(widths[1]);
@@ -76,11 +85,7 @@ describe("prepareGraph", () => {
   });
 
   it("supports a graph containing nodes without any visible edges", async () => {
-    const result = await prepareGraph(
-      [node("alpha", 3)],
-      [],
-      new AbortController().signal,
-    );
+    const result = await prepareGraph([node("alpha", 3)], [], new AbortController().signal);
     expect(result.pointsCount).toBe(1);
     expect(result.linksCount).toBe(0);
     const links = result.config.links as Table;
@@ -92,9 +97,20 @@ describe("prepareGraph", () => {
   });
 
   it("renders text mentions with the dotted style while retaining their exact provenance", async () => {
-    const mention = { source: 3, target: 18, kind: "text-mention" as const, weight: 2,
-      provenance: [{ sourceId: "paragraph", targetId: "beta", kind: "text-mention" as const, weight: 2 }] };
-    const result = await prepareGraph([node("alpha", 3), node("beta", 18)], [mention], new AbortController().signal);
+    const mention = {
+      source: 3,
+      target: 18,
+      kind: "text-mention" as const,
+      weight: 2,
+      provenance: [
+        { sourceId: "paragraph", targetId: "beta", kind: "text-mention" as const, weight: 2 },
+      ],
+    };
+    const result = await prepareGraph(
+      [node("alpha", 3), node("beta", 18)],
+      [mention],
+      new AbortController().signal,
+    );
     const links = result.config.links as Table;
     expect(Array.from(links.getChild("style")!)).toEqual([2]);
     expect(Array.from(links.getChild("color")!)).toEqual(["#d6b670"]);
@@ -110,18 +126,10 @@ describe("prepareGraph", () => {
 
   it("rejects duplicate IDs or source indices instead of misdirecting navigation", async () => {
     await expect(
-      prepareGraph(
-        [node("alpha", 3), node("alpha", 4)],
-        [],
-        new AbortController().signal,
-      ),
+      prepareGraph([node("alpha", 3), node("alpha", 4)], [], new AbortController().signal),
     ).rejects.toThrow("重复");
     await expect(
-      prepareGraph(
-        [node("alpha", 3), node("beta", 3)],
-        [],
-        new AbortController().signal,
-      ),
+      prepareGraph([node("alpha", 3), node("beta", 3)], [], new AbortController().signal),
     ).rejects.toThrow("重复");
   });
 
@@ -130,11 +138,7 @@ describe("prepareGraph", () => {
       ...node("alpha", 3),
       label: '<img src="https://example.invalid/pixel"> A & B',
     };
-    const result = await prepareGraph(
-      [input],
-      [],
-      new AbortController().signal,
-    );
+    const result = await prepareGraph([input], [], new AbortController().signal);
     const points = result.config.points as Table;
     expect(points.getChild("label")!.get(0)).toBe(
       "&lt;img src=&quot;https://example.invalid/pixel&quot;&gt; A &amp; B",
@@ -144,19 +148,11 @@ describe("prepareGraph", () => {
 
   it("prepares all color modes once so display controls can reuse the uploaded topology", async () => {
     const input = { ...node("alpha", 3), path: "/root/branch.sy", degree: 20 };
-    const result = await prepareGraph(
-      [input],
-      [],
-      new AbortController().signal,
-    );
+    const result = await prepareGraph([input], [], new AbortController().signal);
     const points = result.config.points as Table;
     expect(points.getChild("color")!.get(0)).toBe(input.color);
-    expect(points.getChild("branchColor")!.get(0)).toBe(
-      nodeColor(input, "branch"),
-    );
-    expect(points.getChild("degreeColor")!.get(0)).toBe(
-      nodeColor(input, "degree"),
-    );
+    expect(points.getChild("branchColor")!.get(0)).toBe(nodeColor(input, "branch"));
+    expect(points.getChild("degreeColor")!.get(0)).toBe(nodeColor(input, "degree"));
     expect(points.getChild("typeColor")!.get(0)).toBe(nodeColor(input, "type"));
     expect(result.config.pointColorBy).toBe("typeColor");
   });
@@ -184,23 +180,15 @@ describe("prepareGraph", () => {
     };
     const result = await prepareGraph(
       [node("doc", 3), node("item", 18)],
-      [
-        { source: 99, target: 3, kind: "hierarchy", weight: 1 },
-        selfLoop,
-        database,
-      ],
+      [{ source: 99, target: 3, kind: "hierarchy", weight: 1 }, selfLoop, database],
       new AbortController().signal,
     );
     expect(result.indexToEdge).toHaveLength(2);
     expect(result.indexToEdge[0]).toBe(selfLoop);
     expect(result.indexToEdge[1]).toBe(database);
     expect(result.indexToNode[1].id).toBe("item");
-    expect(
-      Array.from((result.config.links as Table).getChild("sourceIndex")!),
-    ).toEqual([0, 0]);
-    expect(
-      Array.from((result.config.links as Table).getChild("targetIndex")!),
-    ).toEqual([0, 1]);
+    expect(Array.from((result.config.links as Table).getChild("sourceIndex")!)).toEqual([0, 0]);
+    expect(Array.from((result.config.links as Table).getChild("targetIndex")!)).toEqual([0, 1]);
     expect(result.linksCount).toBe(2);
   });
 });

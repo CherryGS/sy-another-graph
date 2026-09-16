@@ -21,10 +21,7 @@ export class DragLabelGuard {
     if (this.targets.document.visibilityState === "hidden") this.end();
   };
 
-  constructor(
-    host: LabelHost,
-    targets: DragLabelGuardTargets = { window, document },
-  ) {
+  constructor(host: LabelHost, targets: DragLabelGuardTargets = { window, document }) {
     this.host = host;
     this.targets = targets;
     targets.window.addEventListener("blur", this.windowBlur, this.capture);
@@ -47,14 +44,7 @@ export class DragLabelGuard {
     this.end();
     this.disposed = true;
     this.targets.window.removeEventListener("blur", this.windowBlur, this.capture);
-    this.targets.window.removeEventListener(
-      "pointercancel",
-      this.clearDrag,
-      this.capture,
-    );
-    this.targets.document.removeEventListener(
-      "visibilitychange",
-      this.visibilityChanged,
-    );
+    this.targets.window.removeEventListener("pointercancel", this.clearDrag, this.capture);
+    this.targets.document.removeEventListener("visibilitychange", this.visibilityChanged);
   }
 }

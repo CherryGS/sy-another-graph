@@ -53,9 +53,7 @@ describe("SiYuan JSON export", () => {
       "fetch",
       vi.fn(async () => Response.json({ code: 0, data: { file } })),
     );
-    await expect(
-      prepareGraphExport({ nodes: [], edges: [] }),
-    ).rejects.toThrow("无效");
+    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow("无效");
   });
 
   it("reports an HTTP failure without reporting export success", async () => {
@@ -63,20 +61,16 @@ describe("SiYuan JSON export", () => {
       "fetch",
       vi.fn(async () => new Response("Unauthorized", { status: 401 })),
     );
-    await expect(
-      prepareGraphExport({ nodes: [], edges: [] }),
-    ).rejects.toThrow("HTTP 401");
+    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow("HTTP 401");
   });
 
   it("reports SiYuan application errors", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json({ code: -1, msg: "Storage unavailable" }),
-      ),
+      vi.fn(async () => Response.json({ code: -1, msg: "Storage unavailable" })),
     );
-    await expect(
-      prepareGraphExport({ nodes: [], edges: [] }),
-    ).rejects.toThrow("Storage unavailable");
+    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow(
+      "Storage unavailable",
+    );
   });
 });

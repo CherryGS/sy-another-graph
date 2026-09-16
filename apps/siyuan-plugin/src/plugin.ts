@@ -1,8 +1,5 @@
 import { Plugin, openTab, showMessage, type Custom } from "siyuan";
-import {
-  PersistentWorkbench,
-  WORKBENCH_CHANNEL,
-} from "./host/persistent-workbench";
+import { PersistentWorkbench, WORKBENCH_CHANNEL } from "./host/persistent-workbench";
 import { isNativeBlockId, registerScopeMenus } from "./host/scope-menu";
 import { registerSourceChanges } from "./host/source-events";
 import { PresetStorage } from "./host/preset-storage";
@@ -81,16 +78,20 @@ export default class SiYuanGraphPlugin extends Plugin {
     this.removeSourceChanges = registerSourceChanges(this.eventBus, () => {
       if (!this.unloaded) workbench.markSourceChanged();
     });
-    this.removeSearchGraphs = registerSearchGraphs(this.eventBus, async snapshot => {
-      if (this.unloaded) return;
-      workbench.requestSearch(snapshot);
-      await this.openGraph();
-    }, message => {
-      // showMessage accepts HTML; search and server error text must stay literal.
-      const text = document.createElement("span");
-      text.textContent = message;
-      showMessage(text.innerHTML, 10_000, "error");
-    });
+    this.removeSearchGraphs = registerSearchGraphs(
+      this.eventBus,
+      async (snapshot) => {
+        if (this.unloaded) return;
+        workbench.requestSearch(snapshot);
+        await this.openGraph();
+      },
+      (message) => {
+        // showMessage accepts HTML; search and server error text must stay literal.
+        const text = document.createElement("span");
+        text.textContent = message;
+        showMessage(text.innerHTML, 10_000, "error");
+      },
+    );
   }
 
   private openGraph() {
@@ -152,15 +153,14 @@ export default class SiYuanGraphPlugin extends Plugin {
       return;
     }
     if (
-      data?.channel === WORKBENCH_CHANNEL && data.type === "search-applied" && typeof data.requestId === "string"
+      data?.channel === WORKBENCH_CHANNEL &&
+      data.type === "search-applied" &&
+      typeof data.requestId === "string"
     ) {
       this.workbench.acknowledgeSearch(data.requestId);
       return;
     }
-    if (
-      data?.channel === WORKBENCH_CHANNEL &&
-      data.type === "workbench-ready"
-    ) {
+    if (data?.channel === WORKBENCH_CHANNEL && data.type === "workbench-ready") {
       this.workbench.announceVisibility();
       return;
     }

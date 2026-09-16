@@ -50,7 +50,10 @@ describe("immutable graph lookup indexes", () => {
     const edges = [edge];
     let iterations = 0;
     Object.defineProperty(edges, Symbol.iterator, {
-      value: function* () { iterations++; yield edge; },
+      value: function* () {
+        iterations++;
+        yield edge;
+      },
     });
     Object.freeze(edges);
     const lookup = getGraphLookups({ nodes, edges });
@@ -72,7 +75,11 @@ describe("bounded title and ID search", () => {
       { ...node("content-only", 30, "Unrelated"), content: "case" },
       node("last", 1, "Lower case title"),
     ];
-    expect(searchGraphNodes({ nodes }, "  CaSe  ").map((value) => value.id)).toEqual(["first", "case-id", "last"]);
+    expect(searchGraphNodes({ nodes }, "  CaSe  ").map((value) => value.id)).toEqual([
+      "first",
+      "case-id",
+      "last",
+    ]);
     expect(searchGraphNodes({ nodes }, "case", 2)).toEqual([nodes[0], nodes[2]]);
     expect(searchGraphNodes({ nodes }, " \n ")).toEqual([]);
     expect(searchGraphNodes({ nodes }, "case", 0)).toEqual([]);
@@ -80,7 +87,10 @@ describe("bounded title and ID search", () => {
 
   it("stops at thirty matches in a 100,000-node corpus and reuses computed lowercase titles", () => {
     let reads = 0;
-    const label = () => { reads++; return "Repeated Passage"; };
+    const label = () => {
+      reads++;
+      return "Repeated Passage";
+    };
     const nodes = Array.from({ length: 100_000 }, (_, index) => {
       const value = node(`block-${index}`, index);
       Object.defineProperty(value, "label", { get: label });

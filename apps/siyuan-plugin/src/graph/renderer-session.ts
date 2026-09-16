@@ -36,11 +36,9 @@ type Renderer = Pick<
   | "isSimulationRunning"
   | "getZoomLevel"
   | "setZoomLevel"
-> & ViewportApi;
-type Tables = Pick<
-  GraphTableStore,
-  "stage" | "commit" | "discard" | "clear" | "active"
->;
+> &
+  ViewportApi;
+type Tables = Pick<GraphTableStore, "stage" | "commit" | "discard" | "clear" | "active">;
 export interface FrameScheduler {
   delay(callback: () => void, milliseconds: number): number;
   cancelDelay(id: number): void;
@@ -87,9 +85,7 @@ const browserScheduler: FrameScheduler = {
 
 function sameIds(left: readonly string[], right: readonly string[]) {
   const members = new Set(left);
-  return (
-    members.size === new Set(right).size && right.every((id) => members.has(id))
-  );
+  return members.size === new Set(right).size && right.every((id) => members.has(id));
 }
 
 /** One queue owns source tables, GPU rebuilds, interactions, and final destruction. */
@@ -201,9 +197,7 @@ export class RendererSession {
     return this.active && this.hasData;
   }
   private get hasData() {
-    return (
-      !this.closed && this.ready && (this.currentData?.pointsCount ?? 0) > 0
-    );
+    return !this.closed && this.ready && (this.currentData?.pointsCount ?? 0) > 0;
   }
 
   initialize(config: CosmographConfig) {
@@ -226,10 +220,7 @@ export class RendererSession {
     this.outlineRevision++;
   }
 
-  update(
-    data: PreparedGraph,
-    config: CosmographConfig,
-  ): Promise<CanvasStats | null> {
+  update(data: PreparedGraph, config: CosmographConfig): Promise<CanvasStats | null> {
     this.suspend();
     const revision = this.revision;
     return this.enqueue(async () => {
@@ -254,9 +245,17 @@ export class RendererSession {
         const replacesPoints = previousData !== data;
         if (replacesPoints && previousData && previousData.pointsCount > 0) {
           this.graph.pause();
-          positionsBefore = captureNodePositions(this.graph, previousData.indexToId, this.coordinateStride);
+          positionsBefore = captureNodePositions(
+            this.graph,
+            previousData.indexToId,
+            this.coordinateStride,
+          );
           const chosenProbes = this.chosenIds.filter((id) => positionsBefore!.has(id));
-          probes = positionProbes(this.graph, positionsBefore, chosenProbes.length ? chosenProbes : previousData.indexToId);
+          probes = positionProbes(
+            this.graph,
+            positionsBefore,
+            chosenProbes.length ? chosenProbes : previousData.indexToId,
+          );
           viewportBefore = captureViewport(this.graph);
           if (viewportBefore) this.lastViewport = viewportBefore;
         }
@@ -297,49 +296,40 @@ export class RendererSession {
               rebuildError = error;
             },
             onClick: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onClick?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onClick?.(...args);
             },
             onLabelClick: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onLabelClick?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onLabelClick?.(...args);
             },
             onLinkClick: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onLinkClick?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onLinkClick?.(...args);
             },
             onLinkMouseOver: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onLinkMouseOver?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onLinkMouseOver?.(...args);
             },
             onLinkMouseOut: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onLinkMouseOut?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onLinkMouseOut?.(...args);
             },
             onPointMouseOver: (...args) => {
               if (this.isCurrent(revision) && this.isInteractive)
                 config.onPointMouseOver?.(...args);
             },
             onPointMouseOut: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onPointMouseOut?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onPointMouseOut?.(...args);
             },
             onSimulationTick: (...args) => {
               if (this.isCurrent(revision) && this.isInteractive)
                 config.onSimulationTick?.(...args);
             },
             onZoom: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onZoom?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onZoom?.(...args);
             },
             onResize: (...args) => {
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onResize?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onResize?.(...args);
             },
             onDragStart: (...args) => {
               dragMoved = false;
-              if (this.isCurrent(revision) && this.isInteractive)
-                config.onDragStart?.(...args);
+              if (this.isCurrent(revision) && this.isInteractive) config.onDragStart?.(...args);
             },
             onDrag: (...args) => {
               if (!this.isCurrent(revision) || !this.isInteractive) return;
@@ -360,8 +350,7 @@ export class RendererSession {
                 dragMoved = false;
                 // Cosmos reheats even paused layouts at drag start and does not restore pause.
                 // Its remaining drag-end handlers only redraw, so this is the final simulation state.
-                if (this.paused || !this.active)
-                  this.runControl(() => this.graph.pause());
+                if (this.paused || !this.active) this.runControl(() => this.graph.pause());
               }
             },
             onPointsFiltered: (...args) => {
@@ -385,7 +374,12 @@ export class RendererSession {
             this.graph.pause();
             this.graph.setPinnedPoints(this.chosenIndices(data));
             if (positionsBefore)
-              restoreNodePositions(this.graph, data.indexToId, positionsBefore, this.coordinateStride);
+              restoreNodePositions(
+                this.graph,
+                data.indexToId,
+                positionsBefore,
+                this.coordinateStride,
+              );
             if (viewportToRestore) restoreViewport(this.graph, viewportToRestore);
             // Programmatic zoom may enable simulation; applyControls later restores
             // the current user/visibility state after the readback is complete.
@@ -401,17 +395,31 @@ export class RendererSession {
         }
         if (!this.isCurrent(revision)) return null;
         const stats = this.graph.stats;
-        if (
-          stats.pointsCount !== data.pointsCount ||
-          stats.linksCount !== data.linksCount
-        ) {
+        if (stats.pointsCount !== data.pointsCount || stats.linksCount !== data.linksCount) {
           throw new Error(
             `图谱未完整载入：应有 ${data.pointsCount.toLocaleString()} 个节点、${data.linksCount.toLocaleString()} 条连线；实际 ${stats.pointsCount.toLocaleString()} 个节点、${stats.linksCount.toLocaleString()} 条连线。请重试图谱。`,
           );
         }
         this.currentData = data;
-        const forceKeys = ["simulationRepulsion", "simulationGravity", "simulationLinkDistance", "simulationLinkSpring", "simulationFriction", "simulationCollision", "simulationCollisionPadding", "simulationDecay", "simulationCluster", "pointClusterBy", "pointClusterByFn"] as const;
-        if (!dataChanged && this.currentConfig && appliedConfig && forceKeys.some((key) => this.currentConfig![key] !== appliedConfig![key]))
+        const forceKeys = [
+          "simulationRepulsion",
+          "simulationGravity",
+          "simulationLinkDistance",
+          "simulationLinkSpring",
+          "simulationFriction",
+          "simulationCollision",
+          "simulationCollisionPadding",
+          "simulationDecay",
+          "simulationCluster",
+          "pointClusterBy",
+          "pointClusterByFn",
+        ] as const;
+        if (
+          !dataChanged &&
+          this.currentConfig &&
+          appliedConfig &&
+          forceKeys.some((key) => this.currentConfig![key] !== appliedConfig![key])
+        )
           this.needsSimulationRestart = true;
         this.currentConfig = appliedConfig;
         this.desiredOutlines = outlinedIndices;
@@ -424,8 +432,15 @@ export class RendererSession {
           positionWorldError: continuity?.maximumWorldError ?? null,
           positionScreenError: continuity?.maximumScreenError ?? null,
           positionSamples: continuity?.samples ?? [],
-          ...(continuity ? { layoutBefore: continuity.layoutBefore, layoutAfter: continuity.layoutAfter } : {}),
-          zoomBefore: viewportBefore?.dimensions === 2 ? viewportBefore.zoom : viewportToRestore?.dimensions === 2 ? viewportToRestore.zoom : null,
+          ...(continuity
+            ? { layoutBefore: continuity.layoutBefore, layoutAfter: continuity.layoutAfter }
+            : {}),
+          zoomBefore:
+            viewportBefore?.dimensions === 2
+              ? viewportBefore.zoom
+              : viewportToRestore?.dimensions === 2
+                ? viewportToRestore.zoom
+                : null,
           zoomAfter: this.graph.is3D ? null : (this.graph.getZoomLevel() ?? null),
         });
         this.ready = true;
@@ -567,8 +582,7 @@ export class RendererSession {
       this.currentConfig = null;
       this.lastViewport = null;
       this.diagnosticListeners.clear();
-      if (failures.length)
-        throw new AggregateError(failures, "图谱资源清理失败。");
+      if (failures.length) throw new AggregateError(failures, "图谱资源清理失败。");
     });
     return this.disposal;
   }
@@ -590,31 +604,20 @@ export class RendererSession {
     if (!this.hasData || !this.currentData) return;
     if (this.active && this.selectionDirty) {
       const index =
-        this.selectedId === null
-          ? undefined
-          : this.currentData.idToIndex.get(this.selectedId);
+        this.selectedId === null ? undefined : this.currentData.idToIndex.get(this.selectedId);
       const selected = new Set<number>();
       if (index !== undefined) selected.add(index);
-      for (const id of [
-        ...this.chosenIds,
-        ...this.spotlightIds,
-        ...this.highlightedIds,
-      ]) {
+      for (const id of [...this.chosenIds, ...this.spotlightIds, ...this.highlightedIds]) {
         const highlighted = this.currentData.idToIndex.get(id);
         if (highlighted !== undefined) selected.add(highlighted);
       }
       // Cosmograph selection is only a visual mask. It never defines our chosen/fixed set.
-      this.graph.selectPoints(
-        selected.size ? [...selected] : null,
-        false,
-        true,
-      );
+      this.graph.selectPoints(selected.size ? [...selected] : null, false, true);
       this.graph.setFocusedPoint(this.inspectionFocusIndex());
       this.scheduleOutlines(this.chosenIndices(this.currentData));
       this.publishDiagnostics({
         requestedHighlightCount: selected.size,
-        inspectedId:
-          index === undefined ? null : this.currentData.indexToId[index],
+        inspectedId: index === undefined ? null : this.currentData.indexToId[index],
       });
       this.selectionDirty = false;
     }
@@ -656,17 +659,14 @@ export class RendererSession {
   private inspectionFocusIndex() {
     // Inspecting one chosen member must not replace its common chosen outline
     // with the visually stronger native focus ring.
-    if (this.selectedId === null || this.chosenIds.includes(this.selectedId))
-      return undefined;
+    if (this.selectedId === null || this.chosenIds.includes(this.selectedId)) return undefined;
     return this.currentData?.idToIndex.get(this.selectedId);
   }
 
   private scheduleOutlines(indices: number[]) {
     if (
       indices.length === this.desiredOutlines.length &&
-      indices.every(
-        (index, position) => index === this.desiredOutlines[position],
-      )
+      indices.every((index, position) => index === this.desiredOutlines[position])
     )
       return;
     this.desiredOutlines = indices;
@@ -712,8 +712,7 @@ export class RendererSession {
   }
 
   private cancelRefresh() {
-    if (this.refreshFrame !== undefined)
-      this.scheduler.cancelFrame(this.refreshFrame);
+    if (this.refreshFrame !== undefined) this.scheduler.cancelFrame(this.refreshFrame);
     this.refreshFrame = undefined;
   }
 
@@ -723,19 +722,11 @@ export class RendererSession {
     const revision = this.revision;
     const fitRevision = this.fitRevision;
     this.fitDelay = this.scheduler.delay(() => {
-      if (
-        !this.isCurrent(revision) ||
-        fitRevision !== this.fitRevision ||
-        !this.isInteractive
-      )
+      if (!this.isCurrent(revision) || fitRevision !== this.fitRevision || !this.isInteractive)
         return;
       this.fitDelay = undefined;
       this.fitFrame = this.scheduler.frame(() => {
-        if (
-          !this.isCurrent(revision) ||
-          fitRevision !== this.fitRevision ||
-          !this.isInteractive
-        )
+        if (!this.isCurrent(revision) || fitRevision !== this.fitRevision || !this.isInteractive)
           return;
         this.fitFrame = undefined;
         this.needsFit = false;
@@ -754,7 +745,14 @@ export class RendererSession {
           else this.graph.setZoomTransformByPointPositions(positions, 0, undefined, 0.15);
           // Also preserve a naturally settled layout, independent of the user's pause toggle.
           if (wasRunning === false && Boolean(this.graph.isSimulationRunning)) this.graph.pause();
-          this.publishDiagnostics({ layoutSnapshot, layoutSpaceInfo, layoutSample: this.diagnosticState.layoutSample + 1, layoutSampledAt, layoutSimulationRunning: wasRunning ?? null, layoutDataRevision: this.diagnosticState.dataRevisions });
+          this.publishDiagnostics({
+            layoutSnapshot,
+            layoutSpaceInfo,
+            layoutSample: this.diagnosticState.layoutSample + 1,
+            layoutSampledAt,
+            layoutSimulationRunning: wasRunning ?? null,
+            layoutDataRevision: this.diagnosticState.dataRevisions,
+          });
         });
       });
     }, delay);

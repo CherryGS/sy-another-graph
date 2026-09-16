@@ -14,9 +14,10 @@ function harness(id = ID, embedded = true) {
     getBoundingClientRect: () => ({ left: 200, top: 100, width: 250, height: 70 }),
   });
   const close = bindNativePreview(element as unknown as HTMLElement, id);
-  const mouse = (type: string, fields = {}) => element.dispatchEvent(Object.assign(
-    new Event(type), { buttons: 0, clientX: 250, clientY: 180, ...fields },
-  ));
+  const mouse = (type: string, fields = {}) =>
+    element.dispatchEvent(
+      Object.assign(new Event(type), { buttons: 0, clientX: 250, clientY: 180, ...fields }),
+    );
   return { target, element, postMessage, close, mouse };
 }
 
@@ -24,10 +25,17 @@ describe("native preview hover binding", () => {
   it("forwards a native identity and CSS geometry to the current host origin only", () => {
     const h = harness();
     h.mouse("mouseenter");
-    expect(h.postMessage).toHaveBeenCalledWith({
-      channel: "sy-another-graph", type: "native-preview", token: expect.any(Number),
-      action: "enter", id: ID, rect: { left: 200, top: 100, width: 250, height: 70 },
-    }, "http://localhost:6806");
+    expect(h.postMessage).toHaveBeenCalledWith(
+      {
+        channel: "sy-another-graph",
+        type: "native-preview",
+        token: expect.any(Number),
+        action: "enter",
+        id: ID,
+        rect: { left: 200, top: 100, width: 250, height: 70 },
+      },
+      "http://localhost:6806",
+    );
     h.mouse("mouseenter");
     expect(h.postMessage).toHaveBeenCalledTimes(1);
     h.mouse("mouseleave");
@@ -36,19 +44,22 @@ describe("native preview hover binding", () => {
     expect(h.postMessage).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["scroll", "resize", "blur"])("cancels pending hover on %s and resumes only on a new entry", (type) => {
-    const h = harness();
-    h.mouse("mouseenter");
-    const token = h.postMessage.mock.calls[0][0].token;
-    h.target.dispatchEvent(new Event(type));
-    expect(h.postMessage.mock.calls.at(-1)![0]).toMatchObject({ action: "cancel", token });
-    h.target.dispatchEvent(new Event(type));
-    expect(h.postMessage).toHaveBeenCalledTimes(2);
-    h.mouse("mouseleave");
-    h.mouse("mouseenter");
-    expect(h.postMessage.mock.calls.at(-1)![0].token).toBeGreaterThan(token);
-    h.close();
-  });
+  it.each(["scroll", "resize", "blur"])(
+    "cancels pending hover on %s and resumes only on a new entry",
+    (type) => {
+      const h = harness();
+      h.mouse("mouseenter");
+      const token = h.postMessage.mock.calls[0][0].token;
+      h.target.dispatchEvent(new Event(type));
+      expect(h.postMessage.mock.calls.at(-1)![0]).toMatchObject({ action: "cancel", token });
+      h.target.dispatchEvent(new Event(type));
+      expect(h.postMessage).toHaveBeenCalledTimes(2);
+      h.mouse("mouseleave");
+      h.mouse("mouseenter");
+      expect(h.postMessage.mock.calls.at(-1)![0].token).toBeGreaterThan(token);
+      h.close();
+    },
+  );
 
   it("cancels on click and unmount without intercepting the existing click action", () => {
     const h = harness();

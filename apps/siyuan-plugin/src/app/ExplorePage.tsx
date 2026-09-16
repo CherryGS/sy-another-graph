@@ -4,20 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Empty,
-  EmptyContent,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { CosmographCanvas } from "../graph/CosmographCanvas";
@@ -42,33 +33,22 @@ export function ExplorePage({ active }: { active: boolean }) {
   const highlightedIds = useMemo(
     () =>
       state.focus
-        ? view.nodes
-            .filter((node) => state.focus!.has(node.index))
-            .map((node) => node.id)
+        ? view.nodes.filter((node) => state.focus!.has(node.index)).map((node) => node.id)
         : undefined,
     [state.focus, view.nodes],
   );
   const notebookNames = useMemo(
-    () =>
-      Object.fromEntries(
-        data?.notebooks.map((book) => [book.id, book.name]) ?? [],
-      ),
+    () => Object.fromEntries(data?.notebooks.map((book) => [book.id, book.name]) ?? []),
     [data],
   );
   const scopeMissing =
-    !!data &&
-    !!filters.scopeId &&
-    !state.sourceLookups?.byId.has(filters.scopeId);
+    !!data && !!filters.scopeId && !state.sourceLookups?.byId.has(filters.scopeId);
   const hasInspector = !!selected || !!state.inspectedEdge;
   return (
     <div className="explore-page">
       <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
         <PopoverAnchor virtualRef={toolbarRef} />
-        <div
-          ref={toolbarRef}
-          className="exploration-toolbar"
-          aria-label="图谱操作"
-        >
+        <div ref={toolbarRef} className="exploration-toolbar" aria-label="图谱操作">
           <div className="search-tools">
             <GraphSearch state={state} anchorRef={toolbarRef} />
             <Tooltip>
@@ -82,8 +62,16 @@ export function ExplorePage({ active }: { active: boolean }) {
                     <span className="truncate">筛选：{state.filterPresets.activeName}</span>
                     {state.filterPresets.modified && <span aria-hidden="true">*</span>}
                     {state.filterPresets.temporaryActive && (
-                      <Badge variant={state.filterPresets.missingSearchIds.length && !state.loading ? "destructive" : "secondary"}>
-                        {state.filterPresets.missingSearchIds.length && !state.loading ? `缺失 ${state.filterPresets.missingSearchIds.length}` : "临时"}
+                      <Badge
+                        variant={
+                          state.filterPresets.missingSearchIds.length && !state.loading
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {state.filterPresets.missingSearchIds.length && !state.loading
+                          ? `缺失 ${state.filterPresets.missingSearchIds.length}`
+                          : "临时"}
                       </Badge>
                     )}
                     <ChevronDown data-icon="inline-end" />
@@ -100,9 +88,7 @@ export function ExplorePage({ active }: { active: boolean }) {
           </div>
           <div className="neighborhood-tools" aria-label="邻域扩展设置">
             <div className="flex shrink-0 items-center gap-1">
-              <Badge variant="secondary">
-                已选 {state.chosenIds.length} 个节点
-              </Badge>
+              <Badge variant="secondary">已选 {state.chosenIds.length} 个节点</Badge>
               {!!state.chosenIds.length && (
                 <Button
                   variant="ghost"
@@ -128,9 +114,7 @@ export function ExplorePage({ active }: { active: boolean }) {
                   min="0"
                   max="100"
                   value={state.depth}
-                  onChange={(event) =>
-                    state.setDepth(Number(event.target.value))
-                  }
+                  onChange={(event) => state.setDepth(Number(event.target.value))}
                 />
                 <span className="text-xs text-muted-foreground">跳</span>
               </Field>
@@ -149,10 +133,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <ToggleGroupItem value="in">逆箭头</ToggleGroupItem>
             </ToggleGroup>
             {state.busy && (
-              <span
-                className="flex items-center gap-1 text-xs text-muted-foreground"
-                role="status"
-              >
+              <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
                 <Spinner />
                 更新邻域
               </span>
@@ -183,8 +164,7 @@ export function ExplorePage({ active }: { active: boolean }) {
       </Popover>
       <GraphNotices state={state} />
       <MentionNotice state={state} />
-      {(state.focusLabel.includes("截断") ||
-        state.focusLabel.startsWith("最短路径")) && (
+      {(state.focusLabel.includes("截断") || state.focusLabel.startsWith("最短路径")) && (
         <Alert className="rounded-none py-2">
           <AlertDescription>{state.focusLabel}</AlertDescription>
         </Alert>
@@ -226,11 +206,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             <Alert variant="destructive" className="stage-error-banner">
               <AlertDescription>
                 <p>{state.error}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void state.load()}
-                >
+                <Button variant="outline" size="sm" onClick={() => void state.load()}>
                   重新读取
                 </Button>
               </AlertDescription>
@@ -240,16 +216,11 @@ export function ExplorePage({ active }: { active: boolean }) {
             <Empty className="stage-message">
               <EmptyHeader>
                 <EmptyTitle>
-                  {scopeMissing
-                    ? "范围块不在当前已读取的内容中"
-                    : "当前范围没有节点"}
+                  {scopeMissing ? "范围块不在当前已读取的内容中" : "当前范围没有节点"}
                 </EmptyTitle>
               </EmptyHeader>
               <EmptyContent>
-                <Button
-                  variant="outline"
-                  onClick={state.resetFilters}
-                >
+                <Button variant="outline" onClick={state.resetFilters}>
                   清除筛选
                 </Button>
               </EmptyContent>
@@ -287,14 +258,12 @@ export function ExplorePage({ active }: { active: boolean }) {
       </div>
       <footer className="graph-summary">
         <span>
-          {view.nodes.length.toLocaleString()} 节点 ·{" "}
-          {view.edges.length.toLocaleString()} 关系
-          {filters.mentions !== "off" && ` · ${state.mentionState.result.edges.length.toLocaleString()} 条文本提及`}
+          {view.nodes.length.toLocaleString()} 节点 · {view.edges.length.toLocaleString()} 关系
+          {filters.mentions !== "off" &&
+            ` · ${state.mentionState.result.edges.length.toLocaleString()} 条文本提及`}
         </span>
         <span className="gesture-help">
-          {state.graphSettings.dimensions === 3
-            ? "空白拖动旋转 · Space 拖动平移 · "
-            : ""}
+          {state.graphSettings.dimensions === 3 ? "空白拖动旋转 · Space 拖动平移 · " : ""}
           Shift 点击多选 · Shift 拖动所选节点整体移动
         </span>
       </footer>

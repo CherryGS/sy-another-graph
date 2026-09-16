@@ -80,11 +80,7 @@ describe("canvas gestures", () => {
     expect(h.options.begin).not.toHaveBeenCalled();
     h.targetWindow.dispatchEvent(mouse("mousemove", 20, 30));
     h.targetWindow.dispatchEvent(mouse("mousemove", 24, 36));
-    expect(h.options.begin).toHaveBeenCalledExactlyOnceWith(
-      ["a", "b"],
-      [5, 10],
-      "a",
-    );
+    expect(h.options.begin).toHaveBeenCalledExactlyOnceWith(["a", "b"], [5, 10], "a");
     expect(h.frames.size).toBe(1);
     h.draw();
     expect(h.motion.move).toHaveBeenCalledExactlyOnceWith([12, 18]);
@@ -127,29 +123,32 @@ describe("canvas gestures", () => {
     h.gesture.dispose();
   });
 
-  it.each(["neighbor", null])("reserves Shift dragging from %s without native pan or selection", (nodeId) => {
-    const h = harness();
-    h.options.nodeAt.mockReturnValue(nodeId);
-    const nativeDown = vi.fn();
-    const nativeMove = vi.fn();
-    const nativeUp = vi.fn();
-    const clicked = vi.fn();
-    h.host.addEventListener("mousedown", nativeDown);
-    h.targetWindow.addEventListener("mousemove", nativeMove);
-    h.targetWindow.addEventListener("mouseup", nativeUp);
-    h.host.addEventListener("click", clicked);
-    h.host.dispatchEvent(mouse("mousedown"));
-    // Releasing Shift halfway through a drag must not hand it over to the camera.
-    h.targetWindow.dispatchEvent(mouse("mousemove", 12, 0, false));
-    h.targetWindow.dispatchEvent(mouse("mouseup", 12, 0, false));
-    h.host.dispatchEvent(mouse("click", 12, 0));
-    expect(nativeDown).not.toHaveBeenCalled();
-    expect(nativeMove).not.toHaveBeenCalled();
-    expect(nativeUp).not.toHaveBeenCalled();
-    expect(h.options.begin).not.toHaveBeenCalled();
-    expect(clicked).not.toHaveBeenCalled();
-    h.gesture.dispose();
-  });
+  it.each(["neighbor", null])(
+    "reserves Shift dragging from %s without native pan or selection",
+    (nodeId) => {
+      const h = harness();
+      h.options.nodeAt.mockReturnValue(nodeId);
+      const nativeDown = vi.fn();
+      const nativeMove = vi.fn();
+      const nativeUp = vi.fn();
+      const clicked = vi.fn();
+      h.host.addEventListener("mousedown", nativeDown);
+      h.targetWindow.addEventListener("mousemove", nativeMove);
+      h.targetWindow.addEventListener("mouseup", nativeUp);
+      h.host.addEventListener("click", clicked);
+      h.host.dispatchEvent(mouse("mousedown"));
+      // Releasing Shift halfway through a drag must not hand it over to the camera.
+      h.targetWindow.dispatchEvent(mouse("mousemove", 12, 0, false));
+      h.targetWindow.dispatchEvent(mouse("mouseup", 12, 0, false));
+      h.host.dispatchEvent(mouse("click", 12, 0));
+      expect(nativeDown).not.toHaveBeenCalled();
+      expect(nativeMove).not.toHaveBeenCalled();
+      expect(nativeUp).not.toHaveBeenCalled();
+      expect(h.options.begin).not.toHaveBeenCalled();
+      expect(clicked).not.toHaveBeenCalled();
+      h.gesture.dispose();
+    },
+  );
 
   it("preserves a nonmember Shift click below the drag threshold", () => {
     const h = harness();

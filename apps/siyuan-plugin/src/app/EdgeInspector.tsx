@@ -10,24 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { WorkbenchState } from "./state";
 import { EDGE_KIND_LABELS, NODE_TYPE_LABELS } from "../data/labels";
 import { nodeType } from "../data/graph-model";
@@ -57,7 +44,9 @@ function SourceEntry({
       aria-label={canOpen ? `打开原始位置：${node?.label ?? id}` : "暂无可打开的原生上下文"}
     >
       <span className="flex w-full min-w-0 items-center justify-between gap-2">
-        <span data-native-preview-anchor className="min-w-0 truncate">{node?.label ?? id}</span>
+        <span data-native-preview-anchor className="min-w-0 truncate">
+          {node?.label ?? id}
+        </span>
         {canOpen && <ArrowUpRight data-icon="inline-end" />}
       </span>
       {node && (
@@ -88,9 +77,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
   const edge = state.inspectedEdge;
   if (!edge || !state.data) return null;
   const byId = getGraphLookups(state.data).byId;
-  const byIndex = state.currentGraph
-    ? getGraphLookups(state.currentGraph).byIndex
-    : undefined;
+  const byIndex = state.currentGraph ? getGraphLookups(state.currentGraph).byIndex : undefined;
   const source = byIndex?.get(edge.source);
   const target = byIndex?.get(edge.target);
   const occurrences = edge.provenance ?? [];
@@ -128,19 +115,20 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                 ? "虚线表示内容包含，不是正文引用。"
                 : edge.kind === "text-mention"
                   ? "点线表示正文命中了目标名称，是可能的文本提及；可结合原始段落判断。"
-                : edge.kind === "reference"
-                  ? "以下是这条连线对应的原始引用端点。"
-                  : "以下关系来自数据库的真实成员、绑定或关系字段。"}
+                  : edge.kind === "reference"
+                    ? "以下是这条连线对应的原始引用端点。"
+                    : "以下关系来自数据库的真实成员、绑定或关系字段。"}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">
-                {occurrences.length.toLocaleString()} 组出处
-              </Badge>
-              <Badge variant="secondary">
-                {edge.weight.toLocaleString()} 条记录
-              </Badge>
+              <Badge variant="outline">{occurrences.length.toLocaleString()} 组出处</Badge>
+              <Badge variant="secondary">{edge.weight.toLocaleString()} 条记录</Badge>
             </div>
-            {!!edge.omittedProvenance && <p className="text-xs text-muted-foreground">另有 {edge.omittedProvenance.toLocaleString()} 组出处超出展示上限；计数包含这些命中。</p>}
+            {!!edge.omittedProvenance && (
+              <p className="text-xs text-muted-foreground">
+                另有 {edge.omittedProvenance.toLocaleString()}{" "}
+                组出处超出展示上限；计数包含这些命中。
+              </p>
+            )}
             {occurrences.slice(0, limit).map((occurrence, index) => (
               <section
                 className="flex min-w-0 flex-col gap-2"
@@ -149,19 +137,32 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
               >
                 {index > 0 && <Separator className="mb-2" />}
                 <h3 className="text-sm font-medium">
-                  {occurrence.fieldName ||
-                    `出处 ${String(index + 1).padStart(2, "0")}`}
+                  {occurrence.fieldName || `出处 ${String(index + 1).padStart(2, "0")}`}
                 </h3>
                 <div className="flex min-w-0 flex-col gap-2">
                   {occurrence.mention && (
                     <div className="flex flex-col gap-2">
-                      <Badge variant="outline" className="max-w-full"><span className="truncate" title={occurrence.mention.keyword}>命中名称：{occurrence.mention.keyword}</span></Badge>
+                      <Badge variant="outline" className="max-w-full">
+                        <span className="truncate" title={occurrence.mention.keyword}>
+                          命中名称：{occurrence.mention.keyword}
+                        </span>
+                      </Badge>
                       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                         {occurrence.mention.excerpt.slice(0, occurrence.mention.start)}
-                        <mark className="bg-accent text-accent-foreground">{occurrence.mention.excerpt.slice(occurrence.mention.start, occurrence.mention.end)}</mark>
+                        <mark className="bg-accent text-accent-foreground">
+                          {occurrence.mention.excerpt.slice(
+                            occurrence.mention.start,
+                            occurrence.mention.end,
+                          )}
+                        </mark>
                         {occurrence.mention.excerpt.slice(occurrence.mention.end)}
                       </p>
-                      {occurrence.mention.candidates > 1 && <p className="text-xs text-muted-foreground">此名称对应范围内 {occurrence.mention.candidates} 个原始位置；当前目标为同名候选之一。</p>}
+                      {occurrence.mention.candidates > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          此名称对应范围内 {occurrence.mention.candidates}{" "}
+                          个原始位置；当前目标为同名候选之一。
+                        </p>
+                      )}
                     </div>
                   )}
                   <SourceEntry
@@ -190,16 +191,14 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                   />
                   {occurrence.weight > 1 && (
                     <Badge variant="outline">
-                      {occurrence.weight} {occurrence.kind === "text-mention" ? "处文本命中" : "条索引记录"}
+                      {occurrence.weight}{" "}
+                      {occurrence.kind === "text-mention" ? "处文本命中" : "条索引记录"}
                     </Badge>
                   )}
                   {occurrence.databaseId && (
                     <Collapsible>
                       <CollapsibleTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="group w-full justify-between"
-                        >
+                        <Button variant="ghost" className="group w-full justify-between">
                           数据库来源
                           <ChevronDown
                             data-icon="inline-end"
@@ -209,28 +208,18 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
-                          <p className="break-all">
-                            数据库：{occurrence.databaseId}
-                          </p>
+                          <p className="break-all">数据库：{occurrence.databaseId}</p>
                           {occurrence.targetDatabaseId && (
-                            <p className="break-all">
-                              目标数据库：{occurrence.targetDatabaseId}
-                            </p>
+                            <p className="break-all">目标数据库：{occurrence.targetDatabaseId}</p>
                           )}
                           {occurrence.fieldId && (
-                            <p className="break-all">
-                              字段：{occurrence.fieldId}
-                            </p>
+                            <p className="break-all">字段：{occurrence.fieldId}</p>
                           )}
                           {occurrence.sourceItemId && (
-                            <p className="break-all">
-                              来源条目：{occurrence.sourceItemId}
-                            </p>
+                            <p className="break-all">来源条目：{occurrence.sourceItemId}</p>
                           )}
                           {occurrence.targetItemId && (
-                            <p className="break-all">
-                              目标条目：{occurrence.targetItemId}
-                            </p>
+                            <p className="break-all">目标条目：{occurrence.targetItemId}</p>
                           )}
                         </div>
                       </CollapsibleContent>
@@ -243,9 +232,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
               <Empty>
                 <EmptyHeader>
                   <EmptyTitle>暂无可用出处</EmptyTitle>
-                  <EmptyDescription>
-                    这条关系没有附带可展开的原始位置。
-                  </EmptyDescription>
+                  <EmptyDescription>这条关系没有附带可展开的原始位置。</EmptyDescription>
                 </EmptyHeader>
               </Empty>
             )}

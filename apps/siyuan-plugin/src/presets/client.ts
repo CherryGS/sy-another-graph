@@ -19,8 +19,12 @@ export class PresetClient {
     target.addEventListener("message", this.onMessage);
   }
 
-  load(): Promise<PresetStore | null> { return this.send({ type: "preset-load" }); }
-  save(store: PresetStore): Promise<PresetStore | null> { return this.send({ type: "preset-save", store }); }
+  load(): Promise<PresetStore | null> {
+    return this.send({ type: "preset-load" });
+  }
+  save(store: PresetStore): Promise<PresetStore | null> {
+    return this.send({ type: "preset-save", store });
+  }
 
   dispose(): void {
     this.closed = true;
@@ -32,7 +36,9 @@ export class PresetClient {
     this.pending.clear();
   }
 
-  private send(payload: { type: "preset-load" } | { type: "preset-save"; store: PresetStore }): Promise<PresetStore | null> {
+  private send(
+    payload: { type: "preset-load" } | { type: "preset-save"; store: PresetStore },
+  ): Promise<PresetStore | null> {
     if (this.closed || this.target.parent === this.target)
       return Promise.reject(new Error("请在思源插件页签中读取和保存预设。"));
     const request = crypto.randomUUID();
@@ -54,16 +60,27 @@ export class PresetClient {
   }
 
   private onMessage = (event: MessageEvent) => {
-    if (this.closed || event.source !== this.target.parent || event.origin !== this.target.location.origin) return;
+    if (
+      this.closed ||
+      event.source !== this.target.parent ||
+      event.origin !== this.target.location.origin
+    )
+      return;
     const message: unknown = event.data;
     if (!message || typeof message !== "object") return;
     const value = message as Record<string, unknown>;
-    if (value.channel !== WORKBENCH_PRESET_CHANNEL || value.type !== "preset-response" || typeof value.request !== "string") return;
+    if (
+      value.channel !== WORKBENCH_PRESET_CHANNEL ||
+      value.type !== "preset-response" ||
+      typeof value.request !== "string"
+    )
+      return;
     const pending = this.pending.get(value.request);
     if (!pending) return;
     this.pending.delete(value.request);
     clearTimeout(pending.timer);
-    if (value.ok === false && typeof value.error === "string") pending.reject(new Error(value.error));
+    if (value.ok === false && typeof value.error === "string")
+      pending.reject(new Error(value.error));
     else if (value.ok === true && value.store === null) pending.resolve(null);
     else if (value.ok === true) {
       const store = readPresetStore(value.store);

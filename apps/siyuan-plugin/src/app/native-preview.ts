@@ -8,10 +8,11 @@ export function bindNativePreview(element: HTMLElement, id: string): () => void 
   if (target.parent === target || !/^\d{14}-[a-z0-9]{7}$/.test(id)) return () => {};
   let active = false;
   let token = 0;
-  const post = (data: Record<string, unknown>) => target.parent.postMessage(
-    { channel: "sy-another-graph", type: "native-preview", token, ...data },
-    target.location.origin,
-  );
+  const post = (data: Record<string, unknown>) =>
+    target.parent.postMessage(
+      { channel: "sy-another-graph", type: "native-preview", token, ...data },
+      target.location.origin,
+    );
   const removeActiveListeners = () => {
     target.removeEventListener("scroll", cancel, true);
     target.removeEventListener("resize", cancel);

@@ -33,12 +33,7 @@ export class ExplorationRequest {
     }
   }
 
-  async path(
-    engine: GraphEngine,
-    source: number,
-    target: number,
-    direction: GraphDirection,
-  ) {
+  async path(engine: GraphEngine, source: number, target: number, direction: GraphDirection) {
     const request = ++this.sequence;
     try {
       const result = await engine.shortestPath(source, target, direction);

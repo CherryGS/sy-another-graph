@@ -20,9 +20,12 @@ const GROUPS = [
 ] as const;
 
 function RelationGroup({
-  group, edges, node, state,
+  group,
+  edges,
+  node,
+  state,
 }: {
-  group: typeof GROUPS[number];
+  group: (typeof GROUPS)[number];
   edges: readonly GraphEdge[];
   node: GraphNode;
   state: WorkbenchState;
@@ -37,14 +40,21 @@ function RelationGroup({
           <Icon data-icon="inline-start" />
           {group.label}
           <Badge variant="secondary">{edges.length.toLocaleString()}</Badge>
-          <ChevronDown data-icon="inline-end" className="ml-auto transition-transform group-data-[state=open]:rotate-180" />
+          <ChevronDown
+            data-icon="inline-end"
+            className="ml-auto transition-transform group-data-[state=open]:rotate-180"
+          />
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="flex flex-col gap-1 pt-1">
           {edges.slice(0, limit).map((edge) => {
             const other = byIndex.get(edge.source === node.index ? edge.target : edge.source);
-            const context = other && [...new Set([other.documentLabel || other.humanPath, other.heading].filter(Boolean))].join(" › ");
+            const context =
+              other &&
+              [
+                ...new Set([other.documentLabel || other.humanPath, other.heading].filter(Boolean)),
+              ].join(" › ");
             return (
               <NativePreviewButton
                 key={`${edge.kind}:${edge.source}:${edge.target}`}
@@ -54,22 +64,47 @@ function RelationGroup({
                 onClick={() => state.inspectEdge(edge)}
                 aria-label={`${group.description}：${other?.label ?? "未知端点"}，${EDGE_KIND_LABELS[edge.kind]}，查看关系详情`}
               >
-                <span data-native-preview-anchor className="line-clamp-2 w-full whitespace-normal break-words text-left">
+                <span
+                  data-native-preview-anchor
+                  className="line-clamp-2 w-full whitespace-normal break-words text-left"
+                >
                   {other?.label ?? "未知端点"}
                 </span>
-                {context && <span className="w-full truncate text-left text-xs text-muted-foreground" title={other?.humanPath}>{context}</span>}
+                {context && (
+                  <span
+                    className="w-full truncate text-left text-xs text-muted-foreground"
+                    title={other?.humanPath}
+                  >
+                    {context}
+                  </span>
+                )}
                 <span className="flex w-full flex-wrap items-center gap-1.5">
                   <Badge variant="outline">{EDGE_KIND_LABELS[edge.kind]}</Badge>
                   {edge.ambiguous && <Badge variant="secondary">同名候选</Badge>}
-                  {other && <span className="text-xs text-muted-foreground">{NODE_TYPE_LABELS[nodeType(other)] ?? nodeType(other)}</span>}
-                  {edge.weight > 1 && <span className="ml-auto text-xs text-muted-foreground">{edge.weight.toLocaleString()} 条记录</span>}
+                  {other && (
+                    <span className="text-xs text-muted-foreground">
+                      {NODE_TYPE_LABELS[nodeType(other)] ?? nodeType(other)}
+                    </span>
+                  )}
+                  {edge.weight > 1 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {edge.weight.toLocaleString()} 条记录
+                    </span>
+                  )}
                 </span>
               </NativePreviewButton>
             );
           })}
-          {!edges.length && <p className="px-2.5 py-2 text-xs text-muted-foreground">当前没有{group.label}。</p>}
+          {!edges.length && (
+            <p className="px-2.5 py-2 text-xs text-muted-foreground">当前没有{group.label}。</p>
+          )}
           {edges.length > limit && (
-            <Button variant="outline" size="sm" className="mt-1 w-full" onClick={() => setLimit(value => value + PAGE_SIZE)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-1 w-full"
+              onClick={() => setLimit((value) => value + PAGE_SIZE)}
+            >
               显示更多{group.label}（剩余 {(edges.length - limit).toLocaleString()}）
             </Button>
           )}
@@ -90,9 +125,17 @@ export function NodeRelations({ node, state }: { node: GraphNode; state: Workben
       </div>
       {incident.length > 0 ? (
         <>
-          <p className="text-xs leading-relaxed text-muted-foreground">悬浮预览原文 · 点击查看关系详情</p>
-          {GROUPS.filter(group => group.key !== "self" || groups.self.length).map(group => (
-            <RelationGroup key={group.key} group={group} edges={groups[group.key]} node={node} state={state} />
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            悬浮预览原文 · 点击查看关系详情
+          </p>
+          {GROUPS.filter((group) => group.key !== "self" || groups.self.length).map((group) => (
+            <RelationGroup
+              key={group.key}
+              group={group}
+              edges={groups[group.key]}
+              node={node}
+              state={state}
+            />
           ))}
         </>
       ) : (

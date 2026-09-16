@@ -57,9 +57,7 @@ function SettingSlider({
     <Field>
       <div className="flex items-center justify-between gap-4">
         <FieldLabel>{name}</FieldLabel>
-        <output className="text-sm tabular-nums text-muted-foreground">
-          {draft}
-        </output>
+        <output className="text-sm tabular-nums text-muted-foreground">{draft}</output>
       </div>
       <Slider
         aria-label={name}
@@ -89,12 +87,7 @@ export function SettingSwitch({
   return (
     <Field orientation="horizontal" data-disabled={disabled}>
       <FieldLabel htmlFor={id}>{name}</FieldLabel>
-      <Switch
-        id={id}
-        disabled={disabled}
-        checked={checked}
-        onCheckedChange={onChange}
-      />
+      <Switch id={id} disabled={disabled} checked={checked} onCheckedChange={onChange} />
     </Field>
   );
 }
@@ -118,26 +111,16 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="图谱设置"
-          title="图谱设置"
-        >
+        <Button variant="ghost" size="icon" aria-label="图谱设置" title="图谱设置">
           <Settings2 />
         </Button>
       </SheetTrigger>
       <SheetContent className="settings-sheet gap-0">
         <SheetHeader>
           <SheetTitle>图谱设置</SheetTitle>
-          <SheetDescription>
-            外观与布局偏好自动保存在当前浏览器。
-          </SheetDescription>
+          <SheetDescription>外观与布局偏好自动保存在当前浏览器。</SheetDescription>
         </SheetHeader>
-        <Tabs
-          defaultValue="appearance"
-          className="flex min-h-0 flex-1 flex-col gap-0"
-        >
+        <Tabs defaultValue="appearance" className="flex min-h-0 flex-1 flex-col gap-0">
           <TabsList className="mx-4 mb-4">
             <TabsTrigger value="appearance">显示</TabsTrigger>
             <TabsTrigger value="simulation">力导向</TabsTrigger>
@@ -153,9 +136,7 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                       <FieldLabel htmlFor="node-colors">节点颜色</FieldLabel>
                       <Select
                         value={state.colorBy}
-                        onValueChange={(value) =>
-                          state.setColorBy(value as GraphColorMode)
-                        }
+                        onValueChange={(value) => state.setColorBy(value as GraphColorMode)}
                       >
                         <SelectTrigger id="node-colors" className="w-full">
                           <SelectValue />
@@ -240,17 +221,13 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                       id="show-arrows"
                       name="显示方向箭头"
                       checked={settings.showArrows}
-                      onChange={(showArrows) =>
-                        state.setGraphSettings({ showArrows })
-                      }
+                      onChange={(showArrows) => state.setGraphSettings({ showArrows })}
                     />
                     <SettingSwitch
                       id="curved-links"
                       name="曲线连线"
                       checked={settings.curvedLinks}
-                      onChange={(curvedLinks) =>
-                        state.setGraphSettings({ curvedLinks })
-                      }
+                      onChange={(curvedLinks) => state.setGraphSettings({ curvedLinks })}
                     />
                   </FieldGroup>
                 </FieldSet>
@@ -273,29 +250,37 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                     <FieldDescription>
                       按当前图的连接分组，让同组节点更靠近。节点颜色沿用现有设置。
                     </FieldDescription>
-                    {settings.communityEnabled && <>
-                      {parameter("communityStrength", "社区聚拢力度", "越大越紧密；设为 0 可保留分组而关闭聚拢力。")}
-                      {parameter("communityResolution", "社区划分粒度", "越大通常分得越细；修改后重新计算社区。")}
-                      <SettingSwitch
-                        id="community-background"
-                        name="显示社区区域背景（2D）"
-                        checked={settings.communityBackground}
-                        disabled={settings.dimensions === 3}
-                        onChange={(communityBackground) => state.setGraphSettings({ communityBackground })}
-                      />
-                      <FieldDescription>区域背景随节点移动更新，仅在二维显示。</FieldDescription>
-                    </>}
+                    {settings.communityEnabled && (
+                      <>
+                        {parameter(
+                          "communityStrength",
+                          "社区聚拢力度",
+                          "越大越紧密；设为 0 可保留分组而关闭聚拢力。",
+                        )}
+                        {parameter(
+                          "communityResolution",
+                          "社区划分粒度",
+                          "越大通常分得越细；修改后重新计算社区。",
+                        )}
+                        <SettingSwitch
+                          id="community-background"
+                          name="显示社区区域背景（2D）"
+                          checked={settings.communityBackground}
+                          disabled={settings.dimensions === 3}
+                          onChange={(communityBackground) =>
+                            state.setGraphSettings({ communityBackground })
+                          }
+                        />
+                        <FieldDescription>区域背景随节点移动更新，仅在二维显示。</FieldDescription>
+                      </>
+                    )}
                   </FieldGroup>
                 </FieldSet>
                 {parameter("repulsion", "节点斥力", "提高后，节点之间更分散。")}
                 {parameter("gravity", "中心引力")}
                 {parameter("linkDistance", "连线目标距离")}
                 {parameter("linkSpring", "连线弹力")}
-                {parameter(
-                  "friction",
-                  "运动惯性",
-                  "数值越大，节点越不容易停下。",
-                )}
+                {parameter("friction", "运动惯性", "数值越大，节点越不容易停下。")}
                 {parameter("collision", "碰撞强度")}
                 {parameter("collisionPadding", "碰撞间距")}
                 {parameter(
@@ -308,17 +293,14 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
             <TabsContent value="spatial" className="m-0 p-4 pt-0">
               <FieldGroup>
                 <FieldDescription>
-                  在工具栏切换 2D / 3D。三维模式下拖动空白旋转，Space
-                  拖动平移，滚轮缩放。
+                  在工具栏切换 2D / 3D。三维模式下拖动空白旋转，Space 拖动平移，滚轮缩放。
                 </FieldDescription>
                 {parameter("depthFade", "远处节点淡化")}
                 <SettingSwitch
                   id="sphere-shading"
                   name="球体光照"
                   checked={settings.sphereShading}
-                  onChange={(sphereShading) =>
-                    state.setGraphSettings({ sphereShading })
-                  }
+                  onChange={(sphereShading) => state.setGraphSettings({ sphereShading })}
                 />
                 <FieldDescription>
                   Shift 拖动所选节点，会在当前视角下整体移动并保持彼此位置。

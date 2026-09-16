@@ -10,15 +10,12 @@ export function nodeContext(
   searchOrigins?: SearchOrigins,
 ) {
   const type = nodeType(node);
-  const typeLabel = Object.hasOwn(NODE_TYPE_LABELS, type)
-    ? NODE_TYPE_LABELS[type]
-    : type;
+  const typeLabel = Object.hasOwn(NODE_TYPE_LABELS, type) ? NODE_TYPE_LABELS[type] : type;
   const notebook = notebookNames[node.notebook];
   const lines = [notebook ? `${typeLabel} · ${notebook}` : typeLabel];
   const origin = searchOriginDescription(node.id, searchOrigins);
   if (origin) lines.push(origin);
-  if (node.documentLabel && node.documentLabel !== node.label)
-    lines.push(node.documentLabel);
+  if (node.documentLabel && node.documentLabel !== node.label) lines.push(node.documentLabel);
   if (node.heading && node.heading !== node.label) lines.push(node.heading);
   const path = node.humanPath || node.path;
   if (path) lines.push(path);

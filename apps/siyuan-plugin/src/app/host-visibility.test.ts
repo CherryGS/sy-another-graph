@@ -13,11 +13,7 @@ function host() {
   });
   const publish = vi.fn();
   const close = subscribeHostVisibility(target as unknown as Window, publish);
-  const message = (
-    active: unknown,
-    origin = target.location.origin,
-    source: unknown = parent,
-  ) => {
+  const message = (active: unknown, origin = target.location.origin, source: unknown = parent) => {
     const event = new MessageEvent("message", {
       origin,
       data: { channel: "sy-another-graph", type: "host-visibility", active },

@@ -4,7 +4,11 @@ export type LabelDensity = "standard" | "dense" | "high";
 
 // Sampling and candidate limits both apply before label collision culling.
 const LABEL_DENSITY_CONFIG = {
-  standard: { showDynamicLabelsLimit: 40, selectedPointLabelsLimit: 100, pointSamplingDistance: 125 },
+  standard: {
+    showDynamicLabelsLimit: 40,
+    selectedPointLabelsLimit: 100,
+    pointSamplingDistance: 125,
+  },
   dense: { showDynamicLabelsLimit: 240, selectedPointLabelsLimit: 240, pointSamplingDistance: 64 },
   high: { showDynamicLabelsLimit: 600, selectedPointLabelsLimit: 600, pointSamplingDistance: 40 },
 } satisfies Record<LabelDensity, CosmographConfig>;
@@ -78,9 +82,20 @@ export function normalizeGraphSettings(settings?: Partial<GraphSettings>): Graph
   const result = { ...DEFAULT_GRAPH_SETTINGS };
   if (!settings) return result;
   result.dimensions = settings.dimensions === 3 ? 3 : 2;
-  if (settings.labelDensity === "standard" || settings.labelDensity === "dense" || settings.labelDensity === "high")
+  if (
+    settings.labelDensity === "standard" ||
+    settings.labelDensity === "dense" ||
+    settings.labelDensity === "high"
+  )
     result.labelDensity = settings.labelDensity;
-  for (const key of ["showArrows", "curvedLinks", "scalePointsOnZoom", "sphereShading", "communityEnabled", "communityBackground"] as const)
+  for (const key of [
+    "showArrows",
+    "curvedLinks",
+    "scalePointsOnZoom",
+    "sphereShading",
+    "communityEnabled",
+    "communityBackground",
+  ] as const)
     if (typeof settings[key] === "boolean") result[key] = settings[key];
   for (const key of Object.keys(GRAPH_SETTING_RANGES) as (keyof typeof GRAPH_SETTING_RANGES)[]) {
     const value = settings[key];
@@ -96,7 +111,10 @@ export function graphSettingsConfig(settings?: Partial<GraphSettings>): Cosmogra
   return {
     spaceDimensions: value.dimensions,
     simulationCluster: value.communityEnabled ? value.communityStrength : 0,
-    backgroundColor: value.communityEnabled && value.communityBackground && value.dimensions === 2 ? "#11121a00" : "#11121a",
+    backgroundColor:
+      value.communityEnabled && value.communityBackground && value.dimensions === 2
+        ? "#11121a00"
+        : "#11121a",
     ...LABEL_DENSITY_CONFIG[value.labelDensity],
     linkWidthScale: value.linkWidth,
     linkOpacity: value.linkOpacity,

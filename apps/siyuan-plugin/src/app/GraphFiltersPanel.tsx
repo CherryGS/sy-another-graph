@@ -48,9 +48,7 @@ export function GraphFiltersPanel({
     backRef.current?.focus();
   }, []);
   const [scopeDraft, setScopeDraft] = useState(filters.scopeId);
-  const [excludeDraft, setExcludeDraft] = useState(
-    filters.excludeIds.join("\n"),
-  );
+  const [excludeDraft, setExcludeDraft] = useState(filters.excludeIds.join("\n"));
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Reflect native scope and filter-preset changes.
     setScopeDraft(filters.scopeId);
@@ -88,16 +86,16 @@ export function GraphFiltersPanel({
           </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {state.filterPresets.temporaryActive ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。" : "筛选自动生效，排除词组需点击应用。"}
+          {state.filterPresets.temporaryActive
+            ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。"
+            : "筛选自动生效，排除词组需点击应用。"}
         </p>
       </div>
       <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
         <div className="px-4 pb-4">
           <FieldGroup>
             <Field data-invalid={!scopeValid}>
-              <FieldLabel htmlFor="graph-scope">
-                初始范围 · 文档或块 ID
-              </FieldLabel>
+              <FieldLabel htmlFor="graph-scope">初始范围 · 文档或块 ID</FieldLabel>
               <Input
                 id="graph-scope"
                 placeholder="留空查看全部内容"
@@ -113,9 +111,7 @@ export function GraphFiltersPanel({
               <FieldDescription>
                 多跳仅在初始范围内查找，不展示范围外节点；范围内背景保持可见。
               </FieldDescription>
-              {!scopeValid && (
-                <FieldError>请输入完整块 ID；当前范围保持原值。</FieldError>
-              )}
+              {!scopeValid && <FieldError>请输入完整块 ID；当前范围保持原值。</FieldError>}
             </Field>
             <SettingSwitch
               id="include-children"
@@ -129,9 +125,7 @@ export function GraphFiltersPanel({
               }
             />
             <Field data-invalid={!exclusionsValid}>
-              <FieldLabel htmlFor="graph-exclusions">
-                排除这些 ID 下的内容
-              </FieldLabel>
+              <FieldLabel htmlFor="graph-exclusions">排除这些 ID 下的内容</FieldLabel>
               <Textarea
                 id="graph-exclusions"
                 rows={2}
@@ -149,9 +143,7 @@ export function GraphFiltersPanel({
                     }));
                 }}
               />
-              {!exclusionsValid && (
-                <FieldError>包含不完整的 ID；原排除条件仍生效。</FieldError>
-              )}
+              {!exclusionsValid && <FieldError>包含不完整的 ID；原排除条件仍生效。</FieldError>}
             </Field>
             <Field>
               <FieldLabel htmlFor="notebook-filter">笔记本</FieldLabel>
@@ -186,25 +178,19 @@ export function GraphFiltersPanel({
                   id="reference-filter"
                   name="块引用 · 实线"
                   checked={filters.references}
-                  onChange={(references) =>
-                    setFilters((previous) => ({ ...previous, references }))
-                  }
+                  onChange={(references) => setFilters((previous) => ({ ...previous, references }))}
                 />
                 <SettingSwitch
                   id="hierarchy-filter"
                   name="包含关系 · 虚线"
                   checked={filters.hierarchy}
-                  onChange={(hierarchy) =>
-                    setFilters((previous) => ({ ...previous, hierarchy }))
-                  }
+                  onChange={(hierarchy) => setFilters((previous) => ({ ...previous, hierarchy }))}
                 />
                 <SettingSwitch
                   id="database-filter"
                   name="数据库关系"
                   checked={filters.databases}
-                  onChange={(databases) =>
-                    setFilters((previous) => ({ ...previous, databases }))
-                  }
+                  onChange={(databases) => setFilters((previous) => ({ ...previous, databases }))}
                 />
                 <FieldDescription>
                   每条启用的关系计 1 跳；关闭的关系不参与邻域扩展。
@@ -252,11 +238,7 @@ export function GraphFiltersPanel({
               </div>
               <FieldGroup className="gap-3">
                 {types.map(([type, count]) => (
-                  <Field
-                    key={type}
-                    orientation="horizontal"
-                    data-disabled={type === "d"}
-                  >
+                  <Field key={type} orientation="horizontal" data-disabled={type === "d"}>
                     <Checkbox
                       id={`type-${type}`}
                       aria-label={`显示${NODE_TYPE_LABELS[type] ?? type}`}
@@ -265,9 +247,9 @@ export function GraphFiltersPanel({
                       onCheckedChange={(checked) =>
                         setFilters((previous) => {
                           const hiddenTypes = previous.documentsOnly
-                            ? types.map(([nodeType]) => nodeType).filter(
-                                (nodeType) => nodeType !== "d",
-                              )
+                            ? types
+                                .map(([nodeType]) => nodeType)
+                                .filter((nodeType) => nodeType !== "d")
                             : previous.hiddenTypes;
                           return {
                             ...previous,
@@ -297,11 +279,7 @@ export function GraphFiltersPanel({
       <Separator />
       <div className="flex flex-col gap-2 p-3">
         {footer}
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={state.resetFilters}
-        >
+        <Button variant="outline" className="w-full" onClick={state.resetFilters}>
           重置筛选
         </Button>
       </div>

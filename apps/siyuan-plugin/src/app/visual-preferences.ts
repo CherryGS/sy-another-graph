@@ -17,25 +17,17 @@ export interface VisualPreferences {
 }
 
 export function normalizeVisualPreferences(value: unknown): VisualPreferences {
-  const candidate =
-    value && typeof value === "object"
-      ? (value as Partial<VisualPreferences>)
-      : {};
+  const candidate = value && typeof value === "object" ? (value as Partial<VisualPreferences>) : {};
   return {
-    colorBy: ["type", "branch", "notebook", "degree"].includes(
-      candidate.colorBy ?? "",
-    )
+    colorBy: ["type", "branch", "notebook", "degree"].includes(candidate.colorBy ?? "")
       ? candidate.colorBy!
       : "type",
     pointSize:
-      typeof candidate.pointSize === "number" &&
-      Number.isFinite(candidate.pointSize)
+      typeof candidate.pointSize === "number" && Number.isFinite(candidate.pointSize)
         ? Math.min(10, Math.max(1, candidate.pointSize))
         : 4,
-    showLabels:
-      typeof candidate.showLabels === "boolean" ? candidate.showLabels : true,
-    showLinks:
-      typeof candidate.showLinks === "boolean" ? candidate.showLinks : true,
+    showLabels: typeof candidate.showLabels === "boolean" ? candidate.showLabels : true,
+    showLinks: typeof candidate.showLinks === "boolean" ? candidate.showLinks : true,
     graphSettings: normalizeGraphSettings(candidate.graphSettings),
   };
 }
@@ -55,9 +47,7 @@ function readStoredPreferences(
 }
 
 /** Read-only restoration; the hook writes the normalized result to v2. */
-export function readVisualPreferences(
-  storage?: Pick<Storage, "getItem">,
-): VisualPreferences {
+export function readVisualPreferences(storage?: Pick<Storage, "getItem">): VisualPreferences {
   let available: Pick<Storage, "getItem">;
   try {
     available = storage ?? localStorage;

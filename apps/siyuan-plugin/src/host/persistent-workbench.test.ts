@@ -49,10 +49,7 @@ class ElementStub extends EventTarget {
     return this.source;
   }
   get isConnected(): boolean {
-    return (
-      this === this.ownerDocument.body ||
-      (this.parentElement?.isConnected ?? false)
-    );
+    return this === this.ownerDocument.body || (this.parentElement?.isConnected ?? false);
   }
   appendChild(child: ElementStub): ElementStub {
     child.remove();
@@ -64,10 +61,7 @@ class ElementStub extends EventTarget {
   remove(): void {
     if (!this.parentElement) return;
     if (this.isConnected) this.connected(false);
-    this.parentElement.children.splice(
-      this.parentElement.children.indexOf(this),
-      1,
-    );
+    this.parentElement.children.splice(this.parentElement.children.indexOf(this), 1);
     this.parentElement = null;
   }
   private connected(connected: boolean): void {
@@ -94,8 +88,7 @@ class ElementStub extends EventTarget {
     } as DOMRect;
   }
   blur(): void {
-    if (this.ownerDocument.activeElement === this)
-      this.ownerDocument.activeElement = null;
+    if (this.ownerDocument.activeElement === this) this.ownerDocument.activeElement = null;
   }
 }
 
@@ -165,17 +158,14 @@ function harness() {
     document.body.appendChild(element);
     return element;
   };
-  const attach = (element: ElementStub) =>
-    session.attach(element as unknown as HTMLElement);
-  const detach = (element: ElementStub) =>
-    session.detach(element as unknown as HTMLElement);
+  const attach = (element: ElementStub) => session.attach(element as unknown as HTMLElement);
+  const detach = (element: ElementStub) => session.detach(element as unknown as HTMLElement);
   const flush = () => {
     const pending = [...frames.values()];
     frames.clear();
     for (const callback of pending) callback();
   };
-  const iframe = () =>
-    document.created.find((element) => element.tagName === "IFRAME")!;
+  const iframe = () => document.created.find((element) => element.tagName === "IFRAME")!;
   return {
     session,
     document,
@@ -195,26 +185,48 @@ afterEach(() => vi.unstubAllGlobals());
 describe("plugin-lifetime workbench browsing context", () => {
   it("replays only the latest search/scope request until its matching acknowledgement", () => {
     const h = harness();
-    const first = { requestId: "first", label: "First", query: "first", ids: ["20260913000000-0000001"] };
+    const first = {
+      requestId: "first",
+      label: "First",
+      query: "first",
+      ids: ["20260913000000-0000001"],
+    };
     const second = { ...first, requestId: "second" };
     h.session.requestSearch(first);
     h.session.requestSearch(second);
     h.attach(h.placeholder());
     h.session.announceVisibility();
-    expect(h.iframe().contentWindow.postMessage).toHaveBeenCalledWith({ channel: WORKBENCH_CHANNEL, type: "search-graph", snapshot: second }, h.window.location.origin);
+    expect(h.iframe().contentWindow.postMessage).toHaveBeenCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "search-graph", snapshot: second },
+      h.window.location.origin,
+    );
     h.session.acknowledgeSearch("first");
     h.iframe().contentWindow.postMessage.mockClear();
     h.session.announceVisibility();
-    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph")).toBe(true);
+    expect(
+      h
+        .iframe()
+        .contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph"),
+    ).toBe(true);
     h.session.requestScope(first.ids[0]);
     h.iframe().contentWindow.postMessage.mockClear();
     h.session.announceVisibility();
-    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph")).toBe(false);
+    expect(
+      h
+        .iframe()
+        .contentWindow.postMessage.mock.calls.some(([message]) => message.type === "search-graph"),
+    ).toBe(false);
     h.session.requestSearch(first);
     h.session.acknowledgeSearch("first");
     h.iframe().contentWindow.postMessage.mockClear();
     h.session.announceVisibility();
-    expect(h.iframe().contentWindow.postMessage.mock.calls.some(([message]) => ["search-graph", "scope-graph"].includes(message.type))).toBe(false);
+    expect(
+      h
+        .iframe()
+        .contentWindow.postMessage.mock.calls.some(([message]) =>
+          ["search-graph", "scope-graph"].includes(message.type),
+        ),
+    ).toBe(false);
     h.session.dispose();
   });
   it("admits preview messages only from its visible owned frame and clears them on layout changes", () => {
@@ -223,7 +235,11 @@ describe("plugin-lifetime workbench browsing context", () => {
     const h = harness();
     const anchor = h.placeholder();
     h.attach(anchor);
-    const event = { origin: h.window.location.origin, source: h.iframe().contentWindow, data: {} } as unknown as MessageEvent;
+    const event = {
+      origin: h.window.location.origin,
+      source: h.iframe().contentWindow,
+      data: {},
+    } as unknown as MessageEvent;
     clear.mockClear();
     h.session.previewBlock({ ...event, source: null });
     h.session.previewBlock({ ...event, origin: "https://untrusted.example" });
@@ -281,9 +297,7 @@ describe("plugin-lifetime workbench browsing context", () => {
     const frame = host.iframe();
     host.session.announceVisibility();
     expect(
-      frame.contentWindow.postMessage.mock.calls.some(
-        ([data]) => data.type === "source-changed",
-      ),
+      frame.contentWindow.postMessage.mock.calls.some(([data]) => data.type === "source-changed"),
     ).toBe(false);
     tab.visible = false;
     host.session.refresh();
@@ -336,9 +350,9 @@ describe("plugin-lifetime workbench browsing context", () => {
     host.session.acknowledgeScope(id);
     frame.contentWindow.postMessage.mockClear();
     host.session.announceVisibility();
-    expect(
-      frame.contentWindow.postMessage.mock.calls.map(([data]) => data.type),
-    ).toEqual(["host-visibility"]);
+    expect(frame.contentWindow.postMessage.mock.calls.map(([data]) => data.type)).toEqual([
+      "host-visibility",
+    ]);
     host.session.dispose();
   });
 
@@ -356,11 +370,9 @@ describe("plugin-lifetime workbench browsing context", () => {
       { channel: WORKBENCH_CHANNEL, type: "scope-graph", id: latest },
       host.window.location.origin,
     );
-    expect(
-      frame.contentWindow.postMessage.mock.calls.some(
-        ([data]) => data.id === first,
-      ),
-    ).toBe(false);
+    expect(frame.contentWindow.postMessage.mock.calls.some(([data]) => data.id === first)).toBe(
+      false,
+    );
     host.session.requestScope("av:20260909010002-abc0001");
     host.session.announceVisibility();
     expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
@@ -456,9 +468,7 @@ describe("plugin-lifetime workbench browsing context", () => {
     reopened.box = { left: 400, top: 90, width: 700, height: 500 };
     host.attach(reopened);
     host.flush();
-    expect(
-      host.document.created.filter((element) => element.tagName === "IFRAME"),
-    ).toHaveLength(1);
+    expect(host.document.created.filter((element) => element.tagName === "IFRAME")).toHaveLength(1);
     expect(host.iframe()).toBe(iframe);
     expect(iframe.parentElement).toBe(container);
     expect(iframe.src).toBe(source);
@@ -508,12 +518,8 @@ describe("plugin-lifetime workbench browsing context", () => {
         origin: "https://other.example",
       } as MessageEvent),
     ).toBe(false);
-    expect(
-      host.session.ownsMessage({ ...event, source: null } as MessageEvent),
-    ).toBe(false);
-    expect(
-      host.session.ownsMessage({ ...event, source: {} } as MessageEvent),
-    ).toBe(false);
+    expect(host.session.ownsMessage({ ...event, source: null } as MessageEvent)).toBe(false);
+    expect(host.session.ownsMessage({ ...event, source: {} } as MessageEvent)).toBe(false);
     host.session.announceVisibility();
     expect(iframe.contentWindow.postMessage).toHaveBeenLastCalledWith(
       { channel: WORKBENCH_CHANNEL, type: "host-visibility", active: true },
@@ -534,17 +540,13 @@ describe("plugin-lifetime workbench browsing context", () => {
     expect(frame.isConnected).toBe(false);
     expect(frame.disconnections).toBe(1);
     expect(host.frames.size).toBe(0);
-    expect(
-      host.observers.every((observer) => observer.observed.size === 0),
-    ).toBe(true);
+    expect(host.observers.every((observer) => observer.observed.size === 0)).toBe(true);
     expect(tab.dataset.atlasPlaceholder).toBeUndefined();
     host.window.dispatchEvent(new Event("resize"));
     host.document.dispatchEvent(new Event("scroll"));
     host.document.dispatchEvent(new Event("visibilitychange"));
     expect(host.frames.size).toBe(0);
     host.attach(host.placeholder());
-    expect(
-      host.document.created.filter((element) => element.tagName === "IFRAME"),
-    ).toHaveLength(1);
+    expect(host.document.created.filter((element) => element.tagName === "IFRAME")).toHaveLength(1);
   });
 });

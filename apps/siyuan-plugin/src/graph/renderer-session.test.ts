@@ -47,8 +47,17 @@ function data(id = "a", linksCount = 1): PreparedGraph {
 function dataWithIds(ids: string[]): PreparedGraph {
   return {
     ...data("unused", 0),
-    indexToId: [...ids], indexToLabel: [...ids],
-    indexToNode: ids.map((id, index) => ({ id, index, label: id, degree: 0, notebook: "", path: "", color: "#000000" })),
+    indexToId: [...ids],
+    indexToLabel: [...ids],
+    indexToNode: ids.map((id, index) => ({
+      id,
+      index,
+      label: id,
+      degree: 0,
+      notebook: "",
+      path: "",
+      color: "#000000",
+    })),
     idToIndex: new Map(ids.map((id, index) => [id, index])),
     pointsCount: ids.length,
   };
@@ -93,8 +102,12 @@ function harness() {
     },
   };
   const graph = {
-    get is3D() { return is3D; },
-    get isSimulationRunning() { return simulationRunning; },
+    get is3D() {
+      return is3D;
+    },
+    get isSimulationRunning() {
+      return simulationRunning;
+    },
     getSimulationSpaceInfo: vi.fn((): ReturnType<Cosmograph["getSimulationSpaceInfo"]> => ({
       requestedSize: requestedSpaceSize,
       effectiveSize: requestedSpaceSize,
@@ -108,7 +121,10 @@ function harness() {
       is3D = config.spaceDimensions === 3;
       if (prepared && config.points !== pointTable) {
         positionDimensions = is3D ? 3 : 2;
-        positions = Float32Array.from({ length: prepared.pointsCount * positionDimensions }, (_, index) => 100 + index * 10);
+        positions = Float32Array.from(
+          { length: prepared.pointsCount * positionDimensions },
+          (_, index) => 100 + index * 10,
+        );
         if (pointTable !== undefined) {
           // Cosmograph recreates Cosmos on a point-table replacement.
           zoom = 1;
@@ -119,7 +135,11 @@ function harness() {
         pointTable = config.points;
       } else if (prepared && is3D && positionDimensions === 2) {
         const previous = positions;
-        positions = Float32Array.from({ length: prepared.pointsCount * 3 }, (_, offset) => offset % 3 === 2 ? 50 + Math.floor(offset / 3) : previous[Math.floor(offset / 3) * 2 + offset % 3]);
+        positions = Float32Array.from({ length: prepared.pointsCount * 3 }, (_, offset) =>
+          offset % 3 === 2
+            ? 50 + Math.floor(offset / 3)
+            : previous[Math.floor(offset / 3) * 2 + (offset % 3)],
+        );
         positionDimensions = 3;
       }
       graph.stats = {
@@ -140,13 +160,21 @@ function harness() {
     destroy: vi.fn(async () => {
       order.push("destroy");
     }),
-    pause: vi.fn(() => { simulationRunning = false; }),
-    unpause: vi.fn(() => { simulationRunning = true; }),
-    start: vi.fn(() => { simulationRunning = true; }),
+    pause: vi.fn(() => {
+      simulationRunning = false;
+    }),
+    unpause: vi.fn(() => {
+      simulationRunning = true;
+    }),
+    start: vi.fn(() => {
+      simulationRunning = true;
+    }),
     selectPoints: vi.fn(),
     setFocusedPoint: vi.fn(),
     setPinnedPoints: vi.fn(),
-    fitViewByCoordinates: vi.fn((_coordinates: number[], duration?: number, padding?: number) => { fits(duration, padding); }),
+    fitViewByCoordinates: vi.fn((_coordinates: number[], duration?: number, padding?: number) => {
+      fits(duration, padding);
+    }),
     getZoomLevel: vi.fn(() => {
       if (is3D) throw new Error("2D zoom getter used in 3D");
       return zoom;
@@ -159,29 +187,55 @@ function harness() {
       translateX = width / 2 - x * zoom;
       translateY = height / 2 + y * zoom;
     }),
-    getCanvas: vi.fn(() => ({ getBoundingClientRect: () => ({ width, height }) }) as HTMLCanvasElement),
-    screenToSpacePosition: vi.fn((point: Point2D, options?: { dimensions?: Dimensions }): PointPosition => options?.dimensions === 3
-      ? [point[0] - width / 2 + camera.target[0], height / 2 - point[1] + camera.target[1], camera.target[2]]
-      : [(point[0] - translateX) / zoom, (translateY - point[1]) / zoom]) as ViewportApi["screenToSpacePosition"],
-    spaceToScreenPosition: vi.fn((point: [number, number] | [number, number, number]): [number, number] => [
-      point[0] * zoom + translateX, translateY - point[1] * zoom,
-    ]),
-    setZoomTransformByPointPositions: vi.fn((points: Float32Array, duration?: number, scale?: number, padding?: number) => {
-      if (is3D) throw new Error("2D framing used in 3D");
-      if (scale === undefined) { fits(duration, padding); return; }
-      zoom = scale ?? zoom;
-      translateX = width / 2 - points[0] * zoom;
-      translateY = height / 2 + points[1] * zoom;
+    getCanvas: vi.fn(
+      () => ({ getBoundingClientRect: () => ({ width, height }) }) as HTMLCanvasElement,
+    ),
+    screenToSpacePosition: vi.fn(
+      (point: Point2D, options?: { dimensions?: Dimensions }): PointPosition =>
+        options?.dimensions === 3
+          ? [
+              point[0] - width / 2 + camera.target[0],
+              height / 2 - point[1] + camera.target[1],
+              camera.target[2],
+            ]
+          : [(point[0] - translateX) / zoom, (translateY - point[1]) / zoom],
+    ) as ViewportApi["screenToSpacePosition"],
+    spaceToScreenPosition: vi.fn(
+      (point: [number, number] | [number, number, number]): [number, number] => [
+        point[0] * zoom + translateX,
+        translateY - point[1] * zoom,
+      ],
+    ),
+    setZoomTransformByPointPositions: vi.fn(
+      (points: Float32Array, duration?: number, scale?: number, padding?: number) => {
+        if (is3D) throw new Error("2D framing used in 3D");
+        if (scale === undefined) {
+          fits(duration, padding);
+          return;
+        }
+        zoom = scale ?? zoom;
+        translateX = width / 2 - points[0] * zoom;
+        translateY = height / 2 + points[1] * zoom;
+      },
+    ),
+    getCameraState: vi.fn(() =>
+      is3D ? { ...camera, target: [...camera.target] as [number, number, number] } : undefined,
+    ),
+    setCameraState: vi.fn((state: Partial<CameraState>) => {
+      camera = { ...camera, ...state };
     }),
-    getCameraState: vi.fn(() => is3D ? { ...camera, target: [...camera.target] as [number, number, number] } : undefined),
-    setCameraState: vi.fn((state: Partial<CameraState>) => { camera = { ...camera, ...state }; }),
     getPointPositions: vi.fn((options?: { dimensions?: Dimensions }) => {
       const dimensions = options?.dimensions ?? 2;
       if (dimensions === positionDimensions) return positions;
-      return Float32Array.from({ length: positions.length / positionDimensions * dimensions }, (_, offset) => {
-        const axis = offset % dimensions;
-        return axis < positionDimensions ? positions[Math.floor(offset / dimensions) * positionDimensions + axis] : 0;
-      });
+      return Float32Array.from(
+        { length: (positions.length / positionDimensions) * dimensions },
+        (_, offset) => {
+          const axis = offset % dimensions;
+          return axis < positionDimensions
+            ? positions[Math.floor(offset / dimensions) * positionDimensions + axis]
+            : 0;
+        },
+      );
     }),
     setPointPositions: vi.fn((next: Float32Array, options?: { dimensions?: Dimensions }) => {
       positions = new Float32Array(next);
@@ -216,18 +270,13 @@ function harness() {
     order.push("close");
   });
   const failure = vi.fn();
-  const session = new RendererSession(
-    graph,
-    tables,
-    drain,
-    close,
-    failure,
-    scheduler,
-  );
+  const session = new RendererSession(graph, tables, drain, close, failure, scheduler);
   return {
     session,
     fits,
-    settle: () => { simulationRunning = false; },
+    settle: () => {
+      simulationRunning = false;
+    },
     graph,
     tables,
     order,
@@ -252,48 +301,69 @@ function flushScheduledFrames(h: ReturnType<typeof harness>) {
 }
 
 describe("renderer lifetime", () => {
-  it.each([2, 3] as const)("samples each explicit %sD fit once without rebuilding, reheating or changing pause", async (dimensions) => {
-    const h = harness();
-    h.session.controls(null, true, [], ["a"]);
-    await h.session.update(data(), { spaceDimensions: dimensions, spaceSize: 8192 });
-    flushScheduledFrames(h);
-    const previousSample = h.session.getDiagnostics().layoutSample;
-    h.graph.getPointPositions.mockClear();
-    h.graph.getSimulationSpaceInfo.mockClear();
-    h.graph.setConfig.mockClear();
-    h.graph.setPointPositions.mockClear();
-    h.graph.start.mockClear();
-    h.graph.pause.mockClear();
-    h.graph.unpause.mockClear();
-    h.graph.setPinnedPoints.mockClear();
-    h.graph.setCameraState.mockClear();
-    h.graph.setZoomLevel.mockClear();
-    h.graph.setZoomTransformByPointPositions.mockClear();
-    h.graph.fitViewByCoordinates.mockClear();
-    h.session.fit();
-    flushScheduledFrames(h);
-    expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions });
-    expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledExactlyOnceWith();
-    if (dimensions === 2)
-      expect(h.graph.setZoomTransformByPointPositions).toHaveBeenCalledExactlyOnceWith(h.graph.getPointPositions.mock.results[0].value, 0, undefined, 0.15);
-    else expect(h.graph.fitViewByCoordinates).toHaveBeenCalledExactlyOnceWith([100, 110, 120, 130, 140, 150], 0, 0.15);
-    expect(h.graph.start).not.toHaveBeenCalled();
-    expect(h.graph.pause).not.toHaveBeenCalled();
-    expect(h.graph.unpause).not.toHaveBeenCalled();
-    expect(h.graph.setConfig).not.toHaveBeenCalled();
-    expect(h.graph.setPointPositions).not.toHaveBeenCalled();
-    expect(h.graph.setPinnedPoints).not.toHaveBeenCalled();
-    expect(h.graph.setCameraState).not.toHaveBeenCalled();
-    expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
-    expect(h.graph.isSimulationRunning).toBe(false);
-    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, layoutSample: previousSample + 1, layoutSnapshot: { count: 2, dimensions }, layoutSimulationRunning: false, layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 }, chosenIds: ["a"], pinnedCount: 1 });
-    expect(h.session.getDiagnostics().layoutSampledAt).toEqual(expect.any(Number));
-    h.session.fit();
-    flushScheduledFrames(h);
-    expect(h.graph.getPointPositions).toHaveBeenCalledTimes(2);
-    expect(h.session.getDiagnostics().layoutSample).toBe(previousSample + 2);
-    await h.session.dispose();
-  });
+  it.each([2, 3] as const)(
+    "samples each explicit %sD fit once without rebuilding, reheating or changing pause",
+    async (dimensions) => {
+      const h = harness();
+      h.session.controls(null, true, [], ["a"]);
+      await h.session.update(data(), { spaceDimensions: dimensions, spaceSize: 8192 });
+      flushScheduledFrames(h);
+      const previousSample = h.session.getDiagnostics().layoutSample;
+      h.graph.getPointPositions.mockClear();
+      h.graph.getSimulationSpaceInfo.mockClear();
+      h.graph.setConfig.mockClear();
+      h.graph.setPointPositions.mockClear();
+      h.graph.start.mockClear();
+      h.graph.pause.mockClear();
+      h.graph.unpause.mockClear();
+      h.graph.setPinnedPoints.mockClear();
+      h.graph.setCameraState.mockClear();
+      h.graph.setZoomLevel.mockClear();
+      h.graph.setZoomTransformByPointPositions.mockClear();
+      h.graph.fitViewByCoordinates.mockClear();
+      h.session.fit();
+      flushScheduledFrames(h);
+      expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions });
+      expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledExactlyOnceWith();
+      if (dimensions === 2)
+        expect(h.graph.setZoomTransformByPointPositions).toHaveBeenCalledExactlyOnceWith(
+          h.graph.getPointPositions.mock.results[0].value,
+          0,
+          undefined,
+          0.15,
+        );
+      else
+        expect(h.graph.fitViewByCoordinates).toHaveBeenCalledExactlyOnceWith(
+          [100, 110, 120, 130, 140, 150],
+          0,
+          0.15,
+        );
+      expect(h.graph.start).not.toHaveBeenCalled();
+      expect(h.graph.pause).not.toHaveBeenCalled();
+      expect(h.graph.unpause).not.toHaveBeenCalled();
+      expect(h.graph.setConfig).not.toHaveBeenCalled();
+      expect(h.graph.setPointPositions).not.toHaveBeenCalled();
+      expect(h.graph.setPinnedPoints).not.toHaveBeenCalled();
+      expect(h.graph.setCameraState).not.toHaveBeenCalled();
+      expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
+      expect(h.graph.isSimulationRunning).toBe(false);
+      expect(h.session.getDiagnostics()).toMatchObject({
+        dataRevisions: 1,
+        layoutSample: previousSample + 1,
+        layoutSnapshot: { count: 2, dimensions },
+        layoutSimulationRunning: false,
+        layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 },
+        chosenIds: ["a"],
+        pinnedCount: 1,
+      });
+      expect(h.session.getDiagnostics().layoutSampledAt).toEqual(expect.any(Number));
+      h.session.fit();
+      flushScheduledFrames(h);
+      expect(h.graph.getPointPositions).toHaveBeenCalledTimes(2);
+      expect(h.session.getDiagnostics().layoutSample).toBe(previousSample + 2);
+      await h.session.dispose();
+    },
+  );
 
   it("samples actual XY after returning from 3D and preserves natural settling independently of the pause toggle", async () => {
     const h = harness();
@@ -309,7 +379,10 @@ describe("renderer lifetime", () => {
     h.session.fit();
     flushScheduledFrames(h);
     expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions: 2 });
-    expect(h.session.getDiagnostics()).toMatchObject({ layoutSnapshot: { dimensions: 2 }, layoutSimulationRunning: false });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      layoutSnapshot: { dimensions: 2 },
+      layoutSimulationRunning: false,
+    });
     expect(h.graph.isSimulationRunning).toBe(false);
     expect(h.graph.start).not.toHaveBeenCalled();
     expect(h.graph.unpause).not.toHaveBeenCalled();
@@ -361,7 +434,11 @@ describe("renderer lifetime", () => {
     await h.session.update(data(), { spaceSize: 8192 });
     flushScheduledFrames(h);
     const first = h.session.getDiagnostics();
-    expect(first).toMatchObject({ layoutDataRevision: 1, layoutSpaceInfo: reported, layoutSimulationRunning: false });
+    expect(first).toMatchObject({
+      layoutDataRevision: 1,
+      layoutSpaceInfo: reported,
+      layoutSimulationRunning: false,
+    });
     expect(first.layoutSpaceInfo).not.toBe(reported);
     h.graph.getPointPositions.mockClear();
     h.graph.getSimulationSpaceInfo.mockClear();
@@ -370,7 +447,14 @@ describe("renderer lifetime", () => {
     flushScheduledFrames(h);
     expect(h.graph.getPointPositions).toHaveBeenCalledExactlyOnceWith({ dimensions: 2 });
     expect(h.graph.getSimulationSpaceInfo).toHaveBeenCalledExactlyOnceWith();
-    expect(h.session.getDiagnostics()).toMatchObject({ layoutSample: first.layoutSample + 1, layoutDataRevision: 1, layoutSpaceInfo: null, layoutSimulationRunning: false, chosenIds: ["a"], pinnedCount: 1 });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      layoutSample: first.layoutSample + 1,
+      layoutDataRevision: 1,
+      layoutSpaceInfo: null,
+      layoutSimulationRunning: false,
+      chosenIds: ["a"],
+      pinnedCount: 1,
+    });
     await h.session.dispose();
   });
 
@@ -405,7 +489,12 @@ describe("renderer lifetime", () => {
     for (const config of h.configurations) expect(config).toMatchObject(base);
     h.session.fit();
     flushScheduledFrames(h);
-    expect(h.session.getDiagnostics()).toMatchObject({ layoutDataRevision: 2, layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 }, chosenIds: ["a"], pinnedCount: 1 });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      layoutDataRevision: 2,
+      layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 },
+      chosenIds: ["a"],
+      pinnedCount: 1,
+    });
     await h.session.dispose();
   });
 
@@ -428,19 +517,40 @@ describe("renderer lifetime", () => {
     const h = harness();
     h.session.controls("a", true, [], ["a", "c"]);
     await h.session.update(dataWithIds(["a", "b", "c"]), { spaceDimensions: 3 });
-    h.graph.setPointPositions(new Float32Array([10, 20, 30, 40, 50, 60, 70, 80, 90]), { dimensions: 3 });
+    h.graph.setPointPositions(new Float32Array([10, 20, 30, 40, 50, 60, 70, 80, 90]), {
+      dimensions: 3,
+    });
     const camera: CameraState = { target: [4, 8, 12], distance: 321, azimuth: 0.9, polar: 1.2 };
     h.graph.setCameraState(camera);
     h.graph.getZoomLevel.mockClear();
     await h.session.update(dataWithIds(["c", "new", "a"]), { spaceDimensions: 3 });
-    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([70, 80, 90, 130, 140, 150, 10, 20, 30]);
+    expect([...h.graph.getPointPositions({ dimensions: 3 })]).toEqual([
+      70, 80, 90, 130, 140, 150, 10, 20, 30,
+    ]);
     expect(h.graph.getCameraState()).toEqual(camera);
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 2]);
     expect(h.graph.getZoomLevel).not.toHaveBeenCalled();
     expect(h.session.getDiagnostics()).toMatchObject({
-      dimensions: 3, camera, chosenIds: ["c", "a"], pinnedCount: 2, restoredPointCount: 2, positionWorldError: 0,
-      layoutBefore: { count: 3, dimensions: 3, min: [10, 20, 30], max: [70, 80, 90], centroid: [40, 50, 60] },
-      layoutAfter: { count: 3, dimensions: 3, min: [10, 20, 30], max: [130, 140, 150], centroid: [70, 80, 90] },
+      dimensions: 3,
+      camera,
+      chosenIds: ["c", "a"],
+      pinnedCount: 2,
+      restoredPointCount: 2,
+      positionWorldError: 0,
+      layoutBefore: {
+        count: 3,
+        dimensions: 3,
+        min: [10, 20, 30],
+        max: [70, 80, 90],
+        centroid: [40, 50, 60],
+      },
+      layoutAfter: {
+        count: 3,
+        dimensions: 3,
+        min: [10, 20, 30],
+        max: [130, 140, 150],
+        centroid: [70, 80, 90],
+      },
     });
     await h.session.dispose();
   });
@@ -506,11 +616,20 @@ describe("renderer lifetime", () => {
     h.session.controls("a", true, ["a"], ["a"]);
     await h.session.update(prepared, { simulationCluster: 0 });
     h.graph.setPointPositions(new Float32Array([11, 22, 33, 44]));
-    const clustering = { pointClusterBy: "index", pointClusterByFn: () => 0, simulationCluster: 0.4 };
+    const clustering = {
+      pointClusterBy: "index",
+      pointClusterByFn: () => 0,
+      simulationCluster: 0.4,
+    };
     await h.session.update(prepared, clustering);
     expect([...h.graph.getPointPositions()]).toEqual([11, 22, 33, 44]);
     expect(h.graph.start).not.toHaveBeenCalled();
-    expect(h.session.getDiagnostics()).toMatchObject({ dataRevisions: 1, chosenIds: ["a"], pinnedCount: 1, inspectedId: "a" });
+    expect(h.session.getDiagnostics()).toMatchObject({
+      dataRevisions: 1,
+      chosenIds: ["a"],
+      pinnedCount: 1,
+      inspectedId: "a",
+    });
     h.session.controls("a", false, ["a"], ["a"]);
     expect(h.graph.start).toHaveBeenCalledExactlyOnceWith(0.3);
     await h.session.dispose();
@@ -543,9 +662,7 @@ describe("renderer lifetime", () => {
     finish.resolve();
     expect(await update).toBeNull();
     await closing;
-    expect(h.order.indexOf("rebuild-finished")).toBeLessThan(
-      h.order.indexOf("destroy"),
-    );
+    expect(h.order.indexOf("rebuild-finished")).toBeLessThan(h.order.indexOf("destroy"));
     expect(h.order.indexOf("destroy")).toBeLessThan(h.order.indexOf("clear"));
     expect(h.order.indexOf("clear")).toBeLessThan(h.order.indexOf("close"));
     h.session.controls("a", false);
@@ -611,9 +728,7 @@ describe("renderer lifetime", () => {
     flushScheduledFrames(h);
     expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.setZoomLevel).not.toHaveBeenCalled();
-    expect(
-      h.configurations.every((config) => config.fitViewOnInit === false),
-    ).toBe(true);
+    expect(h.configurations.every((config) => config.fitViewOnInit === false)).toBe(true);
     await h.session.dispose();
   });
 
@@ -686,11 +801,19 @@ describe("renderer lifetime", () => {
     expect(h.fits).not.toHaveBeenCalled();
     expect(h.graph.unpause).not.toHaveBeenCalled();
     expect(h.session.getDiagnostics()).toMatchObject({
-      dataRevisions: 2, restoredPointCount: 2,
-      positionWorldError: 0, positionScreenError: 0, zoomBefore: 4, zoomAfter: 4,
-      chosenIds: ["b", "a"], pinnedCount: 2,
+      dataRevisions: 2,
+      restoredPointCount: 2,
+      positionWorldError: 0,
+      positionScreenError: 0,
+      zoomBefore: 4,
+      zoomAfter: 4,
+      chosenIds: ["b", "a"],
+      pinnedCount: 2,
     });
-    expect(h.session.getDiagnostics().positionSamples.map((sample) => sample.id)).toEqual(["a", "b"]);
+    expect(h.session.getDiagnostics().positionSamples.map((sample) => sample.id)).toEqual([
+      "a",
+      "b",
+    ]);
     await h.session.dispose();
   });
 
@@ -762,11 +885,7 @@ describe("renderer lifetime", () => {
     h.session.controls("b", true);
     finish.resolve();
     await pending;
-    expect(h.graph.selectPoints).toHaveBeenCalledExactlyOnceWith(
-      [1],
-      false,
-      true,
-    );
+    expect(h.graph.selectPoints).toHaveBeenCalledExactlyOnceWith([1], false, true);
     expect(h.graph.pause).toHaveBeenCalled();
     expect(h.graph.unpause).not.toHaveBeenCalled();
     await h.session.dispose();
@@ -792,12 +911,8 @@ describe("renderer lifetime", () => {
     await h.session.update(data("one", 1), {});
     await h.session.update(data("two", 0), {});
     await h.session.update(data("three", 2), {});
-    expect(
-      h.configurations.every((config) => typeof config.links === "string"),
-    ).toBe(true);
-    expect(
-      h.configurations.every((config) => config.fitViewOnInit === false),
-    ).toBe(true);
+    expect(h.configurations.every((config) => typeof config.links === "string")).toBe(true);
+    expect(h.configurations.every((config) => config.fitViewOnInit === false)).toBe(true);
     expect(h.session.counts).toEqual({ nodes: 2, links: 2 });
     await h.session.dispose();
   });
@@ -842,11 +957,7 @@ describe("renderer lifetime", () => {
     expect(h.graph.selectPoints).not.toHaveBeenCalled();
     expect(h.timers.size).toBe(0);
     h.session.setActive(true);
-    expect(h.graph.selectPoints).toHaveBeenCalledExactlyOnceWith(
-      [1, 0],
-      false,
-      true,
-    );
+    expect(h.graph.selectPoints).toHaveBeenCalledExactlyOnceWith([1, 0], false, true);
     expect(h.graph.setFocusedPoint).toHaveBeenCalledExactlyOnceWith(1);
     expect(h.graph.unpause).toHaveBeenCalledTimes(1);
     const staleRefresh = h.frames.values().next().value!;
@@ -887,11 +998,7 @@ describe("renderer lifetime", () => {
     prepared.pointsCount = 3;
     h.session.controls("b", false, ["a", "b", "c", "outside", "c"]);
     await h.session.update(prepared, {});
-    expect(h.graph.selectPoints).toHaveBeenLastCalledWith(
-      [1, 0, 2],
-      false,
-      true,
-    );
+    expect(h.graph.selectPoints).toHaveBeenLastCalledWith([1, 0, 2], false, true);
     expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(1);
     const calls = h.graph.selectPoints.mock.calls.length;
     h.session.controls("b", false, ["a", "b", "c", "outside", "c"]);
@@ -911,10 +1018,7 @@ describe("renderer lifetime", () => {
     const uploaded = h.tables.active;
     await h.session.update(prepared, { pointColorBy: "color" });
     expect(h.tables.active).toBe(uploaded);
-    expect(h.configurations.map((config) => config.pointColorBy)).toEqual([
-      "degreeColor",
-      "color",
-    ]);
+    expect(h.configurations.map((config) => config.pointColorBy)).toEqual(["degreeColor", "color"]);
     await h.session.dispose();
   });
 
@@ -961,9 +1065,7 @@ describe("renderer lifetime", () => {
     const h = harness();
     await h.session.update(data(), {});
     const config = h.configurations[0];
-    const event = { dx: 12, dy: -4 } as Parameters<
-      NonNullable<CosmographConfig["onDrag"]>
-    >[0];
+    const event = { dx: 12, dy: -4 } as Parameters<NonNullable<CosmographConfig["onDrag"]>>[0];
     config.onDragStart?.(event);
     config.onDragEnd?.(event);
     expect(h.session.getDiagnostics().dragCount).toBe(0);
@@ -996,9 +1098,7 @@ describe("renderer lifetime", () => {
       order.push("pause");
     });
     const config = h.configurations[0];
-    const event = { dx: 4, dy: 2 } as Parameters<
-      NonNullable<CosmographConfig["onDrag"]>
-    >[0];
+    const event = { dx: 4, dy: 2 } as Parameters<NonNullable<CosmographConfig["onDrag"]>>[0];
     config.onDragStart?.(event);
     config.onDrag?.(event);
     config.onDragEnd?.(event);
@@ -1026,9 +1126,7 @@ describe("renderer lifetime", () => {
     h.tables.stage.mockClear();
     h.session.controls("b", true, ["a", "b"], ["a"]);
     await vi.waitFor(() => expect(h.graph.setConfig).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() =>
-      expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([0]),
-    );
+    await vi.waitFor(() => expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([0]));
     expect(h.configurations.at(-1)).toMatchObject({
       points: first.points,
       links: first.links,
@@ -1040,9 +1138,7 @@ describe("renderer lifetime", () => {
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
     expect(h.fits).not.toHaveBeenCalled();
     h.session.controls(null, true, []);
-    await vi.waitFor(() =>
-      expect(h.session.getDiagnostics().outlinedCount).toBe(0),
-    );
+    await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(0));
     expect(h.configurations.at(-1)!.outlinedPointIndices).toEqual([]);
     await h.session.dispose();
   });
@@ -1058,10 +1154,17 @@ describe("renderer lifetime", () => {
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([]);
     h.session.controls("a", true, ["a"], ["a"]);
     await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(1));
-    expect(h.configurations.at(-1)).toMatchObject({ accentedPointIndices: [0, 1], outlinedPointIndices: [0] });
+    expect(h.configurations.at(-1)).toMatchObject({
+      accentedPointIndices: [0, 1],
+      outlinedPointIndices: [0],
+    });
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
     await h.session.update(prepared, { spaceDimensions: 3 });
-    expect(h.configurations.at(-1)).toMatchObject({ spaceDimensions: 3, accentedPointIndices: [0, 1], accentedPointRingColor: "#ff4fd8" });
+    expect(h.configurations.at(-1)).toMatchObject({
+      spaceDimensions: 3,
+      accentedPointIndices: [0, 1],
+      accentedPointRingColor: "#ff4fd8",
+    });
     h.session.controls(null, true);
     await vi.waitFor(() => expect(h.session.getDiagnostics().outlinedCount).toBe(0));
     expect(h.configurations.at(-1)!.accentedPointIndices).toEqual([0, 1]);
@@ -1104,13 +1207,7 @@ describe("renderer lifetime", () => {
     prepared.indexToId.push("c");
     prepared.indexToLabel.push("c");
     prepared.pointsCount = 3;
-    h.session.controls(
-      "c",
-      false,
-      ["a", "b", "c"],
-      ["a", "b", "outside"],
-      ["c"],
-    );
+    h.session.controls("c", false, ["a", "b", "c"], ["a", "b", "outside"], ["c"]);
     await h.session.update(prepared, {});
     expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0, 1]);
     expect(h.configurations[0].outlinedPointIndices).toEqual([0, 1]);
@@ -1120,13 +1217,7 @@ describe("renderer lifetime", () => {
       inspectedId: "c",
     });
     const pinCalls = h.graph.setPinnedPoints.mock.calls.length;
-    h.session.controls(
-      "b",
-      false,
-      ["a", "b", "c"],
-      ["outside", "b", "a"],
-      ["c"],
-    );
+    h.session.controls("b", false, ["a", "b", "c"], ["outside", "b", "a"], ["c"]);
     expect(h.graph.setPinnedPoints).toHaveBeenCalledTimes(pinCalls);
     expect(h.graph.setFocusedPoint).toHaveBeenLastCalledWith(undefined);
     expect(h.session.getDiagnostics().inspectedId).toBe("b");

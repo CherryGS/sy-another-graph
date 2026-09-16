@@ -1,13 +1,6 @@
 import { Cosmograph } from "@cosmograph/cosmograph";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createLocalDuckDB } from "./local-duckdb";
 import type { LocalDuckDB } from "./local-duckdb";
 import { prepareGraph } from "./prepare-graph";
@@ -31,12 +24,7 @@ import { hitTestPoint } from "./point-hit-test";
 import type { CanvasNode, CosmographCanvasProps } from "./types";
 import "./canvas.css";
 
-export type {
-  CanvasNode,
-  CanvasEdge,
-  CanvasStats,
-  CosmographCanvasProps,
-} from "./types";
+export type { CanvasNode, CanvasEdge, CanvasStats, CosmographCanvasProps } from "./types";
 
 const BASE_CONFIG: CosmographConfig = {
   backgroundColor: "#11121a",
@@ -93,9 +81,7 @@ const BASE_CONFIG: CosmographConfig = {
 // Rapid empty-view/remount cycles finish releasing the previous GPU and worker first.
 let previousCleanup: Promise<void> = Promise.resolve();
 const errorMessage = (error: unknown) =>
-  error instanceof Error && error.message
-    ? error.message
-    : "无法绘制图谱，请重试。";
+  error instanceof Error && error.message ? error.message : "无法绘制图谱，请重试。";
 const reportCleanupError = (error: unknown) =>
   console.error("Graph resource cleanup failed", error);
 const subscribeNothing = () => () => {};
@@ -137,23 +123,28 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     session?.subscribe ?? subscribeNothing,
     session?.getDiagnostics ?? noDiagnostics,
   );
-  const serializedDiagnostics = useMemo(() => ({
-    camera: JSON.stringify(diagnostics?.camera ?? null),
-    chosenIds: JSON.stringify(diagnostics?.chosenIds ?? []),
-    positionSamples: JSON.stringify(diagnostics?.positionSamples ?? []),
-    layoutBefore: JSON.stringify(diagnostics?.layoutBefore ?? null),
-    layoutAfter: JSON.stringify(diagnostics?.layoutAfter ?? null),
-    layoutSnapshot: JSON.stringify(diagnostics?.layoutSnapshot ?? null),
-    layoutSpaceInfo: JSON.stringify(diagnostics?.layoutSpaceInfo ?? null),
-  }), [diagnostics]);
+  const serializedDiagnostics = useMemo(
+    () => ({
+      camera: JSON.stringify(diagnostics?.camera ?? null),
+      chosenIds: JSON.stringify(diagnostics?.chosenIds ?? []),
+      positionSamples: JSON.stringify(diagnostics?.positionSamples ?? []),
+      layoutBefore: JSON.stringify(diagnostics?.layoutBefore ?? null),
+      layoutAfter: JSON.stringify(diagnostics?.layoutAfter ?? null),
+      layoutSnapshot: JSON.stringify(diagnostics?.layoutSnapshot ?? null),
+      layoutSpaceInfo: JSON.stringify(diagnostics?.layoutSpaceInfo ?? null),
+    }),
+    [diagnostics],
+  );
   const [prepared, setPrepared] = useState<PreparedGraph | null>(null);
-  const communities = useCommunities(prepared, settings.communityEnabled, settings.communityResolution);
+  const communities = useCommunities(
+    prepared,
+    settings.communityEnabled,
+    settings.communityResolution,
+  );
   const [counts, setCounts] = useState({ nodes: 0, links: 0 });
   const [isPreparing, setIsPreparing] = useState(true);
   const [isRendering, setIsRendering] = useState(false);
-  const [initializationError, setInitializationError] = useState<string | null>(
-    null,
-  );
+  const [initializationError, setInitializationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hovered, setHovered] = useState<CanvasNode | null>(null);
   const context = hovered ? nodeContext(hovered, props.notebookNames, searchOrigins) : null;
@@ -206,8 +197,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       background?.setActive(false);
       labelGuard?.end();
       owned?.suspend();
-      if (active)
-        setInitializationError("图形上下文已丢失，请重试图谱以恢复显示。");
+      if (active) setInitializationError("图形上下文已丢失，请重试图谱以恢复显示。");
     };
     element?.addEventListener("webglcontextlost", handleContextLost, true);
     const initialize = async () => {
@@ -226,8 +216,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           if (id === null && hoveredLink.current !== undefined) return;
           const action = canvasClick(id, event);
           if (action.kind === "open") latestProps.current.onOpen(action.id);
-          else if (action.kind === "inspect")
-            latestProps.current.onSelect(action.id, action.event);
+          else if (action.kind === "inspect") latestProps.current.onSelect(action.id, action.event);
         };
         const refreshStoppedLabels = () => {
           if (active && owned?.isInteractive) {
@@ -239,17 +228,14 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           ...BASE_CONFIG,
           onClick: (index, _position, event) =>
             choose(
-              index === undefined
-                ? null
-                : (owned?.displayed?.indexToId[index] ?? null),
+              index === undefined ? null : (owned?.displayed?.indexToId[index] ?? null),
               event,
             ),
           // Use the returned stable ID; an old asynchronous label click must not remap its index.
           onLabelClick: (_index, id, event) => choose(id, event),
           onLinkClick: (index) => {
             const edge = owned?.displayed?.indexToEdge[index];
-            if (edge && active && owned?.isInteractive)
-              latestProps.current.onInspectEdge(edge);
+            if (edge && active && owned?.isInteractive) latestProps.current.onInspectEdge(edge);
           },
           onLinkMouseOver: (index) => {
             hoveredLink.current = index;
@@ -270,21 +256,33 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
             labelGuard?.begin();
             setHovered(null);
           },
-          onDrag: () => { labels?.refresh(); background?.refresh(); },
+          onDrag: () => {
+            labels?.refresh();
+            background?.refresh();
+          },
           onDragEnd: () => {
             labelGuard?.end();
             labels?.refresh();
             background?.settle();
           },
-          onSimulationTick: () => { labels?.refresh("simulation"); background?.refresh("simulation"); },
+          onSimulationTick: () => {
+            labels?.refresh("simulation");
+            background?.refresh("simulation");
+          },
           onSimulationPause: refreshStoppedLabels,
           onSimulationEnd: refreshStoppedLabels,
-          onZoom: () => { labels?.refresh("projection"); background?.refresh("projection"); },
-          onResize: () => { labels?.refresh("projection"); background?.refresh("projection"); },
+          onZoom: () => {
+            labels?.refresh("projection");
+            background?.refresh("projection");
+          },
+          onResize: () => {
+            labels?.refresh("projection");
+            background?.refresh("projection");
+          },
           pointLabelClassName: (_text, _index, id) =>
             id &&
-              (latestProps.current.chosenIds.includes(id) ||
-                latestProps.current.spotlightIds?.includes(id))
+            (latestProps.current.chosenIds.includes(id) ||
+              latestProps.current.spotlightIds?.includes(id))
               ? "ag-graph-label ag-graph-label--chosen"
               : "ag-graph-label",
           onGraphRebuildError: fail,
@@ -312,8 +310,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           const target = event.target instanceof Element ? event.target : null;
           const label = target?.closest<HTMLElement>("[data-graph-node-id]");
           const labelId = label?.dataset.graphNodeId;
-          if (labelId && owned?.displayed?.idToIndex.has(labelId))
-            return labelId;
+          if (labelId && owned?.displayed?.idToIndex.has(labelId)) return labelId;
           if (target?.closest(".css-label--label")) return null;
           const index = hitTestPoint(graph, localPosition(event));
           return index === undefined ? null : (owned?.displayed?.indexToId[index] ?? null);
@@ -324,8 +321,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           nodeAt,
           overRelationship: (event) =>
             hoveredLink.current !== undefined ||
-            (event.target instanceof Element &&
-              Boolean(event.target.closest(".css-label--label"))),
+            (event.target instanceof Element && Boolean(event.target.closest(".css-label--label"))),
           pointerPosition: localPosition,
           begin: (ids, origin, grabbedId) => {
             const displayed = owned?.displayed;
@@ -335,13 +331,22 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
               throw new Error("选中节点已变化，请重新开始拖动。");
             const grabbedIndex = displayed.idToIndex.get(grabbedId);
             if (grabbedIndex === undefined) throw new Error("拖动节点已变化，请重新开始拖动。");
-            return beginCanvasGroupMotion(graph, indices as number[], grabbedIndex, origin, owned!.positionDimensions);
+            return beginCanvasGroupMotion(
+              graph,
+              indices as number[],
+              grabbedIndex,
+              origin,
+              owned!.positionDimensions,
+            );
           },
           onStart: () => {
             labelGuard?.begin();
             setHovered(null);
           },
-          onMove: () => { labels?.refresh(); background?.refresh(); },
+          onMove: () => {
+            labels?.refresh();
+            background?.refresh();
+          },
           onEnd: (moved) => {
             labelGuard?.end();
             labels?.refresh();
@@ -357,8 +362,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
         await owned.initialize(base);
         if (active) setSession(owned);
       } catch (failure) {
-        if (active && !controller.signal.aborted)
-          setInitializationError(errorMessage(failure));
+        if (active && !controller.signal.aborted) setInitializationError(errorMessage(failure));
         if (owned) await owned.dispose().catch(reportCleanupError);
         else await database?.dispose();
       }
@@ -437,7 +441,14 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
     void session
       .update(prepared, {
         ...interactiveConfig.current,
-        ...displayConfig({ settings, colorBy, showLabels, showLinks, pointSize, pointsCount: prepared.pointsCount }),
+        ...displayConfig({
+          settings,
+          colorBy,
+          showLabels,
+          showLinks,
+          pointSize,
+          pointsCount: prepared.pointsCount,
+        }),
         ...communities.config,
       })
       .then((stats) => {
@@ -451,7 +462,11 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           latestProps.current.spotlightIds,
         );
         chosenLabels.current?.setActive(latestProps.current.active !== false);
-        communityBackground.current?.update(session.displayed, communities.partition, settings.communityEnabled && settings.communityBackground && settings.dimensions === 2);
+        communityBackground.current?.update(
+          session.displayed,
+          communities.partition,
+          settings.communityEnabled && settings.communityBackground && settings.dimensions === 2,
+        );
         communityBackground.current?.setActive(latestProps.current.active !== false);
         latestProps.current.onReady?.(stats);
       })
@@ -466,7 +481,17 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       active = false;
       session.suspend();
     };
-  }, [session, prepared, showLabels, showLinks, pointSize, colorBy, settings, communities.config, communities.partition]);
+  }, [
+    session,
+    prepared,
+    showLabels,
+    showLinks,
+    pointSize,
+    colorBy,
+    settings,
+    communities.config,
+    communities.partition,
+  ]);
 
   useLayoutEffect(() => {
     if (!visible) {
@@ -480,26 +505,13 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
 
   useEffect(() => {
     const previous = new Set(previousChosen.current);
-    if (
-      previous.size !== new Set(chosenIds).size ||
-      chosenIds.some((id) => !previous.has(id))
-    )
+    if (previous.size !== new Set(chosenIds).size || chosenIds.some((id) => !previous.has(id)))
       gestures.current?.cancel();
     previousChosen.current = chosenIds;
-    session?.controls(
-      selectedId,
-      paused,
-      highlightedIds,
-      chosenIds,
-      spotlightIds,
-    );
+    session?.controls(selectedId, paused, highlightedIds, chosenIds, spotlightIds);
   }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
   useEffect(() => {
-    chosenLabels.current?.update(
-      session?.displayed ?? null,
-      chosenIds,
-      spotlightIds,
-    );
+    chosenLabels.current?.update(session?.displayed ?? null, chosenIds, spotlightIds);
   }, [session, chosenIds, spotlightIds]);
   useEffect(() => {
     session?.fit();
@@ -529,9 +541,7 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       data-camera={serializedDiagnostics.camera}
       data-highlighted-count={diagnostics?.highlightedCount ?? 0}
       data-outlined-count={diagnostics?.outlinedCount ?? 0}
-      data-requested-highlighted-count={
-        diagnostics?.requestedHighlightCount ?? 0
-      }
+      data-requested-highlighted-count={diagnostics?.requestedHighlightCount ?? 0}
       data-inspected-id={diagnostics?.inspectedId ?? ""}
       data-chosen-count={diagnostics?.chosenIds.length ?? 0}
       data-chosen-ids={serializedDiagnostics.chosenIds}
@@ -562,7 +572,11 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       }}
       onPointerLeave={() => setHovered(null)}
     >
-      <canvas ref={communityCanvas} className="ag-canvas__community-background" aria-hidden="true" />
+      <canvas
+        ref={communityCanvas}
+        className="ag-canvas__community-background"
+        aria-hidden="true"
+      />
       <div
         ref={container}
         className="ag-canvas__renderer"
@@ -572,9 +586,23 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
       />
       {settings.communityEnabled && nodes.length > 0 && !visibleError && (
         <div className="ag-canvas__community-status" role="status">
-          {communities.error
-            ? <Alert variant="destructive"><AlertDescription>社区计算失败：{communities.error} 可重新启用社区聚合重试。</AlertDescription></Alert>
-            : <Badge variant="secondary">{communities.pending ? "正在计算社区…" : communities.partition ? communities.partition.count ? `${communities.partition.count} 个可聚合社区` : "暂无可聚合社区" : "准备社区…"}</Badge>}
+          {communities.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                社区计算失败：{communities.error} 可重新启用社区聚合重试。
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Badge variant="secondary">
+              {communities.pending
+                ? "正在计算社区…"
+                : communities.partition
+                  ? communities.partition.count
+                    ? `${communities.partition.count} 个可聚合社区`
+                    : "暂无可聚合社区"
+                  : "准备社区…"}
+            </Badge>
+          )}
         </div>
       )}
       {context && visible && !loading && !visibleError && (
@@ -585,7 +613,14 @@ export function CosmographCanvas(props: CosmographCanvasProps) {
           ))}
         </div>
       )}
-      <GraphCanvasState error={visibleError} loading={loading} initializing={!session} preparing={isPreparing} nodeCount={nodes.length} onRetry={() => setRetry((value) => value + 1)} />
+      <GraphCanvasState
+        error={visibleError}
+        loading={loading}
+        initializing={!session}
+        preparing={isPreparing}
+        nodeCount={nodes.length}
+        onRetry={() => setRetry((value) => value + 1)}
+      />
     </div>
   );
 }

@@ -25,8 +25,10 @@ export async function communityEndpoints(data: PreparedGraph, signal: AbortSigna
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     const edge = data.indexToEdge[i];
-    const source = indices.get(edge.source), target = indices.get(edge.target);
-    if (source === undefined || target === undefined) throw new Error("社区关系端点与当前图不一致。");
+    const source = indices.get(edge.source),
+      target = indices.get(edge.target);
+    if (source === undefined || target === undefined)
+      throw new Error("社区关系端点与当前图不一致。");
     endpoints[i * 2] = source;
     endpoints[i * 2 + 1] = target;
   }
@@ -65,11 +67,19 @@ export function calculateCommunities(
     worker.onmessageerror = () => fail(new Error("无法读取社区计算结果。"));
     worker.onmessage = ({ data }) => {
       if (finished) return;
-      if ("error" in data) { fail(new Error(data.error)); return; }
+      if ("error" in data) {
+        fail(new Error(data.error));
+        return;
+      }
       const { membership, calculationMs } = data;
-      if (!(membership instanceof Uint32Array) || membership.length !== request.nodes ||
-        membership.some((id) => id >= request.nodes) || !Number.isFinite(calculationMs)) {
-        fail(new Error("社区结果与当前图不一致。")); return;
+      if (
+        !(membership instanceof Uint32Array) ||
+        membership.length !== request.nodes ||
+        membership.some((id) => id >= request.nodes) ||
+        !Number.isFinite(calculationMs)
+      ) {
+        fail(new Error("社区结果与当前图不一致。"));
+        return;
       }
       const sizes = new Uint32Array(request.nodes);
       for (const group of membership) sizes[group]++;
@@ -77,7 +87,10 @@ export function calculateCommunities(
       cleanup();
       resolve({ membership, sizes, count, calculationMs });
     };
-    try { worker.postMessage(request, [request.endpoints.buffer]); }
-    catch (error) { fail(error); }
+    try {
+      worker.postMessage(request, [request.endpoints.buffer]);
+    } catch (error) {
+      fail(error);
+    }
   });
 }

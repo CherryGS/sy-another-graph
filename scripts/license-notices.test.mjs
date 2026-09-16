@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { renderRuntimeNotices } from "./lib/license-notices.mjs";
 
-test("license notices preserve attribution and text while excluding local installation paths", t => {
+test("license notices preserve attribution and text while excluding local installation paths", (t) => {
   const temporaryRoot = realpathSync(tmpdir());
   const root = mkdtempSync(join(temporaryRoot, "atlas-license-"));
   t.after(() => {
@@ -13,7 +13,15 @@ test("license notices preserve attribution and text while excluding local instal
     assert.ok(root.startsWith(join(temporaryRoot, "atlas-license-")));
     rmSync(root, { recursive: true, force: true });
   });
-  writeFileSync(join(root, "package.json"), JSON.stringify({ name: "example", version: "1.2.3", author: { name: "Author" }, repository: { url: "https://github.com/owner/example" } }));
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({
+      name: "example",
+      version: "1.2.3",
+      author: { name: "Author" },
+      repository: { url: "https://github.com/owner/example" },
+    }),
+  );
   writeFileSync(join(root, "LICENSE"), "Copyright Author\nPermission text");
   writeFileSync(join(root, "NOTICE.txt"), "Additional notice");
   const row = { name: "example", paths: [root], license: "MIT" };

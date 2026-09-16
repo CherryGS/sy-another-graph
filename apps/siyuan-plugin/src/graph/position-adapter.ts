@@ -1,5 +1,14 @@
 import type { Cosmograph } from "@cosmograph/cosmograph";
-import { cameraDepthOffset, pointAt, projectPosition, type CameraState, type Dimensions, type Point2D, type PointPosition, type ProjectionApi } from "./geometry";
+import {
+  cameraDepthOffset,
+  pointAt,
+  projectPosition,
+  type CameraState,
+  type Dimensions,
+  type Point2D,
+  type PointPosition,
+  type ProjectionApi,
+} from "./geometry";
 import { sampleLayoutPoints, type LayoutMetrics } from "./layout-sampler";
 
 /** The supported Cosmos position API is not yet forwarded by Cosmograph 2.5.1. */
@@ -38,14 +47,21 @@ export interface ViewportApi extends ProjectionApi {
   screenToSpacePosition: Cosmograph["screenToSpacePosition"];
   getCameraState?: Cosmograph["getCameraState"];
   setCameraState?: Cosmograph["setCameraState"];
-  setZoomTransformByPointPositions(positions: Float32Array, duration?: number, scale?: number, padding?: number): void;
+  setZoomTransformByPointPositions(
+    positions: Float32Array,
+    duration?: number,
+    scale?: number,
+    padding?: number,
+  ): void;
 }
 
-export type ViewportSnapshot = {
-  dimensions: 2;
-  zoom: number;
-  center: [number, number];
-} | { dimensions: 3; camera: CameraState };
+export type ViewportSnapshot =
+  | {
+      dimensions: 2;
+      zoom: number;
+      center: [number, number];
+    }
+  | { dimensions: 3; camera: CameraState };
 
 export interface PositionProbe {
   id: string;
@@ -69,7 +85,11 @@ export interface PositionRestore {
 }
 
 /** Capture only IDs in the graph that is actually backed by the current GPU tables. */
-export function captureNodePositions(renderer: unknown, ids: readonly string[], dimensions: Dimensions = 2): NodePositions {
+export function captureNodePositions(
+  renderer: unknown,
+  ids: readonly string[],
+  dimensions: Dimensions = 2,
+): NodePositions {
   const values = positionApi(renderer).getPointPositions({ dimensions });
   if (!values || values.length !== ids.length * dimensions)
     throw new Error("节点坐标与当前图谱不一致，无法安全保留布局。");
@@ -82,7 +102,12 @@ export function captureNodePositions(renderer: unknown, ids: readonly string[], 
 }
 
 /** Reindex existing coordinates by stable ID, leaving new points at their new initial positions. */
-export function restoreNodePositions(renderer: unknown, ids: readonly string[], saved: NodePositions, dimensions: Dimensions = 2) {
+export function restoreNodePositions(
+  renderer: unknown,
+  ids: readonly string[],
+  saved: NodePositions,
+  dimensions: Dimensions = 2,
+) {
   const api = positionApi(renderer);
   const current = api.getPointPositions({ dimensions });
   if (!current || current.length !== ids.length * dimensions)
@@ -111,13 +136,24 @@ export function restoreNodePositions(renderer: unknown, ids: readonly string[], 
 export function captureViewport(renderer: ViewportApi): ViewportSnapshot | null {
   if (renderer.is3D) {
     const camera = renderer.getCameraState?.();
-    if (!camera || ![...camera.target, camera.distance, camera.azimuth, camera.polar].every(Number.isFinite) || camera.distance <= 0)
+    if (
+      !camera ||
+      ![...camera.target, camera.distance, camera.azimuth, camera.polar].every(Number.isFinite) ||
+      camera.distance <= 0
+    )
       return null;
     return { dimensions: 3, camera: { ...camera, target: [...camera.target] } };
   }
   const bounds = renderer.getCanvas()?.getBoundingClientRect();
   const zoom = renderer.getZoomLevel();
-  if (!bounds || bounds.width <= 0 || bounds.height <= 0 || !Number.isFinite(zoom) || !zoom || zoom <= 0)
+  if (
+    !bounds ||
+    bounds.width <= 0 ||
+    bounds.height <= 0 ||
+    !Number.isFinite(zoom) ||
+    !zoom ||
+    zoom <= 0
+  )
     return null;
   const center = renderer.screenToSpacePosition([bounds.width / 2, bounds.height / 2]);
   if (!center || !center.every(Number.isFinite)) return null;
@@ -136,7 +172,11 @@ export function restoreViewport(renderer: ViewportApi, saved: ViewportSnapshot) 
 }
 
 /** Small public-coordinate probes distinguish a camera reset from movement of the actual points. */
-export function positionProbes(renderer: ViewportApi, positions: NodePositions, ids: readonly string[]): PositionProbe[] {
+export function positionProbes(
+  renderer: ViewportApi,
+  positions: NodePositions,
+  ids: readonly string[],
+): PositionProbe[] {
   const probes: PositionProbe[] = [];
   for (const id of new Set(ids)) {
     const position = positions.get(id);
@@ -171,16 +211,27 @@ export function measurePositionRestore(
     if (!position) continue;
     const world = [...position];
     const projected = projectPosition(renderer, world);
-    const screen: [number, number] | null = projected?.every(Number.isFinite) ? [...projected] : null;
+    const screen: [number, number] | null = projected?.every(Number.isFinite)
+      ? [...projected]
+      : null;
     if (probe.screen && screen)
-      maximumScreenError = Math.max(maximumScreenError ?? 0, Math.hypot(screen[0] - probe.screen[0], screen[1] - probe.screen[1]));
+      maximumScreenError = Math.max(
+        maximumScreenError ?? 0,
+        Math.hypot(screen[0] - probe.screen[0], screen[1] - probe.screen[1]),
+      );
     samples.push({
-      id: probe.id, worldBefore: probe.world, worldAfter: world,
-      screenBefore: probe.screen, screenAfter: screen,
+      id: probe.id,
+      worldBefore: probe.world,
+      worldAfter: world,
+      screenBefore: probe.screen,
+      screenAfter: screen,
     });
   }
   return {
-    restored, maximumWorldError, maximumScreenError, samples,
+    restored,
+    maximumWorldError,
+    maximumScreenError,
+    samples,
     layoutBefore: sampleLayoutPoints(before.values()),
     layoutAfter: sampleLayoutPoints(after.values()),
   };
@@ -204,17 +255,16 @@ export function beginGroupMotion(
     throw new Error("暂时无法读取节点位置，请等待图谱完成布局后重试。");
   const roots = [...new Set(indices)].map((index) => {
     const point = pointAt(initial, index, dimensions);
-    if (
-      !Number.isSafeInteger(index) ||
-      index < 0 ||
-      !point.every(Number.isFinite)
-    )
+    if (!Number.isSafeInteger(index) || index < 0 || !point.every(Number.isFinite))
       throw new Error("选中节点的位置已变化，请重新开始拖动。");
     return { index, point };
   });
   return {
     move(position) {
-      const delta = Array.from({ length: dimensions }, (_, axis) => ((position[axis] ?? 0) - (origin[axis] ?? 0)) * depthScale);
+      const delta = Array.from(
+        { length: dimensions },
+        (_, axis) => ((position[axis] ?? 0) - (origin[axis] ?? 0)) * depthScale,
+      );
       if (!delta.every(Number.isFinite)) return;
       const current = api.getPointPositions({ dimensions });
       if (!current || current.length !== initial.length)
@@ -240,9 +290,10 @@ export function beginCanvasGroupMotion(
   dimensions: Dimensions,
 ): GroupMotion {
   const is3D = Boolean(renderer.is3D);
-  const unproject = (screen: Point2D) => is3D
-    ? renderer.screenToSpacePosition(screen, { dimensions: 3 })
-    : renderer.screenToSpacePosition(screen);
+  const unproject = (screen: Point2D) =>
+    is3D
+      ? renderer.screenToSpacePosition(screen, { dimensions: 3 })
+      : renderer.screenToSpacePosition(screen);
   const origin = unproject(originScreen);
   if (!origin?.every(Number.isFinite)) throw new Error("暂时无法确定拖动平面，请重试。");
   let depthScale = 1;
@@ -250,11 +301,13 @@ export function beginCanvasGroupMotion(
     const camera = renderer.getCameraState?.();
     const positions = positionApi(renderer).getPointPositions({ dimensions: 3 });
     const grabbed = positions && pointAt(positions, grabbedIndex, 3);
-    if (!camera || !grabbed?.every(Number.isFinite)) throw new Error("暂时无法确定三维拖动平面，请重试。");
+    if (!camera || !grabbed?.every(Number.isFinite))
+      throw new Error("暂时无法确定三维拖动平面，请重试。");
     // Public unprojection uses the target-depth plane. Perspective scales its
     // displacement by grabbed-depth / target-depth to reach the root's plane.
     depthScale = 1 - cameraDepthOffset(camera, grabbed) / camera.distance;
-    if (!Number.isFinite(depthScale) || depthScale <= 0) throw new Error("节点不在相机前方，请重新开始拖动。");
+    if (!Number.isFinite(depthScale) || depthScale <= 0)
+      throw new Error("节点不在相机前方，请重新开始拖动。");
   }
   const motion = beginGroupMotion(renderer, indices, origin, dimensions, depthScale);
   return {

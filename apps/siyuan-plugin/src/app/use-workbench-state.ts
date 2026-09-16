@@ -1,18 +1,7 @@
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { loadSiYuanGraph } from "../data/source";
 import { prepareGraphExport, type ExportFile } from "../data/export";
-import {
-  DEFAULT_FILTERS,
-  type GraphDataset,
-  type GraphEdge,
-} from "../data/types";
+import { DEFAULT_FILTERS, type GraphDataset, type GraphEdge } from "../data/types";
 import {
   projectGraph,
   resolveOpenBlock,
@@ -26,10 +15,7 @@ import { EMPTY_SELECTION, retainSelection, selectNode } from "./selection";
 import { useGraphEngine } from "./use-graph-engine";
 import { ExplorationRequest } from "./exploration-request";
 import { SourceRefresh, subscribeSourceRefresh } from "./source-refresh";
-import {
-  normalizeVisualPreferences,
-  useVisualPreferences,
-} from "./visual-preferences";
+import { normalizeVisualPreferences, useVisualPreferences } from "./visual-preferences";
 import { normalizeGraphSettings, type GraphSettings } from "../graph/settings";
 import { getGraphLookups, searchGraphNodes } from "../data/graph-lookups";
 import { withMentionEdges } from "../mentions/graph-integration";
@@ -46,8 +32,7 @@ function userMessage(failure: unknown) {
   const message = failure instanceof Error ? failure.message : String(failure);
   if (/Graph worker failed|Failed to fetch/i.test(message))
     return "本地图谱资源加载失败，请确认思源连接正常后重试。";
-  if (/timed out|timeout/i.test(message))
-    return "请求超时，请检查连接后重新加载图谱。";
+  if (/timed out|timeout/i.test(message)) return "请求超时，请检查连接后重新加载图谱。";
   return message;
 }
 
@@ -74,22 +59,16 @@ export function useWorkbenchState() {
   } | null>(null);
   const [depth, setDepthState] = useState(1);
   const [direction, setDirection] = useState<GraphDirection>("both");
-  const [exploration, setExploration] = useState<ExplorationResult | null>(
-    null,
-  );
+  const [exploration, setExploration] = useState<ExplorationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const requests = useRef(new ExplorationRequest());
   const { preferences, setPreferences } = useVisualPreferences();
-  const { showLabels, showLinks, pointSize, colorBy, graphSettings } =
-    preferences;
+  const { showLabels, showLinks, pointSize, colorBy, graphSettings } = preferences;
   const setShowLabels = (showLabels: boolean) =>
     setPreferences((value) => ({ ...value, showLabels }));
-  const setShowLinks = (showLinks: boolean) =>
-    setPreferences((value) => ({ ...value, showLinks }));
+  const setShowLinks = (showLinks: boolean) => setPreferences((value) => ({ ...value, showLinks }));
   const setPointSize = (pointSize: number) =>
-    setPreferences((value) =>
-      normalizeVisualPreferences({ ...value, pointSize }),
-    );
+    setPreferences((value) => normalizeVisualPreferences({ ...value, pointSize }));
   const setColorBy = (colorBy: GraphColorMode) =>
     setPreferences((value) => ({ ...value, colorBy }));
   const setGraphSettings = (patch: Partial<GraphSettings>) =>
@@ -135,8 +114,7 @@ export function useWorkbenchState() {
       if (initial) setFitRequest((value) => value + 1);
       return next;
     } catch (failure) {
-      if (current === revision.current && !abort.signal.aborted)
-        setError(userMessage(failure));
+      if (current === revision.current && !abort.signal.aborted) setError(userMessage(failure));
     } finally {
       if (current === revision.current) {
         setLoading("");
@@ -177,11 +155,18 @@ export function useWorkbenchState() {
     setInspectedEdge(null);
     setExploration(null);
     setBusy(false);
-    setFitRequest(value => value + 1);
+    setFitRequest((value) => value + 1);
     window.location.hash = "#/";
   }, []);
-  const { filters, setFilters, resetFilters, filterPresets, matchedIds, searchIds, searchScope } = useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
-  const graphTabState = useGraphTabState(filters, data, filterPresets.activeName, filterPresets.modified, searchScope);
+  const { filters, setFilters, resetFilters, filterPresets, matchedIds, searchIds, searchScope } =
+    useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
+  const graphTabState = useGraphTabState(
+    filters,
+    data,
+    filterPresets.activeName,
+    filterPresets.modified,
+    searchScope,
+  );
 
   const {
     notebook,
@@ -197,18 +182,22 @@ export function useWorkbenchState() {
   const baseGraph = useMemo(
     () =>
       data
-        ? projectGraph(data, {
-            ...DEFAULT_FILTERS,
-            notebook,
-            references,
-            hierarchy,
-            excludeIds,
-            hiddenTypes,
-            documentsOnly,
-            databases,
-            scopeId,
-            includeChildDocuments,
-          }, searchIds)
+        ? projectGraph(
+            data,
+            {
+              ...DEFAULT_FILTERS,
+              notebook,
+              references,
+              hierarchy,
+              excludeIds,
+              hiddenTypes,
+              documentsOnly,
+              databases,
+              scopeId,
+              includeChildDocuments,
+            },
+            searchIds,
+          )
         : null,
     [
       data,
@@ -224,23 +213,31 @@ export function useWorkbenchState() {
       searchIds,
     ],
   );
-  const searchOrigins = useMemo(() => baseGraph && matchedIds ? buildSearchOrigins(baseGraph, matchedIds) : undefined, [baseGraph, matchedIds]);
+  const searchOrigins = useMemo(
+    () => (baseGraph && matchedIds ? buildSearchOrigins(baseGraph, matchedIds) : undefined),
+    [baseGraph, matchedIds],
+  );
   const availableSelection = useMemo(
-    () =>
-      baseGraph
-        ? retainSelection(selection, baseGraph.eligibleIds)
-        : selection,
+    () => (baseGraph ? retainSelection(selection, baseGraph.eligibleIds) : selection),
     [selection, baseGraph],
   );
   const chosenIds = availableSelection.chosenIds;
   const chosenKey = useMemo(() => JSON.stringify(chosenIds), [chosenIds]);
   const chosenSet = useMemo(() => new Set(chosenIds), [chosenIds]);
-  const mentionState = useMentions(data, baseGraph, filters.mentions, chosenIds, filters.excludedMentionPhrases);
-  const mentionsPending = filters.mentions !== "off" && !mentionState.error
-    && (filters.mentions !== "selected" || chosenIds.length > 0)
-    && (!mentionState.ready || mentionState.pending);
+  const mentionState = useMentions(
+    data,
+    baseGraph,
+    filters.mentions,
+    chosenIds,
+    filters.excludedMentionPhrases,
+  );
+  const mentionsPending =
+    filters.mentions !== "off" &&
+    !mentionState.error &&
+    (filters.mentions !== "selected" || chosenIds.length > 0) &&
+    (!mentionState.ready || mentionState.pending);
   const currentGraph = useMemo(
-    () => baseGraph ? withMentionEdges(baseGraph, mentionState.result.edges) : null,
+    () => (baseGraph ? withMentionEdges(baseGraph, mentionState.result.edges) : null),
     [baseGraph, mentionState.result.edges],
   );
   const {
@@ -258,12 +255,7 @@ export function useWorkbenchState() {
   const backgroundIds = useMemo(
     () =>
       data && currentGraph
-        ? scopeBackground(
-            data,
-            currentGraph,
-            filters.scopeId,
-            filters.includeChildDocuments,
-          )
+        ? scopeBackground(data, currentGraph, filters.scopeId, filters.includeChildDocuments)
         : new Set<string>(),
     [data, currentGraph, filters.scopeId, filters.includeChildDocuments],
   );
@@ -282,17 +274,11 @@ export function useWorkbenchState() {
       .filter((index): index is number => index !== undefined);
     // eslint-disable-next-line react/set-state-in-effect -- Reflect an asynchronous graph computation.
     setBusy(true);
-    const pending = ownership.neighborhood(
-      loaded.engine,
-      seeds,
-      direction,
-      depth,
-    );
+    const pending = ownership.neighborhood(loaded.engine, seeds, direction, depth);
     const requestToken = ownership.currentToken;
     void pending
       .then((result) => {
-        if (!active || !result || ownership.currentToken !== requestToken)
-          return;
+        if (!active || !result || ownership.currentToken !== requestToken) return;
         setExploration({
           kind: "neighborhood",
           graph: loaded.graph,
@@ -300,10 +286,7 @@ export function useWorkbenchState() {
           direction,
           depth,
           indices: new Set(
-            Array.from(
-              result.indices,
-              (index) => loaded.topology.denseToSource[index],
-            ),
+            Array.from(result.indices, (index) => loaded.topology.denseToSource[index]),
           ),
           label: `${depth} 跳 · ${direction === "out" ? "沿箭头" : direction === "in" ? "逆箭头" : "双向"}${result.truncated ? " · 已达邻域节点预算，结果已截断" : ""}`,
         });
@@ -349,31 +332,20 @@ export function useWorkbenchState() {
   const view = useMemo(
     () =>
       viewProjector
-        ? viewProjector.project(
-            backgroundIds,
-            chosenSet,
-            focus,
-            filters.hideIsolated,
-          )
+        ? viewProjector.project(backgroundIds, chosenSet, focus, filters.hideIsolated)
         : emptyView,
     [viewProjector, backgroundIds, chosenSet, focus, filters.hideIsolated],
   );
-  const sourceLookups = useMemo(
-    () => (data ? getGraphLookups(data) : null),
-    [data],
-  );
+  const sourceLookups = useMemo(() => (data ? getGraphLookups(data) : null), [data]);
   const currentLookups = useMemo(
     () => (currentGraph ? getGraphLookups(currentGraph) : null),
     [currentGraph],
   );
   const selectedId = availableSelection.inspectedId;
-  const selected = selectedId
-    ? (currentLookups?.byId.get(selectedId) ?? null)
-    : null;
+  const selected = selectedId ? (currentLookups?.byId.get(selectedId) ?? null) : null;
   const edge = useMemo(
     () =>
-      inspectedEdge?.graph === currentGraph &&
-      view.edges.includes(inspectedEdge.edge)
+      inspectedEdge?.graph === currentGraph && view.edges.includes(inspectedEdge.edge)
         ? inspectedEdge.edge
         : null,
     [inspectedEdge, currentGraph, view.edges],
@@ -394,10 +366,7 @@ export function useWorkbenchState() {
     [deferredQuery, view.nodes],
   );
 
-  const setSelectedId = (
-    id: string | null,
-    event?: { shiftKey: boolean; detail: number },
-  ) => {
+  const setSelectedId = (id: string | null, event?: { shiftKey: boolean; detail: number }) => {
     if (id && !currentGraph?.eligibleIds.has(id)) return;
     setInspectedEdge(null);
     setSelection((previous) => selectNode(previous, id, event?.shiftKey));
@@ -414,37 +383,25 @@ export function useWorkbenchState() {
     setInspectedEdge({ graph: currentGraph, edge });
   };
   const setDepth = (value: number) => {
-    if (Number.isSafeInteger(value) && value >= 0 && value <= 100)
-      setDepthState(value);
+    if (Number.isSafeInteger(value) && value >= 0 && value <= 100) setDepthState(value);
   };
   const findPath = async (targetId: string) => {
-    if (mentionsPending) { setToast("文本提及仍在计算，完成后可查找包含提及关系的路径。"); return; }
+    if (mentionsPending) {
+      setToast("文本提及仍在计算，完成后可查找包含提及关系的路径。");
+      return;
+    }
     const loadedGraph = engine.current;
     const target = currentGraph?.nodes.find(
       (node) => node.id === targetId || node.label === targetId,
     );
-    const from = selected
-      ? loadedGraph?.topology.idToDense.get(selected.id)
-      : undefined;
-    const to = target
-      ? loadedGraph?.topology.idToDense.get(target.id)
-      : undefined;
-    if (
-      !loadedGraph ||
-      loadedGraph.graph !== currentGraph ||
-      from == null ||
-      to == null
-    ) {
+    const from = selected ? loadedGraph?.topology.idToDense.get(selected.id) : undefined;
+    const to = target ? loadedGraph?.topology.idToDense.get(target.id) : undefined;
+    if (!loadedGraph || loadedGraph.graph !== currentGraph || from == null || to == null) {
       setToast("请选择当前图中有效的起点和终点");
       return;
     }
     setBusy(true);
-    const pendingPath = requests.current.path(
-      loadedGraph.engine,
-      from,
-      to,
-      direction,
-    );
+    const pendingPath = requests.current.path(loadedGraph.engine, from, to, direction);
     const requestToken = requests.current.currentToken;
     try {
       const path = await pendingPath;
@@ -459,17 +416,11 @@ export function useWorkbenchState() {
         chosenKey,
         depth,
         direction,
-        indices: new Set(
-          Array.from(
-            path,
-            (index) => loadedGraph.topology.denseToSource[index],
-          ),
-        ),
+        indices: new Set(Array.from(path, (index) => loadedGraph.topology.denseToSource[index])),
         label: `最短路径 · ${Math.max(0, path.length - 1)} 步`,
       });
     } catch (failure) {
-      if (requests.current.currentToken === requestToken)
-        setToast(userMessage(failure));
+      if (requests.current.currentToken === requestToken) setToast(userMessage(failure));
     } finally {
       if (requests.current.currentToken === requestToken) setBusy(false);
     }
@@ -486,9 +437,8 @@ export function useWorkbenchState() {
       );
     else setToast("请从思源插件页签打开图谱，以跳转到原文");
   };
-  const openDocument = (id: string) => openNativeBlock(
-    data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null,
-  );
+  const openDocument = (id: string) =>
+    openNativeBlock(data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null);
   const openReadIssueSource = (id: string) => {
     const node = sourceLookups?.byId.get(id);
     openNativeBlock(node?.entity === "block" ? node.id : null);
@@ -496,7 +446,10 @@ export function useWorkbenchState() {
 
   const exportGraph = async () => {
     if (!data || exporting) return;
-    if (mentionsPending) { setToast("文本提及仍在计算，完成后可导出包含提及关系的图谱。"); return; }
+    if (mentionsPending) {
+      setToast("文本提及仍在计算，完成后可导出包含提及关系的图谱。");
+      return;
+    }
     const current = revision.current;
     const abort = new AbortController();
     exportAbort.current = abort;
@@ -508,8 +461,7 @@ export function useWorkbenchState() {
       setExportFile(file);
       setToast("JSON 文件已生成，点击「下载 JSON」保存");
     } catch (failure) {
-      if (current === revision.current && !abort.signal.aborted)
-        setToast(userMessage(failure));
+      if (current === revision.current && !abort.signal.aborted) setToast(userMessage(failure));
     } finally {
       if (current === revision.current) setExporting(false);
     }
@@ -537,8 +489,7 @@ export function useWorkbenchState() {
     selected,
     chosenIds,
     clearChosen,
-    closeInspector: () =>
-      setSelection((previous) => ({ ...previous, inspectedId: null })),
+    closeInspector: () => setSelection((previous) => ({ ...previous, inspectedId: null })),
     inspectedEdge: edge,
     inspectEdge,
     closeEdge: () => setInspectedEdge(null),
@@ -573,8 +524,7 @@ export function useWorkbenchState() {
     openDocument,
     nativeBlockId: (id: string) =>
       data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null,
-    canOpen: (id: string) =>
-      !!(data && currentGraph && resolveOpenBlock(id, data, currentGraph)),
+    canOpen: (id: string) => !!(data && currentGraph && resolveOpenBlock(id, data, currentGraph)),
     exportGraph,
     exporting,
     exportFile,

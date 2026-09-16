@@ -1,10 +1,6 @@
 import { createRequire } from "node:module";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import {
-  createDuckDB,
-  NODE_RUNTIME,
-  VoidLogger,
-} from "@duckdb/duckdb-wasm/blocking";
+import { createDuckDB, NODE_RUNTIME, VoidLogger } from "@duckdb/duckdb-wasm/blocking";
 import type { DuckDBConnection } from "@duckdb/duckdb-wasm/blocking";
 import { GraphTableStore } from "./graph-tables";
 import { prepareGraph } from "./prepare-graph";
@@ -19,15 +15,11 @@ beforeAll(async () => {
     {
       mvp: {
         mainModule: require.resolve("@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm"),
-        mainWorker: require.resolve(
-          "@duckdb/duckdb-wasm/dist/duckdb-node-mvp.worker.cjs",
-        ),
+        mainWorker: require.resolve("@duckdb/duckdb-wasm/dist/duckdb-node-mvp.worker.cjs"),
       },
       eh: {
         mainModule: require.resolve("@duckdb/duckdb-wasm/dist/duckdb-eh.wasm"),
-        mainWorker: require.resolve(
-          "@duckdb/duckdb-wasm/dist/duckdb-node-eh.worker.cjs",
-        ),
+        mainWorker: require.resolve("@duckdb/duckdb-wasm/dist/duckdb-node-eh.worker.cjs"),
       },
     },
     new VoidLogger(),
@@ -87,13 +79,18 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     { id: "alpha", index: 0 },
     { id: "beta", index: 1 },
   ]);
-  expect(connection.query(`SELECT id, label FROM "${first.points}" ORDER BY "index"`).toArray().map(row => row.toJSON()))
-    .toEqual([{ id: "alpha", label: "Alpha" }, { id: "beta", label: "Beta" }]);
   expect(
     connection
-      .query(
-        `SELECT source, target, "sourceIndex", "targetIndex", weight FROM "${first.links}"`,
-      )
+      .query(`SELECT id, label FROM "${first.points}" ORDER BY "index"`)
+      .toArray()
+      .map((row) => row.toJSON()),
+  ).toEqual([
+    { id: "alpha", label: "Alpha" },
+    { id: "beta", label: "Beta" },
+  ]);
+  expect(
+    connection
+      .query(`SELECT source, target, "sourceIndex", "targetIndex", weight FROM "${first.links}"`)
       .toArray()
       .map((row) => row.toJSON()),
   ).toEqual([
@@ -111,10 +108,7 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
   const second = await store.stage({ ...prepared });
   // The previous renderer can still read its source until the replacement commits.
   expect(
-    Number(
-      connection.query(`SELECT COUNT(*) AS total FROM "${first.points}"`).get(0)
-        ?.total,
-    ),
+    Number(connection.query(`SELECT COUNT(*) AS total FROM "${first.points}"`).get(0)?.total),
   ).toBe(2);
   await store.commit(second);
   expect(
@@ -123,11 +117,7 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     ).numRows,
   ).toBe(0);
   expect(
-    Number(
-      connection
-        .query(`SELECT COUNT(*) AS total FROM "${second.points}"`)
-        .get(0)?.total,
-    ),
+    Number(connection.query(`SELECT COUNT(*) AS total FROM "${second.points}"`).get(0)?.total),
   ).toBe(2);
   const withoutLinks = await prepareGraph(
     [

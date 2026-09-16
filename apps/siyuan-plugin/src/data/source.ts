@@ -1,13 +1,7 @@
 import { api } from "./api";
 import { addDatabaseGraph } from "./database-source";
 import { ReadIssueCollector } from "./read-issues";
-import {
-  PALETTE,
-  type GraphDataset,
-  type GraphNode,
-  type GraphEdge,
-  type Notebook,
-} from "./types";
+import { PALETTE, type GraphDataset, type GraphNode, type GraphEdge, type Notebook } from "./types";
 export { api } from "./api";
 
 /** Native SQL block identity; optional metadata also accepts legacy fixtures. */
@@ -42,19 +36,14 @@ interface ReferenceWindow extends ReferenceState {
 type Progress = (message: string) => void;
 
 async function sql<T>(stmt: string, signal?: AbortSignal): Promise<T[]> {
-  const rows = await api<T[]>(
-    "/api/query/sql",
-    { stmt, mode: "readonly" },
-    signal,
-  );
+  const rows = await api<T[]>("/api/query/sql", { stmt, mode: "readonly" }, signal);
   if (!Array.isArray(rows)) throw new Error("思源查询未返回数据行");
   return rows;
 }
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
 const BLOCK_STATE_SQL = "SELECT count(*) AS total, max(id) AS last FROM blocks";
-const REFERENCE_STATE_SQL =
-  "SELECT count(*) AS total, CAST(max(rowid) AS TEXT) AS high FROM refs";
+const REFERENCE_STATE_SQL = "SELECT count(*) AS total, CAST(max(rowid) AS TEXT) AS high FROM refs";
 const REFERENCE_BATCH_SIZE = 4096;
 
 function checkedCount(value: unknown): number {
@@ -91,8 +80,7 @@ function checkedRowId(value: unknown): string {
 }
 
 function referenceWindowSql(cursor: string | null, high: string): string {
-  const lower =
-    cursor === null ? "" : `rowid > CAST(${quote(cursor)} AS INTEGER) AND `;
+  const lower = cursor === null ? "" : `rowid > CAST(${quote(cursor)} AS INTEGER) AND `;
   // The inner LIMIT is applied before grouping, so each raw row is scanned once
   // through SQLite's rowid index. One bounded JSON result prevents host row caps
   // from dropping groups while advancing the raw cursor beyond them.
@@ -136,13 +124,8 @@ export function normalizeGraph(
   blocks: BlockRow[],
   references: ReferenceRow[],
   notebooks: Notebook[],
-): Pick<
-  GraphDataset,
-  "nodes" | "edges" | "referenceCount" | "skippedReferences" | "warnings"
-> {
-  const notebookColors = new Map(
-    notebooks.map((book) => [book.id, book.color]),
-  );
+): Pick<GraphDataset, "nodes" | "edges" | "referenceCount" | "skippedReferences" | "warnings"> {
+  const notebookColors = new Map(notebooks.map((book) => [book.id, book.color]));
   const nodes: GraphNode[] = blocks
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -151,10 +134,7 @@ export function normalizeGraph(
       label: blockLabel(block),
       notebook: block.box,
       path: block.path,
-      humanPath:
-        typeof block.hpath === "string" && block.hpath
-          ? block.hpath
-          : undefined,
+      humanPath: typeof block.hpath === "string" && block.hpath ? block.hpath : undefined,
       index,
       degree: 0,
       color: notebookColors.get(block.box) ?? PALETTE[0],
@@ -181,12 +161,9 @@ export function normalizeGraph(
           : undefined;
     }
     const documentIndex = node.rootId ? byId.get(node.rootId) : undefined;
-    const document =
-      documentIndex === undefined ? undefined : nodes[documentIndex];
+    const document = documentIndex === undefined ? undefined : nodes[documentIndex];
     node.documentLabel =
-      document?.blockType === "d"
-        ? document.content || document.label
-        : undefined;
+      document?.blockType === "d" ? document.content || document.label : undefined;
   }
   assignHeadingContext(nodes, byId);
   const edges: GraphEdge[] = [];
@@ -200,19 +177,35 @@ export function normalizeGraph(
     referenceCount += weight;
     if (source === undefined || target === undefined) {
       skippedReferences += weight;
-      const available = source !== undefined ? nodes[source] : target !== undefined ? nodes[target] : undefined;
-      issues.add("reference-endpoints", {
-        fields: {
-          "来源块 ID": reference.source,
-          "目标块 ID": reference.target,
-          "缺失端点": [source === undefined ? "来源" : "", target === undefined ? "目标" : ""].filter(Boolean).join("、"),
-          "原因": !reference.source || !reference.target ? "引用索引中包含空端点 ID" : "端点不在本次读取的块索引中",
-          "引用记录数": String(weight),
-          ...(available ? { "可用端点": available.label, "所属文档": available.documentLabel ?? "", "来源位置": available.humanPath || available.path } : {}),
+      const available =
+        source !== undefined ? nodes[source] : target !== undefined ? nodes[target] : undefined;
+      issues.add(
+        "reference-endpoints",
+        {
+          fields: {
+            "来源块 ID": reference.source,
+            "目标块 ID": reference.target,
+            缺失端点: [source === undefined ? "来源" : "", target === undefined ? "目标" : ""]
+              .filter(Boolean)
+              .join("、"),
+            原因:
+              !reference.source || !reference.target
+                ? "引用索引中包含空端点 ID"
+                : "端点不在本次读取的块索引中",
+            引用记录数: String(weight),
+            ...(available
+              ? {
+                  可用端点: available.label,
+                  所属文档: available.documentLabel ?? "",
+                  来源位置: available.humanPath || available.path,
+                }
+              : {}),
+          },
+          openBlockId: available?.id,
+          openLabel: source !== undefined ? "打开引用来源" : "打开可用目标",
         },
-        openBlockId: available?.id,
-        openLabel: source !== undefined ? "打开引用来源" : "打开可用目标",
-      }, weight);
+        weight,
+      );
       continue;
     }
     edges.push({
@@ -259,15 +252,11 @@ export function normalizeGraph(
 
 function blockLabel(block: BlockRow): string {
   const text = (block.content || "").replace(/\s+/g, " ").trim();
-  if (!text)
-    return !block.type || block.type === "d" ? "未命名文档" : `块 ${block.id}`;
+  if (!text) return !block.type || block.type === "d" ? "未命名文档" : `块 ${block.id}`;
   return text.length > 100 ? `${text.slice(0, 100)}…` : text;
 }
 
-function assignHeadingContext(
-  nodes: GraphNode[],
-  byId: Map<string, number>,
-): void {
+function assignHeadingContext(nodes: GraphNode[], byId: Map<string, number>): void {
   // null marks an invalid cyclic ancestry; undefined is a valid path containing
   // no headings. Descendants reuse the complete already-resolved parent path.
   const headingPaths = new Map<string, string | undefined | null>();
@@ -277,11 +266,7 @@ function assignHeadingContext(
     const visited = new Set<string>();
     let current: GraphNode | undefined = node;
     let heading: string | undefined | null;
-    while (
-      current &&
-      current.rootId === node.rootId &&
-      current.blockType !== "d"
-    ) {
+    while (current && current.rootId === node.rootId && current.blockType !== "d") {
       if (headingPaths.has(current.id)) {
         heading = headingPaths.get(current.id);
         break;
@@ -292,9 +277,7 @@ function assignHeadingContext(
       }
       visited.add(current.id);
       trail.push(current);
-      const parent: number | undefined = current.parentId
-        ? byId.get(current.parentId)
-        : undefined;
+      const parent: number | undefined = current.parentId ? byId.get(current.parentId) : undefined;
       current = parent === undefined ? undefined : nodes[parent];
     }
     for (let index = trail.length - 1; index >= 0; index--) {
@@ -327,10 +310,7 @@ export async function loadSiYuanGraph(
   }
 }
 
-async function loadSnapshot(
-  signal: AbortSignal,
-  progress: Progress,
-): Promise<GraphDataset> {
+async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<GraphDataset> {
   const started = performance.now();
   progress("正在读取思源笔记本…");
   const [notebookResult, initialBlocks, initialReferences] = await Promise.all([
@@ -361,11 +341,7 @@ async function loadSnapshot(
     // SiYuan or a proxy may return fewer rows than LIMIT. A short page is not
     // proof of exhaustion; always advance until the initial high watermark.
     for (const row of page) {
-      if (
-        typeof row.id !== "string" ||
-        row.id <= cursor ||
-        row.id > initialBlocks.last
-      )
+      if (typeof row.id !== "string" || row.id <= cursor || row.id > initialBlocks.last)
         throw new Error("块分页未前进或越过读取边界，请刷新后重试");
       cursor = row.id;
     }
@@ -379,10 +355,7 @@ async function loadSnapshot(
   const referencePairs = new Map<string, ReferenceRow>();
   let referenceCursor: string | null = null;
   let rawReferences = 0;
-  while (
-    initialReferences.high !== null &&
-    referenceCursor !== initialReferences.high
-  ) {
+  while (initialReferences.high !== null && referenceCursor !== initialReferences.high) {
     const [window] = await sql<ReferenceWindow>(
       referenceWindowSql(referenceCursor, initialReferences.high),
       signal,
@@ -403,8 +376,7 @@ async function loadSnapshot(
     for (const row of rows) {
       const key = JSON.stringify([row.source, row.target]);
       const previous = referencePairs.get(key);
-      if (previous)
-        previous.weight = checkedCount(previous.weight + row.weight);
+      if (previous) previous.weight = checkedCount(previous.weight + row.weight);
       else referencePairs.set(key, row);
     }
     referenceCursor = next;
@@ -422,8 +394,7 @@ async function loadSnapshot(
   signal.throwIfAborted();
   const issues = new ReadIssueCollector();
   const blocksChanged =
-    initialBlocks.total !== finalBlocks.total ||
-    initialBlocks.last !== finalBlocks.last;
+    initialBlocks.total !== finalBlocks.total || initialBlocks.last !== finalBlocks.last;
   // These separate statements detect count/high-watermark changes, but cannot
   // promise an atomic snapshot under same-count edits or rowid reuse/VACUUM.
   const referencesChanged =
@@ -434,14 +405,16 @@ async function loadSnapshot(
   if (!referencesChanged && rawReferences !== initialReferences.total)
     throw new Error("引用分页结果不完整，请刷新后重试");
   if (blocksChanged || referencesChanged)
-    issues.add("snapshot-changed", { fields: {
-      "块总数（开始 → 结束）": `${initialBlocks.total} → ${finalBlocks.total}`,
-      "块分页边界（开始 → 结束）": `${initialBlocks.last} → ${finalBlocks.last}`,
-      "实际读取块数": String(blocks.length),
-      "引用总数（开始 → 结束）": `${initialReferences.total} → ${finalReferences.total}`,
-      "引用分页边界（开始 → 结束）": `${initialReferences.high} → ${finalReferences.high}`,
-      "实际读取引用数": String(rawReferences),
-    } });
+    issues.add("snapshot-changed", {
+      fields: {
+        "块总数（开始 → 结束）": `${initialBlocks.total} → ${finalBlocks.total}`,
+        "块分页边界（开始 → 结束）": `${initialBlocks.last} → ${finalBlocks.last}`,
+        实际读取块数: String(blocks.length),
+        "引用总数（开始 → 结束）": `${initialReferences.total} → ${finalReferences.total}`,
+        "引用分页边界（开始 → 结束）": `${initialReferences.high} → ${finalReferences.high}`,
+        实际读取引用数: String(rawReferences),
+      },
+    });
   const graph = normalizeGraph(blocks, [...referencePairs.values()], notebooks);
   const databaseGraph = await addDatabaseGraph(graph, blocks, signal, progress);
   signal.throwIfAborted();
@@ -452,14 +425,16 @@ async function loadSnapshot(
     notebooks,
     source: "siyuan",
     loadedAt: new Date().toISOString(),
-    mentionBlocks: blocks.map(block => ({
+    mentionBlocks: blocks.map((block) => ({
       id: block.id,
-      rootId: block.type && block.type !== "d" ? block.root_id ?? block.id : block.id,
+      rootId: block.type && block.type !== "d" ? (block.root_id ?? block.id) : block.id,
       type: block.type || "d",
       title: !block.type || block.type === "d" ? block.content : "",
       ial: block.ial ?? "",
-      markdown: ["p", "h", "t"].includes(block.type ?? "") && typeof block.markdown === "string"
-        ? block.markdown : null,
+      markdown:
+        ["p", "h", "t"].includes(block.type ?? "") && typeof block.markdown === "string"
+          ? block.markdown
+          : null,
     })),
     loadMs: performance.now() - started,
     warnings: [...issues.finish(), ...graph.warnings, ...databaseGraph.warnings],

@@ -6,12 +6,8 @@ import { defineConfig } from "vite";
 
 const projectRequire = createRequire(import.meta.url);
 const markdownRequire = createRequire(projectRequire.resolve("mdast-util-from-markdown"));
-const cosmographRequire = createRequire(
-  projectRequire.resolve("@cosmograph/cosmograph"),
-);
-const cosmosRequire = createRequire(
-  cosmographRequire.resolve("@cosmograph/cosmos"),
-);
+const cosmographRequire = createRequire(projectRequire.resolve("@cosmograph/cosmograph"));
+const cosmosRequire = createRequire(cosmographRequire.resolve("@cosmograph/cosmos"));
 
 export default defineConfig({
   root: resolve(import.meta.dirname, "ui"),
@@ -24,7 +20,10 @@ export default defineConfig({
       { find: "@", replacement: resolve(import.meta.dirname, "src") },
       // The browser decoder uses document.createElement, which is unavailable
       // inside a Worker. Resolve this parser dependency to its DOM-free export.
-      { find: /^decode-named-character-reference$/, replacement: markdownRequire.resolve("decode-named-character-reference") },
+      {
+        find: /^decode-named-character-reference$/,
+        replacement: markdownRequire.resolve("decode-named-character-reference"),
+      },
       {
         find: /^gl-bench$/,
         replacement: cosmosRequire.resolve("gl-bench/dist/gl-bench.module.js"),

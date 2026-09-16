@@ -16,6 +16,9 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
+      prettier:
+        specifier: 3.9.6
+        version: 3.9.6
 
   apps/siyuan-plugin:
     dependencies:
@@ -2885,6 +2888,11 @@ packages:
     resolution: {integrity: sha512-C+y9x90UElAddDZmV4qOx9W53B61PO7cIqWz2dQsWlwswuq4mr8NEwytdGKboYbQlGZ3awrkTeNvcZiZNHnQ8A==}
     engines: {node: '>=20'}
 
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   pretty-ms@9.3.1:
     resolution: {integrity: sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA==}
     engines: {node: '>=18'}
@@ -3432,8 +3440,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.6.1:
-    resolution: {integrity: sha512-341aRWQsve0rvronKNTqZpjmzdbUDlFuzHaI/XLg/Ej82qffDJRRfBTCuv7+9q/rMjB6LSLyEBnW4InJeMtt/Q==}
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
 
@@ -6223,6 +6231,8 @@ snapshots:
 
   powershell-utils@0.2.1: {}
 
+  prettier@3.9.6: {}
+
   pretty-ms@9.3.1:
     dependencies:
       parse-ms: 4.0.0
@@ -6545,7 +6555,7 @@ snapshots:
       '@dop251/types-goja_nodejs-buffer': 0.0.0-20260212111938-1f56ff5bcf14
       '@dop251/types-goja_nodejs-global': 0.0.0-20260212111938-1f56ff5bcf14
       '@dop251/types-goja_nodejs-url': 0.0.0-20260212111938-1f56ff5bcf14
-      zod: 4.6.1
+      zod: 4.6.5
 
   smart-buffer@4.2.0: {}
 
@@ -6774,4 +6784,4 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.6.1: {}
+  zod@4.6.5: {}

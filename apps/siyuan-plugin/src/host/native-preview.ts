@@ -10,8 +10,11 @@ export interface PreviewRect {
 function isRect(value: unknown): value is PreviewRect {
   if (!value || typeof value !== "object") return false;
   const rect = value as PreviewRect;
-  return [rect.left, rect.top, rect.width, rect.height].every(Number.isFinite)
-    && rect.width > 0 && rect.height > 0;
+  return (
+    [rect.left, rect.top, rect.width, rect.height].every(Number.isFinite) &&
+    rect.width > 0 &&
+    rect.height > 0
+  );
 }
 
 /** SiYuan's document-level block-ref handler owns the delay and the BlockPanel.
@@ -29,8 +32,12 @@ export class NativeBlockPreview {
   handle(message: unknown): void {
     if (!message || typeof message !== "object") return;
     const data = message as Record<string, unknown>;
-    if (data.channel !== "sy-another-graph" || data.type !== "native-preview"
-      || !Number.isSafeInteger(data.token)) return;
+    if (
+      data.channel !== "sy-another-graph" ||
+      data.type !== "native-preview" ||
+      !Number.isSafeInteger(data.token)
+    )
+      return;
     if (data.action === "leave" || data.action === "cancel") {
       if (data.token !== this.token) return;
       this.dismiss(data.action === "leave" ? data : undefined);
@@ -41,9 +48,19 @@ export class NativeBlockPreview {
     const rect = data.rect;
     const width = this.frame.clientWidth;
     const height = this.frame.clientHeight;
-    if (width <= 0 || height <= 0 || bounds.width <= 0 || bounds.height <= 0
-      || rect.left < 0 || rect.top < 0 || rect.left >= width || rect.top >= height
-      || rect.left + rect.width > width + 1 || rect.top + rect.height > height + 1) return;
+    if (
+      width <= 0 ||
+      height <= 0 ||
+      bounds.width <= 0 ||
+      bounds.height <= 0 ||
+      rect.left < 0 ||
+      rect.top < 0 ||
+      rect.left >= width ||
+      rect.top >= height ||
+      rect.left + rect.width > width + 1 ||
+      rect.top + rect.height > height + 1
+    )
+      return;
     this.clear();
     const anchor = this.frame.ownerDocument.createElement("span");
     const scaleX = bounds.width / width;
@@ -81,8 +98,8 @@ export class NativeBlockPreview {
     if (pointer && Number.isFinite(pointer.x) && Number.isFinite(pointer.y)) {
       const bounds = this.frame.getBoundingClientRect();
       const target = this.frame.ownerDocument.elementFromPoint(
-        bounds.left + (pointer.x as number) * bounds.width / this.frame.clientWidth,
-        bounds.top + (pointer.y as number) * bounds.height / this.frame.clientHeight,
+        bounds.left + ((pointer.x as number) * bounds.width) / this.frame.clientWidth,
+        bounds.top + ((pointer.y as number) * bounds.height) / this.frame.clientHeight,
       );
       // Moving into a native overlay already delivers a real host mouseover. A
       // late iframe leave must not overwrite that event with a dismissal.

@@ -24,7 +24,9 @@
   pointer-events: none;
 }
 
-.ag-canvas__community-background[hidden] { display: none; }
+.ag-canvas__community-background[hidden] {
+  display: none;
+}
 
 .ag-canvas__community-status {
   position: absolute;

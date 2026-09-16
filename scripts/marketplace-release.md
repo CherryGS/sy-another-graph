@@ -13,12 +13,12 @@ pnpm publish:plugin
 
 选择要递增的版本段，例如当前为 `0.1.0` 时：
 
-| 选择 | 新版本 | 用途 |
-| --- | --- | --- |
+| 选择      | 新版本  | 用途           |
+| --------- | ------- | -------------- |
 | 1 / patch | `0.1.1` | 修复、小幅改进 |
-| 2 / minor | `0.2.0` | 新增功能 |
-| 3 / major | `1.0.0` | 不兼容改动 |
-| 0 | 取消 | 保持当前版本 |
+| 2 / minor | `0.2.0` | 新增功能       |
+| 3 / major | `1.0.0` | 不兼容改动     |
+| 0         | 取消    | 保持当前版本   |
 
 首次使用需安装 GitHub CLI 并完成 `gh auth login`；如 Git 尚未使用该登录，
 可运行 `gh auth setup-git`。在默认分支上提交好待发布的改动后再运行脚本。
@@ -76,6 +76,7 @@ pnpm publish:plugin --bump patch --notes release-notes.local --yes
    ```
 
    不要为重试递增版本、移动已有标签或强制推送；远端同名标签指向其他提交时应先核查。
+
 3. 用 `gh release view vX.Y.Z --repo CherryGS/sy-another-graph` 检查 Release。
 4. 如果尚无 Release，使用保留的安装包和说明创建：
 
@@ -95,12 +96,12 @@ Arrow 17 的清单声明了未随包发布的 `bin/arrow2csv.cjs`。仓库补丁
 
 ## 其他命令
 
-| 命令 | 作用 |
-| --- | --- |
-| `pnpm release` | 构建并安装到本地 `E:/Data/Siyuan`。 |
-| `pnpm package` | 构建、校验并生成 `apps/siyuan-plugin/dist/package.zip`。 |
-| `pnpm package:artifacts --tag vX.Y.Z` | 对已经检查的构建产物打包，核对目标版本。 |
-| `pnpm test:publish` | 在临时本地 Git 仓库中测试发布流程，不访问 GitHub。 |
+| 命令                                  | 作用                                                     |
+| ------------------------------------- | -------------------------------------------------------- |
+| `pnpm release`                        | 构建并安装到本地 `E:/Data/Siyuan`。                      |
+| `pnpm package`                        | 构建、校验并生成 `apps/siyuan-plugin/dist/package.zip`。 |
+| `pnpm package:artifacts --tag vX.Y.Z` | 对已经检查的构建产物打包，核对目标版本。                 |
+| `pnpm test:publish`                   | 在临时本地 Git 仓库中测试发布流程，不访问 GitHub。       |
 
 `publish:plugin` 专门负责 GitHub 发布，不改动现有本地安装命令。
 Rust crate 的独立版本号不随插件版本递增。

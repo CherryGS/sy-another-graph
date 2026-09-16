@@ -1,11 +1,7 @@
 import init, { WasmGraph } from "../../wasm/graph_core.js";
 import wasmUrl from "../../wasm/graph_core_bg.wasm?url";
 import type { EngineRequest, EngineResponse } from "./protocol";
-import {
-  copyForTransport,
-  directionCode,
-  transferableBuffers,
-} from "./protocol";
+import { copyForTransport, directionCode, transferableBuffers } from "./protocol";
 import type { GraphTransport } from "./types";
 
 interface Scope {
@@ -27,16 +23,12 @@ function output(values: Uint32Array): Uint32Array {
 async function initializeWasm(): ReturnType<typeof init> {
   const controller = new AbortController();
   const timeout = setTimeout(
-    () =>
-      controller.abort(
-        new DOMException("Graph WASM download timed out", "TimeoutError"),
-      ),
+    () => controller.abort(new DOMException("Graph WASM download timed out", "TimeoutError")),
     30_000,
   );
   try {
     const response = await fetch(wasmUrl, { signal: controller.signal });
-    if (!response.ok)
-      throw new Error(`Graph WASM download failed (HTTP ${response.status})`);
+    if (!response.ok) throw new Error(`Graph WASM download failed (HTTP ${response.status})`);
     return await init({ module_or_path: response });
   } finally {
     clearTimeout(timeout);
@@ -65,19 +57,22 @@ async function handle(request: EngineRequest): Promise<void> {
       revision = request.revision;
       transport = request.transport;
       const statistics = graph.statistics();
-      scope.postMessage({
-        ...identity,
-        kind: "stats",
-        value: {
-          nodes: statistics[0],
-          edges: statistics[1],
-          components: statistics[2],
-          largestComponent: statistics[3],
-          buildMs: performance.now() - start,
-          backend: "Rust WASM · Worker",
-          transport,
+      scope.postMessage(
+        {
+          ...identity,
+          kind: "stats",
+          value: {
+            nodes: statistics[0],
+            edges: statistics[1],
+            components: statistics[2],
+            largestComponent: statistics[3],
+            buildMs: performance.now() - start,
+            backend: "Rust WASM · Worker",
+            transport,
+          },
         },
-      }, []);
+        [],
+      );
       return;
     }
     if (!graph || revision !== request.revision)
@@ -100,11 +95,7 @@ async function handle(request: EngineRequest): Promise<void> {
       );
     } else {
       const indices = output(
-        graph.shortest_path(
-          request.source,
-          request.target,
-          directionCode(request.direction),
-        ),
+        graph.shortest_path(request.source, request.target, directionCode(request.direction)),
       );
       scope.postMessage(
         { ...identity, kind: "path", value: indices },

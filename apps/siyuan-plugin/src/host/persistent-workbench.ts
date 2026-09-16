@@ -88,8 +88,7 @@ export class PersistentWorkbench {
   }
 
   acknowledgeScope(id: string): void {
-    if (!this.disposed && this.pendingScopeId === id)
-      this.pendingScopeId = null;
+    if (!this.disposed && this.pendingScopeId === id) this.pendingScopeId = null;
   }
 
   /** Version changes only for confirmed source events, even before frame setup. */
@@ -159,8 +158,7 @@ export class PersistentWorkbench {
     frame.dataset.atlasActive = "false";
     frame.dataset.atlasLoadCount = "0";
     frame.tabIndex = -1;
-    frame.style.cssText =
-      "width:100%;height:100%;border:0;display:block;background:#11121a;";
+    frame.style.cssText = "width:100%;height:100%;border:0;display:block;background:#11121a;";
     frame.addEventListener("load", this.onFrameLoad);
     container.appendChild(frame);
     document.body.appendChild(container);
@@ -172,9 +170,7 @@ export class PersistentWorkbench {
   private onFrameLoad = (): void => {
     if (!this.frame || this.disposed) return;
     this.preview?.clear();
-    this.frame.dataset.atlasLoadCount = String(
-      Number(this.frame.dataset.atlasLoadCount) + 1,
-    );
+    this.frame.dataset.atlasLoadCount = String(Number(this.frame.dataset.atlasLoadCount) + 1);
     this.announceVisibility();
   };
 
@@ -241,18 +237,12 @@ export class PersistentWorkbench {
   private observeAnchorAncestors(): void {
     const ancestors = new Set<Element>();
     for (const anchor of this.anchors) {
-      for (
-        let element: HTMLElement | null = anchor;
-        element;
-        element = element.parentElement
-      )
+      for (let element: HTMLElement | null = anchor; element; element = element.parentElement)
         ancestors.add(element);
     }
     if (
       ancestors.size === this.observedAncestors.size &&
-      Array.from(ancestors).every((element) =>
-        this.observedAncestors.has(element),
-      )
+      Array.from(ancestors).every((element) => this.observedAncestors.has(element))
     )
       return;
     this.resizeObserver.disconnect();
@@ -305,8 +295,13 @@ export class PersistentWorkbench {
 
   private postSearch(): void {
     if (!this.pendingSearch) return;
-    this.frame?.contentWindow?.postMessage({
-      channel: WORKBENCH_CHANNEL, type: "search-graph", snapshot: this.pendingSearch,
-    }, window.location.origin);
+    this.frame?.contentWindow?.postMessage(
+      {
+        channel: WORKBENCH_CHANNEL,
+        type: "search-graph",
+        snapshot: this.pendingSearch,
+      },
+      window.location.origin,
+    );
   }
 }

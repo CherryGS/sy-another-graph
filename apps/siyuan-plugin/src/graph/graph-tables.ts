@@ -9,10 +9,7 @@ export interface UploadedGraph {
   links?: string;
 }
 
-type GraphConnection = Pick<
-  AsyncDuckDBConnection,
-  "insertArrowFromIPCStream" | "query"
->;
+type GraphConnection = Pick<AsyncDuckDBConnection, "insertArrowFromIPCStream" | "query">;
 
 /** External Cosmograph connections consume existing table names, not Arrow objects. */
 export class GraphTableStore {
@@ -67,11 +64,7 @@ export class GraphTableStore {
   async discard(uploaded: UploadedGraph) {
     if (uploaded === this.active) return;
     // These identifiers are generated above and never contain note data.
-    const names = [uploaded.links, uploaded.points].filter(
-      (name): name is string => Boolean(name),
-    );
-    await this.connection.query(
-      names.map((name) => `DROP TABLE IF EXISTS "${name}"`).join("; "),
-    );
+    const names = [uploaded.links, uploaded.points].filter((name): name is string => Boolean(name));
+    await this.connection.query(names.map((name) => `DROP TABLE IF EXISTS "${name}"`).join("; "));
   }
 }

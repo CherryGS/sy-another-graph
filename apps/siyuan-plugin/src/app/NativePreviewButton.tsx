@@ -8,10 +8,11 @@ export function NativePreviewButton({
 }: ComponentProps<typeof Button> & { nativeId: string | null }) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (nativeId && ref.current) return bindNativePreview(
-      ref.current.querySelector<HTMLElement>("[data-native-preview-anchor]") ?? ref.current,
-      nativeId,
-    );
+    if (nativeId && ref.current)
+      return bindNativePreview(
+        ref.current.querySelector<HTMLElement>("[data-native-preview-anchor]") ?? ref.current,
+        nativeId,
+      );
   }, [nativeId]);
   return <Button {...props} ref={ref} data-native-preview-id={nativeId ?? undefined} />;
 }

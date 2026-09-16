@@ -2,10 +2,20 @@ import type { CosmographConfig } from "@cosmograph/cosmograph";
 import { graphSettingsConfig } from "./settings";
 import type { CosmographCanvasProps } from "./types";
 
-type DisplayOptions = Pick<CosmographCanvasProps, "settings" | "colorBy" | "showLabels" | "showLinks" | "pointSize"> & { pointsCount: number };
+type DisplayOptions = Pick<
+  CosmographCanvasProps,
+  "settings" | "colorBy" | "showLabels" | "showLinks" | "pointSize"
+> & { pointsCount: number };
 
 /** Compose the actual display update in one place so density defaults cannot override controls. */
-export function displayConfig({ settings, colorBy = "type", showLabels, showLinks, pointSize, pointsCount }: DisplayOptions): CosmographConfig {
+export function displayConfig({
+  settings,
+  colorBy = "type",
+  showLabels,
+  showLinks,
+  pointSize,
+  pointsCount,
+}: DisplayOptions): CosmographConfig {
   const dense = pointsCount > 20_000;
   return {
     pointColorBy: colorBy === "notebook" ? "color" : `${colorBy}Color`,

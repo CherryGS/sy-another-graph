@@ -27,12 +27,7 @@ export class SourceRefresh {
   }
 
   sourceChanged(version: number) {
-    if (
-      this.disposed ||
-      !Number.isSafeInteger(version) ||
-      version <= this.latest
-    )
-      return;
+    if (this.disposed || !Number.isSafeInteger(version) || version <= this.latest) return;
     this.latest = version;
     this.cancelTimer();
     this.schedule();
@@ -89,9 +84,7 @@ export class SourceRefresh {
 export function subscribeSourceRefresh(target: Window, refresh: SourceRefresh) {
   let hostActive = true;
   const visibility = () =>
-    refresh.setActive(
-      hostActive && target.document.visibilityState !== "hidden",
-    );
+    refresh.setActive(hostActive && target.document.visibilityState !== "hidden");
   const message = (event: MessageEvent) => {
     if (
       target.parent === target ||

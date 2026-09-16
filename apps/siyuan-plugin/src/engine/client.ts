@@ -7,19 +7,9 @@ import {
   transferableBuffers,
   validateUint32,
 } from "./protocol";
-import type {
-  EngineStats,
-  GraphDirection,
-  GraphEngine,
-  Neighborhood,
-} from "./types";
+import type { EngineStats, GraphDirection, GraphEngine, Neighborhood } from "./types";
 
-export type {
-  EngineStats,
-  GraphDirection,
-  GraphEngine,
-  Neighborhood,
-} from "./types";
+export type { EngineStats, GraphDirection, GraphEngine, Neighborhood } from "./types";
 
 export function createGraphEngine(): GraphEngine {
   return new GraphEngineClient(() => new GraphWorkerConstructor());
@@ -72,12 +62,9 @@ export class GraphEngineClient implements GraphEngine {
     const worker = this.createWorker();
     this.worker = worker;
     worker.onmessage = (event) => this.receive(event.data);
-    worker.onerror = (event) =>
-      this.stopWorker(new Error(event.message || "Graph worker failed"));
+    worker.onerror = (event) => this.stopWorker(new Error(event.message || "Graph worker failed"));
     worker.onmessageerror = () =>
-      this.stopWorker(
-        new Error("Graph worker returned an unreadable response"),
-      );
+      this.stopWorker(new Error("Graph worker returned an unreadable response"));
     const transport = supportsSharedTransport() ? "shared" : "transfer";
     // Do not detach the caller's renderer topology when sending to the Worker.
     const ownedEdges = copyForTransport(edges, transport);
@@ -85,10 +72,8 @@ export class GraphEngineClient implements GraphEngine {
       { kind: "load", nodes: nodeCount, edges: ownedEdges, transport },
       transferableBuffers(ownedEdges),
     );
-    if (response.kind !== "stats")
-      throw new Error("Unexpected graph load response");
-    if (revision !== this.revision)
-      throw new Error("The graph snapshot was replaced");
+    if (response.kind !== "stats") throw new Error("Unexpected graph load response");
+    if (revision !== this.revision) throw new Error("The graph snapshot was replaced");
     this.loaded = true;
     return response.value;
   }
@@ -109,8 +94,7 @@ export class GraphEngineClient implements GraphEngine {
       { kind: "neighborhood", seeds: indices, direction, depth, limit },
       transferableBuffers(indices),
     );
-    if (response.kind !== "neighborhood")
-      throw new Error("Unexpected neighborhood response");
+    if (response.kind !== "neighborhood") throw new Error("Unexpected neighborhood response");
     return response.value;
   }
 
@@ -129,8 +113,7 @@ export class GraphEngineClient implements GraphEngine {
       target,
       direction,
     });
-    if (response.kind !== "path")
-      throw new Error("Unexpected shortest path response");
+    if (response.kind !== "path") throw new Error("Unexpected shortest path response");
     return response.value;
   }
 
@@ -140,10 +123,7 @@ export class GraphEngineClient implements GraphEngine {
     this.stopWorker(new Error("The graph engine was disposed"));
   }
 
-  private request(
-    body: RequestBody,
-    transfer: Transferable[] = [],
-  ): Promise<EngineResponse> {
+  private request(body: RequestBody, transfer: Transferable[] = []): Promise<EngineResponse> {
     const id = ++this.sequence;
     const revision = this.revision;
     return new Promise((resolve, reject) => {
@@ -166,11 +146,7 @@ export class GraphEngineClient implements GraphEngine {
     const pending = this.pending.get(response.id);
     if (!pending) return;
     // A mismatched response must never resolve a request against a newer graph.
-    if (
-      response.revision !== pending.revision ||
-      response.revision !== this.revision
-    )
-      return;
+    if (response.revision !== pending.revision || response.revision !== this.revision) return;
     this.pending.delete(response.id);
     if (response.kind === "error") pending.reject(new Error(response.message));
     else pending.resolve(response);

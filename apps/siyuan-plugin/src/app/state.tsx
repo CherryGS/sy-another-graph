@@ -6,9 +6,7 @@ const WorkbenchContext = createContext<WorkbenchState | null>(null);
 
 export function WorkbenchProvider({ children }: { children: ReactNode }) {
   return (
-    <WorkbenchContext.Provider value={useWorkbenchState()}>
-      {children}
-    </WorkbenchContext.Provider>
+    <WorkbenchContext.Provider value={useWorkbenchState()}>{children}</WorkbenchContext.Provider>
   );
 }
 

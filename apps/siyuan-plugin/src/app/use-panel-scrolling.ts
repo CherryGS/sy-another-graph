@@ -6,10 +6,7 @@ export function usePanelScrolling() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onScroll = (event: Event) => {
-      if (
-        !(event.target instanceof Element) ||
-        !event.target.closest("[data-scroll-panel]")
-      )
+      if (!(event.target instanceof Element) || !event.target.closest("[data-scroll-panel]"))
         return;
       setScrolling(true);
       clearTimeout(timer);

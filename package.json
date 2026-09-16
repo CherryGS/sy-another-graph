@@ -29,9 +29,12 @@
     "build": "pnpm test:deploy && pnpm build:artifacts && pnpm deploy:release",
     "release": "pnpm build",
     "check:plugin": "pnpm --dir apps/siyuan-plugin check:plugin",
-    "check": "pnpm check:deps && pnpm test:deploy && pnpm test:package && pnpm test:publish && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin"
+    "check": "pnpm format:check && pnpm check:deps && pnpm test:deploy && pnpm test:package && pnpm test:publish && pnpm lint:rust && pnpm test:rust && pnpm build:wasm && pnpm lint && pnpm typecheck && pnpm test && pnpm --dir apps/siyuan-plugin build && pnpm check:plugin",
+    "format": "prettier --write . && cargo fmt --all",
+    "format:check": "prettier --check . && cargo fmt --all -- --check"
   },
   "devDependencies": {
-    "fflate": "0.8.3"
+    "fflate": "0.8.3",
+    "prettier": "3.9.6"
   }
 }
