@@ -3,6 +3,11 @@
 - Before changing production code, tests, manifests, dependencies, generated
   layout, or source ownership, read `rules/implementation.md`.
 
+## Temporary files
+
+- Put task-created temporary files, including scratch scripts, logs, diagnostic
+  dumps, and screenshots, under the repository-root `temp/` directory.
+
 ## Git conventions
 
 - Emoji-prefixed conventional commits: `<emoji> <type>(<scope>): <subject>`.
