@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     emptyOutDir: mode !== "development",
     lib: {
-      entry: resolve(import.meta.dirname, "src/index.ts"),
+      entry: resolve(import.meta.dirname, "src/bootstrap/host.ts"),
       formats: ["cjs"],
       fileName: () => "index.js",
     },
