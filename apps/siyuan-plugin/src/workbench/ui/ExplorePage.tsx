@@ -119,7 +119,8 @@ export function ExplorePage({ active }: { active: boolean }) {
                 </Button>
               )}
             </div>
-            <FieldGroup className="w-32 shrink-0">
+            {/* Inline-size containment would hide the translated label's intrinsic width. */}
+            <FieldGroup className="w-max shrink-0 [container-type:normal]">
               <Field orientation="horizontal" className="w-auto items-center">
                 <FieldLabel htmlFor="graph-depth" className="whitespace-nowrap">
                   {t("text.neighborhood")}
@@ -140,6 +141,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             <ToggleGroup
               type="single"
               variant="outline"
+              className="max-w-full flex-wrap"
               aria-label={t("text.traversalDirection")}
               value={state.direction}
               onValueChange={(value) => {
