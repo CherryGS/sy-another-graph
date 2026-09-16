@@ -39,6 +39,8 @@ hardware, graph structure, and layout settings.
 ## Development
 
 See [setup, commands, and architecture](apps/siyuan-plugin/README.md),
+[feature complexity](docs/feature-complexity.md),
+[filtering and projection](docs/filtering-pipeline.md),
 [the workspace pressure fixture](scripts/stress-fixture.md), and
 [Rust benchmarks](crates/graph-core/README.md).
 

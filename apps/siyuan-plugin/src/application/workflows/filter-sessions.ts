@@ -8,6 +8,7 @@ const defaults = (): GraphFilters => ({
   excludeIds: [],
   hiddenTypes: [],
   excludedMentionPhrases: [],
+  excludedMentionPatterns: [],
 });
 const searchDefaults = (): GraphFilters => ({
   ...defaults(),

@@ -43,6 +43,7 @@ describe("semantic graph tab state", () => {
       includeChildDocuments: false,
       excludeIds: [BLOCK],
       excludedMentionPhrases: ["01", "todo"],
+      excludedMentionPatterns: ["^\\d{2}$"],
       hideIsolated: true,
     };
     const state = graphTabState(filters, data, "Reading", true);
@@ -54,7 +55,7 @@ describe("semantic graph tab state", () => {
       "隐藏：",
       "包含关系",
       "已选节点",
-      "排除词组：2 项",
+      "提及排除规则：3 项",
       "子文档：不包含",
       "排除：1 项",
       "隐藏未选中的节点",

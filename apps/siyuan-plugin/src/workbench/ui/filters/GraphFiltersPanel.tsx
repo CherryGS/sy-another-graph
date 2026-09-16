@@ -210,6 +210,7 @@ export function GraphFiltersPanel({
                 <MentionControls
                   mode={filters.mentions}
                   phrases={filters.excludedMentionPhrases}
+                  patterns={filters.excludedMentionPatterns}
                   chosenCount={state.chosenIds.length}
                   status={state.mentionState}
                   editorKey={
@@ -218,8 +219,12 @@ export function GraphFiltersPanel({
                       : state.filterPresets.activeId) ?? "custom"
                   }
                   onModeChange={(mentions) => setFilters((previous) => ({ ...previous, mentions }))}
-                  onPhrasesChange={(excludedMentionPhrases) =>
-                    setFilters((previous) => ({ ...previous, excludedMentionPhrases }))
+                  onExclusionsChange={({ phrases, patterns }) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      excludedMentionPhrases: phrases,
+                      excludedMentionPatterns: patterns,
+                    }))
                   }
                 />
                 <SettingSwitch

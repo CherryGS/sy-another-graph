@@ -4,6 +4,7 @@ import type { MentionMode } from "../mentions/types";
 export interface MentionRules {
   mentions: MentionMode;
   excludedMentionPhrases: string[];
+  excludedMentionPatterns: string[];
 }
 
 /** These controls do not change the source boundary or traversal topology. */
@@ -21,4 +22,5 @@ export const DEFAULT_FILTERS: GraphFilters = {
   hideIsolated: false,
   mentions: "off",
   excludedMentionPhrases: [],
+  excludedMentionPatterns: [],
 };

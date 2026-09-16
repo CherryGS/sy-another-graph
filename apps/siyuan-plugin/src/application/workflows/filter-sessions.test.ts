@@ -10,6 +10,20 @@ const snapshot: SearchGraphSnapshot = {
 };
 
 describe("temporary search preset isolation", () => {
+  it("keeps regex exclusions isolated and restores the original unsaved rules", () => {
+    const session = new FilterSessions();
+    session.setFilters((previous) => ({ ...previous, excludedMentionPatterns: ["^\\d{2}$"] }));
+    session.search(snapshot);
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPatterns).toEqual([]);
+    session.setFilters((previous) => ({ ...previous, excludedMentionPatterns: ["^todo$"] }));
+    session.leave();
+    expect(session.normalRef.current.excludedMentionPatterns).toEqual(["^\\d{2}$"]);
+    session.resume();
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPatterns).toEqual(["^todo$"]);
+    session.reset();
+    expect(session.getSnapshot().temporary?.filters.excludedMentionPatterns).toEqual([]);
+    expect(session.normalRef.current.excludedMentionPatterns).toEqual(["^\\d{2}$"]);
+  });
   it("keeps phrase exclusions independent across normal and temporary presets and resets", () => {
     const session = new FilterSessions();
     session.setFilters((previous) => ({ ...previous, excludedMentionPhrases: ["01"] }));

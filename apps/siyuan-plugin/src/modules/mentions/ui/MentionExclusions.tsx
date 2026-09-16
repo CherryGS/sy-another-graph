@@ -1,34 +1,39 @@
 import { useLocale } from "../../../shared/i18n/react";
-import { t } from "../../../shared/i18n/runtime";
+import { t, text } from "../../../shared/i18n/runtime";
 import { useEffect, useId, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/ui/collapsible";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/ui/field";
 import { Textarea } from "@/shared/ui/textarea";
-import { EXCLUDED_PHRASE_LIMIT, KEYWORD_LENGTH_LIMIT, readExcludedPhrases } from "../keywords";
+import {
+  formatExclusionDraft,
+  parseExclusionDraft,
+  type MentionExclusions as ExclusionRules,
+} from "../exclusions";
 
 export function MentionExclusions({
   phrases,
+  patterns,
   onApply,
 }: {
   phrases: readonly string[];
-  onApply: (phrases: string[]) => void;
+  patterns: readonly string[];
+  onApply: (rules: ExclusionRules) => void;
 }) {
   useLocale();
   const id = useId();
-  const [draft, setDraft] = useState(() => phrases.join("\n"));
+  const [draft, setDraft] = useState(() => formatExclusionDraft(phrases, patterns));
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Preset changes and resets replace the editable filter draft.
-    setDraft(phrases.join("\n"));
-  }, [phrases]);
-  const parsed = useMemo(
-    () => readExcludedPhrases(draft.split(/\r\n?|\n/u).filter((line) => line.trim())),
-    [draft],
-  );
-  const changed = parsed !== null && JSON.stringify(parsed) !== JSON.stringify(phrases);
+    setDraft(formatExclusionDraft(phrases, patterns));
+  }, [phrases, patterns]);
+  const { value: parsed, error } = useMemo(() => parseExclusionDraft(draft), [draft]);
+  const changed =
+    parsed !== null && JSON.stringify(parsed) !== JSON.stringify({ phrases, patterns });
+  const count = phrases.length + patterns.length;
   return (
-    <Collapsible defaultOpen={phrases.length > 0}>
+    <Collapsible defaultOpen={count > 0}>
       <CollapsibleTrigger asChild>
         <Button
           variant="ghost"
@@ -37,7 +42,7 @@ export function MentionExclusions({
           aria-label={t("text.editExcludedMentionPhrases")}
         >
           {t("text.excludedPhrases")}
-          {phrases.length > 0 && `（${phrases.length}）`}
+          {count > 0 && `（${count}）`}
           <ChevronDown
             data-icon="inline-end"
             className="ml-auto transition-transform group-data-[state=open]:rotate-180"
@@ -53,23 +58,16 @@ export function MentionExclusions({
             id={id}
             rows={3}
             className="max-h-48"
-            placeholder={t("text.onePhrasePerLineForExample01Todo")}
+            placeholder={t("mentions.exclusionPlaceholder")}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             aria-invalid={parsed === null}
-            aria-describedby={`${id}-description`}
+            aria-describedby={`${id}-description${error ? ` ${id}-error` : ""}`}
           />
           <FieldDescription id={`${id}-description`}>
-            {t("text.excludeCompleteNamesOrPhrasesIgnoringCaseCharacter")}
+            {t("mentions.exclusionDescription")}
           </FieldDescription>
-          {parsed === null && (
-            <FieldError>
-              {t("mentions.exclusionLimit", {
-                count: EXCLUDED_PHRASE_LIMIT,
-                length: KEYWORD_LENGTH_LIMIT,
-              })}
-            </FieldError>
-          )}
+          {error && <FieldError id={`${id}-error`}>{text(error)}</FieldError>}
           <Button
             variant="outline"
             size="sm"

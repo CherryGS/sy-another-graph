@@ -45,10 +45,27 @@ matched IDs. The search button shows reading progress; click again to cancel.
   or show optional community territories in 2D.
 - **Export:** download the visible graph as JSON.
 
-For text mentions, enter one complete name or phrase per line under **Exclude
-phrases**, then click **Apply exclusions**. Save the filter preset to keep these
-rules; temporary search graphs keep independent exclusions. Excluding `01`
-preserves names such as `101`, and does not remove nodes or explicit references.
+For text mentions, enter one complete phrase or `/regex/` per line under
+**Exclusion rules**, then click **Apply exclusions**. Save the filter preset to keep
+these rules; temporary search graphs keep independent exclusions. For example:
+
+```text
+Todo
+/^\d{2}$/
+/^\d{4}-\d{2}-\d{2}$/
+```
+
+Plain phrases match complete names. Regex uses JavaScript syntax without appended
+flags and ignores case, matching individual titles, names, or aliases after
+character-width, case, and whitespace normalization. Use `^` and `$` for whole
+names: the two-digit rule above preserves `101` and `Project 01`. Prefix an extra
+`\` to enter literal names starting with `/` or `\`; existing phrases remain literal.
+Exclusions do not directly remove nodes or explicit references.
+
+Up to 2,000 phrases and 128 patterns are supported, each up to 256 characters
+(excluding the regex delimiters). Invalid patterns report their line number.
+Vocabulary preparation with regex stops after 10 seconds; simplify the rules and
+apply again if it times out.
 
 ## Data and limits
 

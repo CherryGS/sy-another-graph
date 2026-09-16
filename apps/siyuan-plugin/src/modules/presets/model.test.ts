@@ -76,6 +76,7 @@ describe("persistent preset schema", () => {
       excludeIds: [BLOCK, OTHER],
       hiddenTypes: ["future-type", "p"],
       excludedMentionPhrases: ["01", "graph theory"],
+      excludedMentionPatterns: [],
     });
     expect("selectedId" in restored).toBe(false);
     filters.excludeIds.length = 0;
@@ -89,9 +90,29 @@ describe("persistent preset schema", () => {
   it("restores existing v1 presets with an empty phrase exclusion list", () => {
     const legacy = createPresetStore();
     Reflect.deleteProperty(legacy.presets[0].filters, "excludedMentionPhrases");
+    Reflect.deleteProperty(legacy.presets[0].filters, "excludedMentionPatterns");
     const restored = readPresetStore(legacy)!;
     expect(restored.activePresetId).toBe(legacy.activePresetId);
     expect(restored.presets[0].filters.excludedMentionPhrases).toEqual([]);
+    expect(restored.presets[0].filters.excludedMentionPatterns).toEqual([]);
+  });
+
+  it("persists regex separately from legacy slash literals and preserves source case", () => {
+    const store = createPresetStore();
+    store.presets[0].filters.excludedMentionPhrases = ["/01/"];
+    store.presets[0].filters.excludedMentionPatterns = ["\\D", "^\\d{2}$", "\\D"];
+    const filters = readPresetStore(JSON.parse(JSON.stringify(store)))!.presets[0].filters;
+    expect(filters.excludedMentionPhrases).toEqual(["/01/"]);
+    expect(filters.excludedMentionPatterns).toEqual(["\\D", "^\\d{2}$"]);
+    expect(
+      samePresetFilters(filters, { ...filters, excludedMentionPatterns: ["\\d", "^\\d{2}$"] }),
+    ).toBe(false);
+    const applied = applyPresetFilters(
+      { ...DEFAULT_FILTERS, ...filters },
+      { ...filters, excludedMentionPatterns: [] },
+    );
+    expect(applied.excludedMentionPatterns).toEqual([]);
+    expect(applied.excludedMentionPhrases).toBe(filters.excludedMentionPhrases);
   });
 
   it("compares effective rules independently of search, array ordering, and document-only redundant exclusions", () => {
@@ -196,6 +217,11 @@ describe("persistent preset schema", () => {
     ["excludedMentionPhrases", ["a".repeat(257)]],
     ["excludedMentionPhrases", ["bad\u0081phrase"]],
     ["excludedMentionPhrases", Array(2001).fill("01")],
+    ["excludedMentionPatterns", null],
+    ["excludedMentionPatterns", "^\\d{2}$"],
+    ["excludedMentionPatterns", ["["]],
+    ["excludedMentionPatterns", ["a".repeat(257)]],
+    ["excludedMentionPatterns", Array(129).fill("a")],
   ])("rejects invalid %s rules instead of silently broadening them", (field, value) => {
     const store = createPresetStore();
     store.presets[0].filters = { ...store.presets[0].filters, [field]: value };

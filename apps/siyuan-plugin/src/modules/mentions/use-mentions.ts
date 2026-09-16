@@ -20,6 +20,7 @@ export function useMentions(
   mode: MentionMode,
   chosenIds: readonly string[],
   excludedPhrases: readonly string[],
+  excludedPatterns: readonly string[],
 ) {
   useLocale();
   const [snapshot, setSnapshot] = useState<MentionSnapshot>(EMPTY_MENTION_SNAPSHOT);
@@ -29,9 +30,16 @@ export function useMentions(
   const input = useMemo(
     () =>
       data?.mentionBlocks && scope
-        ? { blocks: data.mentionBlocks, scope, mode, chosenIds: selected, excludedPhrases }
+        ? {
+            blocks: data.mentionBlocks,
+            scope,
+            mode,
+            chosenIds: selected,
+            excludedPhrases,
+            excludedPatterns,
+          }
         : null,
-    [data, scope, mode, selected, excludedPhrases],
+    [data, scope, mode, selected, excludedPhrases, excludedPatterns],
   );
   useEffect(() => {
     const current = new MentionClient(

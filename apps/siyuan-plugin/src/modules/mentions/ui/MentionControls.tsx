@@ -11,11 +11,12 @@ import { MentionExclusions } from "./MentionExclusions";
 export function MentionControls({
   mode,
   phrases,
+  patterns,
   chosenCount,
   status,
   editorKey,
   onModeChange,
-  onPhrasesChange,
+  onExclusionsChange,
 }: MentionControlsProps) {
   useLocale();
   const { progress, ready, error, pending } = status;
@@ -79,7 +80,12 @@ export function MentionControls({
           </FieldDescription>
         )}
       </Field>
-      <MentionExclusions key={editorKey} phrases={phrases} onApply={onPhrasesChange} />
+      <MentionExclusions
+        key={editorKey}
+        phrases={phrases}
+        patterns={patterns}
+        onApply={onExclusionsChange}
+      />
     </FieldGroup>
   );
 }

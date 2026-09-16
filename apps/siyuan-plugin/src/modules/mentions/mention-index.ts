@@ -2,7 +2,8 @@ import { message as msg, MessageError } from "../../core/diagnostics/message";
 import type { GraphEdge, GraphProvenance } from "../../core/graph/types";
 import { KeywordMatcher, type KeywordHit } from "./matcher";
 import { nativeNames, ordinaryProse } from "./prose";
-import { KEYWORD_LENGTH_LIMIT, normalizeExcludedPhrases, normalizeKeyword } from "./keywords";
+import { KEYWORD_LENGTH_LIMIT, normalizeKeyword } from "./keywords";
+import { createNameExclusionMatcher } from "./exclusions";
 import {
   EMPTY_MENTION_PROGRESS,
   MENTION_LIMITS,
@@ -49,7 +50,11 @@ export class MentionIndex {
     this.limits = { ...MENTION_LIMITS, ...limits };
   }
 
-  replace(blocks: readonly MentionBlock[], excludedPhrases: readonly string[] = []): void {
+  replace(
+    blocks: readonly MentionBlock[],
+    excludedPhrases: readonly string[] = [],
+    excludedPatterns: readonly string[] = [],
+  ): void {
     this.ready = false;
     this.blocks = new Map(blocks.map((block) => [block.id, block]));
     if (this.blocks.size !== blocks.length)
@@ -61,7 +66,7 @@ export class MentionIndex {
     this.indexed = new Set();
     this.priority = [];
     this.progress = { ...EMPTY_MENTION_PROGRESS };
-    const excluded = new Set(normalizeExcludedPhrases(excludedPhrases));
+    const excluded = createNameExclusionMatcher(excludedPhrases, excludedPatterns);
     let keywordCharacters = 0;
     const rawTexts = new Set<string>();
     for (const block of blocks) {
@@ -73,7 +78,7 @@ export class MentionIndex {
         if (blockKeywords.has(keyword)) continue;
         blockKeywords.add(keyword);
         // Exclude before vocabulary and occurrence budgets, not after edges form.
-        if (excluded.has(keyword)) continue;
+        if (excluded(keyword)) continue;
         if (
           !keyword ||
           keyword.length > KEYWORD_LENGTH_LIMIT ||

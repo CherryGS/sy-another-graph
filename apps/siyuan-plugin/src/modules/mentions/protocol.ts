@@ -8,8 +8,19 @@ import type {
 } from "./types";
 
 export type MentionRequest =
-  | { kind: "load"; revision: number; blocks: MentionBlock[]; excludedPhrases?: readonly string[] }
-  | { kind: "exclusions"; revision: number; excludedPhrases: readonly string[] }
+  | {
+      kind: "load";
+      revision: number;
+      blocks: MentionBlock[];
+      excludedPhrases?: readonly string[];
+      excludedPatterns?: readonly string[];
+    }
+  | {
+      kind: "exclusions";
+      revision: number;
+      excludedPhrases: readonly string[];
+      excludedPatterns?: readonly string[];
+    }
   | { kind: "scope"; revision: number; scopeRevision: number; scope: MentionScope }
   | {
       kind: "query";
@@ -21,6 +32,7 @@ export type MentionRequest =
     };
 
 export type MentionResponse =
+  | { kind: "prepared"; revision: number }
   | { kind: "progress" | "ready"; revision: number; progress: MentionProgress }
   | {
       kind: "result";

@@ -81,8 +81,12 @@ export function graphTabState(
               ? t("text.selectedNodes")
               : t("text.allInScope"),
       }),
-      ...(filters.excludedMentionPhrases.length
-        ? [t("text.excludedPhrasesValue", { p0: filters.excludedMentionPhrases.length })]
+      ...(filters.excludedMentionPhrases.length + filters.excludedMentionPatterns.length
+        ? [
+            t("text.excludedPhrasesValue", {
+              p0: filters.excludedMentionPhrases.length + filters.excludedMentionPatterns.length,
+            }),
+          ]
         : []),
       t("text.childDocumentsValue", {
         p0: filters.includeChildDocuments ? t("text.included") : t("text.excluded"),

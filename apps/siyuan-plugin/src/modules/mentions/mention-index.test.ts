@@ -85,6 +85,44 @@ describe("ordinary source prose and vocabulary", () => {
 });
 
 describe("cached text mention graph", () => {
+  it("excludes numeric titles and aliases before budgets while preserving other names", async () => {
+    const blocks = [
+      doc("noise", "０１", '{: alias="02"}'),
+      doc("useful", "Beta", '{: name="03"}'),
+      paragraph("p", "source", `${"01 02 03 ".repeat(100)}Beta`),
+    ];
+    const index = new MentionIndex({ keywords: 1, occurrencesPerSource: 1, cachedOccurrences: 1 });
+    index.replace(blocks, [], ["^\\d{2}$"]);
+    await index.warm(() => {}, controller().signal);
+    for (const mode of ["all", "selected"] as const) {
+      const result = await index.query(scopeOf(blocks), mode, ["useful"], controller().signal);
+      expect(result.edges).toHaveLength(1);
+      expect(result.edges[0].provenance![0].targetId).toBe("useful");
+      expect(result.truncated).toBe(false);
+    }
+    expect(index.progress).toMatchObject({ keywords: 1, skippedKeywords: 0, limitedSources: 0 });
+  });
+
+  it("invalidates occurrences only when regex changes alter the vocabulary", async () => {
+    const blocks = [doc("b", "Beta"), doc("number", "101"), paragraph("p", "a", "Beta 101")];
+    const index = await indexOf(blocks);
+    index.replace(blocks, [], ["^\\d{2}$"]);
+    await index.warm(() => {}, controller().signal);
+    expect(index.progress.cached).toBe(1);
+    index.replace(blocks, [], ["^\\d+$"]);
+    await index.warm(() => {}, controller().signal);
+    expect(index.progress.cached).toBe(0);
+    expect(
+      (await index.query(scopeOf(blocks), "all", [], controller().signal)).edges.map(
+        (edge) => edge.provenance![0].targetId,
+      ),
+    ).toEqual(["b"]);
+    index.replace(blocks);
+    await index.warm(() => {}, controller().signal);
+    expect((await index.query(scopeOf(blocks), "all", [], controller().signal)).edges).toHaveLength(
+      2,
+    );
+  });
   it("excludes complete normalized names in both modes without excluding larger numeric names", async () => {
     const blocks = [
       doc("source", "Source"),

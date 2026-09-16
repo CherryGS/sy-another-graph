@@ -34,7 +34,8 @@ export class MentionWorkerRuntime {
       this.warming = abort;
       if (message.kind === "load") this.blocks = message.blocks;
       try {
-        this.index.replace(this.blocks, message.excludedPhrases);
+        this.index.replace(this.blocks, message.excludedPhrases, message.excludedPatterns);
+        this.publish({ kind: "prepared", revision: message.revision });
       } catch (error) {
         this.fail(error, message.revision);
         return;

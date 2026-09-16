@@ -197,6 +197,7 @@ export function useWorkbenchState() {
     filters.mentions,
     chosenIds,
     filters.excludedMentionPhrases,
+    filters.excludedMentionPatterns,
   );
   const mentionsPending =
     filters.mentions !== "off" &&

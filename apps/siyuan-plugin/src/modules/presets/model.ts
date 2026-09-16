@@ -2,6 +2,7 @@ import { message as msg, MessageError } from "../../core/diagnostics/message";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
 import { isMentionMode } from "../mentions/types";
 import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
+import { normalizeExcludedPatterns, readExcludedPatterns } from "../mentions/exclusions";
 
 export type PresetFilters = Omit<GraphFilters, "query">;
 export interface FilterPreset {
@@ -52,6 +53,7 @@ export function presetFilters(filters: PresetFilters): PresetFilters {
     databases: filters.databases,
     mentions: filters.mentions,
     excludedMentionPhrases: normalizeExcludedPhrases(filters.excludedMentionPhrases ?? []),
+    excludedMentionPatterns: normalizeExcludedPatterns(filters.excludedMentionPatterns ?? []),
   };
 }
 
@@ -78,6 +80,12 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
     excludedMentionPhrases: sameValues(previous.excludedMentionPhrases, next.excludedMentionPhrases)
       ? previous.excludedMentionPhrases
       : next.excludedMentionPhrases,
+    excludedMentionPatterns: sameValues(
+      previous.excludedMentionPatterns,
+      next.excludedMentionPatterns,
+    )
+      ? previous.excludedMentionPatterns
+      : next.excludedMentionPatterns,
   };
 }
 
@@ -121,7 +129,16 @@ function readFilters(value: unknown): PresetFilters | null {
     value.excludedMentionPhrases === undefined ? [] : value.excludedMentionPhrases,
   );
   if (!excludedMentionPhrases) return null;
-  return presetFilters({ ...value, excludedMentionPhrases } as unknown as PresetFilters);
+  // Keep legacy slash-delimited phrases literal; patterns have their own field.
+  const excludedMentionPatterns = readExcludedPatterns(
+    value.excludedMentionPatterns === undefined ? [] : value.excludedMentionPatterns,
+  );
+  if (!excludedMentionPatterns) return null;
+  return presetFilters({
+    ...value,
+    excludedMentionPhrases,
+    excludedMentionPatterns,
+  } as unknown as PresetFilters);
 }
 
 /** Reject corrupt/unsupported persisted data instead of replacing it with defaults. */

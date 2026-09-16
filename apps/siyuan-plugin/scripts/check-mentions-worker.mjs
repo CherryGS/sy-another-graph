@@ -28,10 +28,11 @@ export async function verifyMentionWorker() {
               type: "p",
               title: "",
               ial: "",
-              markdown: '**A&amp;B** `A&B` ((20260822181032-6spbotb "A&B"))',
+              markdown: '**A&amp;B** 01 `A&B` ((20260822181032-6spbotb "A&B"))',
             },
+            { id: "noise", rootId: "noise", type: "d", title: "01", ial: "", markdown: null },
           ];
-          worker.postMessage({ kind: "load", revision: 1, blocks });
+          worker.postMessage({ kind: "load", revision: 1, blocks, excludedPatterns: ["^\\d{2}$"] });
           worker.postMessage({
             kind: "scope",
             revision: 1,

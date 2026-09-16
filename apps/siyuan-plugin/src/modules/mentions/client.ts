@@ -9,6 +9,7 @@ import {
   type MentionScope,
 } from "./types";
 import { normalizeExcludedPhrases } from "./keywords";
+import { EXCLUSION_BUILD_TIMEOUT_MS, normalizeExcludedPatterns } from "./exclusions";
 
 export interface MentionInput {
   blocks: MentionBlock[];
@@ -16,6 +17,7 @@ export interface MentionInput {
   mode: MentionMode;
   chosenIds: readonly string[];
   excludedPhrases?: readonly string[];
+  excludedPatterns?: readonly string[];
 }
 export interface MentionSnapshot {
   input: MentionInput | null;
@@ -55,6 +57,7 @@ export class MentionClient {
   private request = 0;
   private closed = false;
   private fatalError: Failure = "";
+  private preparationTimer: ReturnType<typeof setTimeout> | null = null;
   private snapshot = EMPTY_MENTION_SNAPSHOT;
   private readonly create: () => MentionWorkerPort;
   private readonly publish: (snapshot: MentionSnapshot) => void;
@@ -67,13 +70,20 @@ export class MentionClient {
   update(input: MentionInput): void {
     if (this.closed) return;
     const excludedPhrases = normalizeExcludedPhrases(input.excludedPhrases ?? []);
-    const exclusionKey = JSON.stringify(excludedPhrases);
+    const excludedPatterns = normalizeExcludedPatterns(input.excludedPatterns ?? []);
+    const exclusionKey = JSON.stringify([excludedPhrases, excludedPatterns]);
     if (this.fatalError && this.blocks === input.blocks && this.exclusionKey === exclusionKey) {
       this.set({ input, pending: false, result: EMPTY_MENTION_RESULT, error: this.fatalError });
       return;
     }
     try {
-      if (this.fatalError) {
+      // A synchronous regex cannot receive cancellation messages. Replacing its
+      // rules while preparation is pending must terminate that Worker instead.
+      if (
+        this.fatalError ||
+        (this.preparationTimer !== null &&
+          (this.blocks !== input.blocks || this.exclusionKey !== exclusionKey))
+      ) {
         this.stopWorker();
         this.blocks = null;
         this.fatalError = "";
@@ -92,10 +102,17 @@ export class MentionClient {
         this.revision++;
         this.scopeRevision = 0;
         this.snapshot = { ...EMPTY_MENTION_SNAPSHOT };
+        if (excludedPatterns.length) this.watchPreparation(this.revision);
         this.worker.postMessage(
           sourceChanged
-            ? { kind: "load", revision: this.revision, blocks: input.blocks, excludedPhrases }
-            : { kind: "exclusions", revision: this.revision, excludedPhrases },
+            ? {
+                kind: "load",
+                revision: this.revision,
+                blocks: input.blocks,
+                excludedPhrases,
+                excludedPatterns,
+              }
+            : { kind: "exclusions", revision: this.revision, excludedPhrases, excludedPatterns },
         );
       }
       if (this.scope !== input.scope) {
@@ -124,6 +141,8 @@ export class MentionClient {
         chosenIds: input.chosenIds,
       });
     } catch (error) {
+      this.stopWorker();
+      this.blocks = null;
       this.set({
         input,
         pending: false,
@@ -149,6 +168,7 @@ export class MentionClient {
   }
 
   private stopWorker(): void {
+    this.clearPreparationTimer();
     this.worker?.removeEventListener("message", this.onMessage);
     this.worker?.removeEventListener("error", this.onError);
     this.worker?.removeEventListener("messageerror", this.onError);
@@ -158,8 +178,10 @@ export class MentionClient {
 
   private onMessage: EventListener = (event) => {
     const message = (event as MessageEvent<MentionResponse>).data;
-    if (this.closed || message.revision !== this.revision) return;
-    if (message.kind === "progress" || message.kind === "ready") {
+    if (this.closed || this.fatalError || message.revision !== this.revision) return;
+    if (message.kind === "prepared") {
+      this.clearPreparationTimer();
+    } else if (message.kind === "progress" || message.kind === "ready") {
       this.set({
         progress: message.progress,
         ...(message.kind === "ready" ? { ready: true } : {}),
@@ -171,13 +193,17 @@ export class MentionClient {
       if (message.scopeRevision !== undefined && message.scopeRevision !== this.scopeRevision)
         return;
       if (message.request !== undefined && message.request !== this.request) return;
-      if (message.scopeRevision === undefined) this.fatalError = message.message;
+      if (message.scopeRevision === undefined) {
+        this.clearPreparationTimer();
+        this.fatalError = message.message;
+      }
       this.set({ pending: false, result: EMPTY_MENTION_RESULT, error: message.message });
     }
   };
 
   private onError: EventListener = () => {
     if (this.closed) return;
+    this.clearPreparationTimer();
     this.fatalError = msg("text.theMentionIndexCouldNotFinishRetryWhen");
     this.set({
       ready: false,
@@ -186,6 +212,28 @@ export class MentionClient {
       error: this.fatalError,
     });
   };
+
+  private clearPreparationTimer(): void {
+    if (this.preparationTimer !== null) clearTimeout(this.preparationTimer);
+    this.preparationTimer = null;
+  }
+
+  private watchPreparation(revision: number): void {
+    this.clearPreparationTimer();
+    this.preparationTimer = setTimeout(() => {
+      if (this.closed || revision !== this.revision) return;
+      this.stopWorker();
+      this.fatalError = msg("mentions.exclusionTimeout", {
+        seconds: EXCLUSION_BUILD_TIMEOUT_MS / 1000,
+      });
+      this.set({
+        ready: false,
+        pending: false,
+        result: EMPTY_MENTION_RESULT,
+        error: this.fatalError,
+      });
+    }, EXCLUSION_BUILD_TIMEOUT_MS);
+  }
 
   private set(patch: Partial<MentionSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };

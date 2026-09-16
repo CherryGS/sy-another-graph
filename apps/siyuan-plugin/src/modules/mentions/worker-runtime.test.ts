@@ -8,6 +8,7 @@ import {
 } from "./client";
 import type { MentionRequest, MentionResponse } from "./protocol";
 import { EMPTY_MENTION_PROGRESS, type MentionBlock, type MentionScope } from "./types";
+import { EXCLUSION_BUILD_TIMEOUT_MS } from "./exclusions";
 
 const blocks: MentionBlock[] = [
   { id: "a", rootId: "a", type: "d", title: "Alpha", ial: "", markdown: null },
@@ -29,6 +30,22 @@ const results = (events: MentionResponse[]) =>
   );
 
 describe("mention worker scheduling", () => {
+  it("finishes regex preparation before warming and rebuilds rules without resending blocks", async () => {
+    const events: MentionResponse[] = [];
+    const runtime = new MentionWorkerRuntime((event) => events.push(event));
+    runtime.receive({ kind: "load", revision: 1, blocks, excludedPatterns: ["^beta$"] });
+    expect(events[0]).toEqual({ kind: "prepared", revision: 1 });
+    runtime.receive({ kind: "scope", revision: 1, scopeRevision: 1, scope });
+    runtime.receive(query(1, "all"));
+    await vi.waitFor(() => expect(results(events)).toHaveLength(1));
+    expect(results(events)[0].result.edges).toEqual([]);
+    runtime.receive({ kind: "exclusions", revision: 2, excludedPhrases: [], excludedPatterns: [] });
+    runtime.receive({ kind: "scope", revision: 2, scopeRevision: 1, scope });
+    runtime.receive({ ...query(2, "all"), revision: 2 });
+    await vi.waitFor(() => expect(results(events)).toHaveLength(2));
+    expect(results(events)[1].result.edges).toHaveLength(1);
+    runtime.dispose();
+  });
   it("rebuilds exclusions using the retained corpus and publishes only the latest revision", async () => {
     const events: MentionResponse[] = [];
     const runtime = new MentionWorkerRuntime((event) => events.push(event));
@@ -113,6 +130,94 @@ class WorkerStub extends EventTarget implements MentionWorkerPort {
 }
 
 describe("mention client revision boundaries", () => {
+  it("terminates a stuck regex build and recovers when its rules change", () => {
+    vi.useFakeTimers();
+    const workers: WorkerStub[] = [];
+    const states: MentionSnapshot[] = [];
+    const client = new MentionClient(
+      () => {
+        const worker = new WorkerStub();
+        workers.push(worker);
+        return worker;
+      },
+      (state) => states.push(state),
+    );
+    const input: MentionInput = {
+      blocks,
+      scope,
+      mode: "all",
+      chosenIds: [],
+      excludedPatterns: ["^(a+)+$"],
+    };
+    try {
+      client.update(input);
+      vi.advanceTimersByTime(EXCLUSION_BUILD_TIMEOUT_MS - 1);
+      client.update({ ...input, chosenIds: ["a"] });
+      vi.advanceTimersByTime(1);
+      expect(workers[0].terminate).toHaveBeenCalledOnce();
+      expect(states.at(-1)).toMatchObject({
+        ready: false,
+        pending: false,
+        error: { code: "mentions.exclusionTimeout" },
+      });
+      const count = states.length;
+      workers[0].emit({ kind: "ready", revision: 1, progress: EMPTY_MENTION_PROGRESS });
+      expect(states).toHaveLength(count);
+      client.update({ ...input, excludedPatterns: ["^\\d{2}$"] });
+      expect(workers[1].messages[0]).toMatchObject({
+        kind: "load",
+        blocks,
+        excludedPatterns: ["^\\d{2}$"],
+      });
+      workers[1].emit({ kind: "prepared", revision: 2 });
+      vi.advanceTimersByTime(EXCLUSION_BUILD_TIMEOUT_MS * 2);
+      expect(workers[1].terminate).not.toHaveBeenCalled();
+      expect(states.at(-1)!.error).toBe("");
+    } finally {
+      client.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels pending regex preparation immediately on edits and ignores stale acknowledgements", () => {
+    vi.useFakeTimers();
+    const workers: WorkerStub[] = [];
+    const client = new MentionClient(
+      () => {
+        const worker = new WorkerStub();
+        workers.push(worker);
+        return worker;
+      },
+      () => {},
+    );
+    const input: MentionInput = {
+      blocks,
+      scope,
+      mode: "all",
+      chosenIds: [],
+      excludedPatterns: ["\\D"],
+    };
+    try {
+      client.update(input);
+      client.update({ ...input, excludedPatterns: ["\\d"] });
+      expect(workers[0].terminate).toHaveBeenCalledOnce();
+      expect(workers[1].messages[0]).toMatchObject({ kind: "load", excludedPatterns: ["\\d"] });
+      workers[1].emit({ kind: "prepared", revision: 1 });
+      expect(vi.getTimerCount()).toBe(1);
+      workers[1].emit({ kind: "prepared", revision: 2 });
+      client.update({ ...input, excludedPatterns: ["^beta$"] });
+      expect(workers).toHaveLength(2);
+      expect(workers[1].messages.at(-3)).toMatchObject({
+        kind: "exclusions",
+        excludedPatterns: ["^beta$"],
+      });
+    } finally {
+      client.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.useRealTimers();
+    }
+  });
   it("sends only changed exclusions, without copying the corpus again or accepting stale matches", () => {
     const worker = new WorkerStub();
     const states: MentionSnapshot[] = [];
@@ -135,6 +240,7 @@ describe("mention client revision boundaries", () => {
       kind: "exclusions",
       revision: 2,
       excludedPhrases: ["beta"],
+      excludedPatterns: [],
     });
     expect(states.at(-1)).toMatchObject({ ready: false, pending: true, result: { edges: [] } });
     const count = states.length;

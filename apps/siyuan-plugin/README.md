@@ -68,6 +68,8 @@ catalogs. `pnpm test` checks catalog parity and referenced message coverage.
 
 ## Further reading
 
+- [Feature complexity and cache costs](../../docs/feature-complexity.md)
+- [Filtering, projection, and display scope](../../docs/filtering-pipeline.md)
 - [Implementation rules](../../rules/implementation.md)
 - [Marketplace release process](../../scripts/marketplace-release.md)
 - [Workspace pressure fixture](../../scripts/stress-fixture.md)
