@@ -1,10 +1,11 @@
+import { t } from "../../../shared/i18n/runtime";
 import type { Custom } from "siyuan";
 import {
   WORKBENCH_PRESET_CHANNEL,
   type GraphTabStateMessage,
 } from "../../../modules/presets/host-protocol";
 
-export const DEFAULT_GRAPH_TAB_TITLE = "图谱 · 全部 · 文档引用";
+export const defaultGraphTabTitle = () => t("text.graphAllDocumentReferences");
 
 type GraphTab = Pick<Custom["tab"], "title" | "headElement" | "updateTitle">;
 
@@ -29,8 +30,10 @@ export class GraphTabTitle {
   private readonly ownsMessage: (event: MessageEvent) => boolean;
   private readonly tabs = new Set<GraphTab>();
   private state: Pick<GraphTabStateMessage, "title" | "description"> = {
-    title: DEFAULT_GRAPH_TAB_TITLE,
-    description: "范围：全部；预设：文档引用；包含关系：关闭；文本提及：关闭；类型：文档",
+    title: defaultGraphTabTitle(),
+    get description() {
+      return t("text.scopeAllPresetDocumentReferencesContainmentOffText");
+    },
   };
   private disposed = false;
 

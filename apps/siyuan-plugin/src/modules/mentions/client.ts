@@ -1,3 +1,4 @@
+import { message as msg, failureOf, type Failure } from "../../core/diagnostics/message";
 import type { MentionRequest, MentionResponse } from "./protocol";
 import {
   EMPTY_MENTION_PROGRESS,
@@ -22,7 +23,7 @@ export interface MentionSnapshot {
   pending: boolean;
   progress: MentionProgress;
   result: MentionResult;
-  error: string;
+  error: Failure;
 }
 export interface MentionWorkerPort {
   postMessage(message: MentionRequest): void;
@@ -53,7 +54,7 @@ export class MentionClient {
   private scopeRevision = 0;
   private request = 0;
   private closed = false;
-  private fatalError = "";
+  private fatalError: Failure = "";
   private snapshot = EMPTY_MENTION_SNAPSHOT;
   private readonly create: () => MentionWorkerPort;
   private readonly publish: (snapshot: MentionSnapshot) => void;
@@ -127,7 +128,7 @@ export class MentionClient {
         input,
         pending: false,
         result: EMPTY_MENTION_RESULT,
-        error: error instanceof Error ? error.message : String(error),
+        error: failureOf(error),
       });
     }
   }
@@ -177,7 +178,7 @@ export class MentionClient {
 
   private onError: EventListener = () => {
     if (this.closed) return;
-    this.fatalError = "文本提及索引未能完成，可重试；现有关系仍可使用。";
+    this.fatalError = msg("text.theMentionIndexCouldNotFinishRetryWhen");
     this.set({
       ready: false,
       pending: false,

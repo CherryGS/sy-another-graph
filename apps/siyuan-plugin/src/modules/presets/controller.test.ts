@@ -164,7 +164,7 @@ describe("preset persistence and drafts", () => {
     expect(h.snapshot.store.activePresetId).toBeNull();
     expect(h.filters.hierarchy).toBe(false);
     expect(await h.controller.update()).toBe(false);
-    expect(h.snapshot.error).toContain("另存");
+    expect(h.snapshot.error).toMatchObject({ code: "text.saveTheCurrentFiltersAsANewPreset" });
     h.controller.dispose();
   });
 
@@ -211,7 +211,9 @@ describe("preset persistence and drafts", () => {
       expect(await h.controller.rename("documents", "New name")).toBe(false);
       expect(h.snapshot.store).toBe(before);
       expect(h.snapshot.available).toBe(false);
-      expect(h.snapshot.error).toContain("不一致");
+      expect(h.snapshot.error).toMatchObject({
+        code: "text.siyuanReturnedADifferentPresetFromTheOne",
+      });
       h.controller.dispose();
     },
   );
@@ -317,7 +319,9 @@ describe("asynchronous preset activation", () => {
       await h.controller.load(true);
       h.ready();
       expect(h.filters.scopeId).toBe("");
-      expect(h.snapshot.error).toContain("未自动应用");
+      expect(h.snapshot.error).toMatchObject({
+        code: "text.valueThePresetWasNotAppliedAutomatically",
+      });
       expect(await h.controller.apply("reading")).toBe(false);
       expect(await h.controller.copy("reading", "Invalid copy")).toBe(false);
       expect(h.port.save).not.toHaveBeenCalled();

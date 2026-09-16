@@ -1,3 +1,5 @@
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useEffect, useState } from "react";
 import { RotateCcw, Settings2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -48,6 +50,7 @@ function SettingSlider({
   onCommit: (value: number) => void;
   description?: string;
 }) {
+  useLocale();
   const [draft, setDraft] = useState(value);
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Reset/restore updates the slider without replacing its focused thumb.
@@ -84,6 +87,7 @@ export function SettingSwitch({
   onChange: (value: boolean) => void;
   disabled?: boolean;
 }) {
+  useLocale();
   return (
     <Field orientation="horizontal" data-disabled={disabled}>
       <FieldLabel htmlFor={id}>{name}</FieldLabel>
@@ -93,6 +97,7 @@ export function SettingSwitch({
 }
 
 export function SettingsPanel({ state }: { state: WorkbenchState }) {
+  useLocale();
   const settings = state.graphSettings;
   const parameter = (
     key: keyof typeof GRAPH_SETTING_RANGES,
@@ -111,29 +116,36 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="图谱设置" title="图谱设置">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("text.graphSettings")}
+          title={t("text.graphSettings")}
+        >
           <Settings2 />
         </Button>
       </SheetTrigger>
       <SheetContent className="settings-sheet gap-0">
         <SheetHeader>
-          <SheetTitle>图谱设置</SheetTitle>
-          <SheetDescription>外观与布局偏好自动保存在当前浏览器。</SheetDescription>
+          <SheetTitle>{t("text.graphSettings")}</SheetTitle>
+          <SheetDescription>
+            {t("text.appearanceAndLayoutPreferencesAreSavedInThis")}
+          </SheetDescription>
         </SheetHeader>
         <Tabs defaultValue="appearance" className="flex min-h-0 flex-1 flex-col gap-0">
           <TabsList className="mx-4 mb-4">
-            <TabsTrigger value="appearance">显示</TabsTrigger>
-            <TabsTrigger value="simulation">力导向</TabsTrigger>
-            <TabsTrigger value="spatial">三维</TabsTrigger>
+            <TabsTrigger value="appearance">{t("settings.display")}</TabsTrigger>
+            <TabsTrigger value="simulation">{t("text.forces")}</TabsTrigger>
+            <TabsTrigger value="spatial">{t("text.3d")}</TabsTrigger>
           </TabsList>
           <ScrollArea className="min-h-0 flex-1" data-scroll-panel>
             <TabsContent value="appearance" className="m-0 p-4 pt-0">
               <FieldGroup>
                 <FieldSet>
-                  <FieldLegend>节点</FieldLegend>
+                  <FieldLegend>{t("text.nodes3")}</FieldLegend>
                   <FieldGroup>
                     <Field>
-                      <FieldLabel htmlFor="node-colors">节点颜色</FieldLabel>
+                      <FieldLabel htmlFor="node-colors">{t("text.nodeColor")}</FieldLabel>
                       <Select
                         value={state.colorBy}
                         onValueChange={(value) => state.setColorBy(value as GraphColorMode)}
@@ -143,28 +155,28 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
-                            <SelectItem value="type">按节点类型</SelectItem>
-                            <SelectItem value="branch">按文档分支</SelectItem>
-                            <SelectItem value="notebook">按笔记本</SelectItem>
-                            <SelectItem value="degree">按连接度</SelectItem>
+                            <SelectItem value="type">{t("text.byNodeType")}</SelectItem>
+                            <SelectItem value="branch">{t("text.byDocumentBranch")}</SelectItem>
+                            <SelectItem value="notebook">{t("text.byNotebook")}</SelectItem>
+                            <SelectItem value="degree">{t("text.byDegree")}</SelectItem>
                           </SelectGroup>
                         </SelectContent>
                       </Select>
                     </Field>
                     <SettingSlider
-                      name="节点大小"
+                      name={t("text.nodeSize")}
                       value={state.pointSize}
                       range={{ min: 1, max: 10, step: 0.5 }}
                       onCommit={state.setPointSize}
                     />
                     <SettingSwitch
                       id="show-labels"
-                      name="显示标签"
+                      name={t("text.showLabels")}
                       checked={state.showLabels}
                       onChange={state.setShowLabels}
                     />
                     <Field data-disabled={!state.showLabels}>
-                      <FieldLabel id="label-density-label">标签密度</FieldLabel>
+                      <FieldLabel id="label-density-label">{t("text.labelDensity")}</FieldLabel>
                       <ToggleGroup
                         type="single"
                         variant="outline"
@@ -183,22 +195,22 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                         }}
                       >
                         <ToggleGroupItem value="standard" className="flex-1">
-                          标准
+                          {t("text.standard")}
                         </ToggleGroupItem>
                         <ToggleGroupItem value="dense" className="flex-1">
-                          较密
+                          {t("text.more")}
                         </ToggleGroupItem>
                         <ToggleGroupItem value="high" className="flex-1">
-                          密集
+                          {t("text.dense")}
                         </ToggleGroupItem>
                       </ToggleGroup>
                       <FieldDescription id="label-density-description">
-                        提高密度可显示更多标签，重叠时仍会自动避让。
+                        {t("text.higherDensityShowsMoreLabelsWhileStillAvoiding")}
                       </FieldDescription>
                     </Field>
                     <SettingSwitch
                       id="scale-points"
-                      name="节点随缩放改变大小"
+                      name={t("text.scaleNodesWithZoom")}
                       checked={settings.scalePointsOnZoom}
                       onChange={(scalePointsOnZoom) =>
                         state.setGraphSettings({ scalePointsOnZoom })
@@ -207,25 +219,25 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                   </FieldGroup>
                 </FieldSet>
                 <FieldSet>
-                  <FieldLegend>连线</FieldLegend>
+                  <FieldLegend>{t("text.links")}</FieldLegend>
                   <FieldGroup>
                     <SettingSwitch
                       id="show-links"
-                      name="显示连线"
+                      name={t("text.showLinks")}
                       checked={state.showLinks}
                       onChange={state.setShowLinks}
                     />
-                    {parameter("linkWidth", "连线粗细")}
-                    {parameter("linkOpacity", "连线不透明度")}
+                    {parameter("linkWidth", t("text.linkWidth"))}
+                    {parameter("linkOpacity", t("text.linkOpacity"))}
                     <SettingSwitch
                       id="show-arrows"
-                      name="显示方向箭头"
+                      name={t("text.showDirectionArrows")}
                       checked={settings.showArrows}
                       onChange={(showArrows) => state.setGraphSettings({ showArrows })}
                     />
                     <SettingSwitch
                       id="curved-links"
-                      name="曲线连线"
+                      name={t("text.curvedLinks")}
                       checked={settings.curvedLinks}
                       onChange={(curvedLinks) => state.setGraphSettings({ curvedLinks })}
                     />
@@ -236,74 +248,82 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
             <TabsContent value="simulation" className="m-0 p-4 pt-0">
               <FieldGroup>
                 <FieldDescription>
-                  滑块松开后应用。布局暂停时，可点击画布右下角继续布局查看效果。
+                  {t("text.changesApplyWhenYouReleaseTheSliderIf")}
                 </FieldDescription>
                 <FieldSet>
-                  <FieldLegend>社区聚合</FieldLegend>
+                  <FieldLegend>{t("text.communityGrouping")}</FieldLegend>
                   <FieldGroup>
                     <SettingSwitch
                       id="community-enabled"
-                      name="启用社区聚合"
+                      name={t("text.enableCommunityGrouping")}
                       checked={settings.communityEnabled}
                       onChange={(communityEnabled) => state.setGraphSettings({ communityEnabled })}
                     />
                     <FieldDescription>
-                      按当前图的连接分组，让同组节点更靠近。节点颜色沿用现有设置。
+                      {t("text.groupNodesByTheirCurrentConnectionsAndBring")}
                     </FieldDescription>
                     {settings.communityEnabled && (
                       <>
                         {parameter(
                           "communityStrength",
-                          "社区聚拢力度",
-                          "越大越紧密；设为 0 可保留分组而关闭聚拢力。",
+                          t("text.communityAttraction"),
+                          t("text.higherValuesBringGroupsCloserSetTo0"),
                         )}
                         {parameter(
                           "communityResolution",
-                          "社区划分粒度",
-                          "越大通常分得越细；修改后重新计算社区。",
+                          t("text.communityResolution"),
+                          t("text.higherValuesUsuallyProduceFinerGroupsChangesRecalculate"),
                         )}
                         <SettingSwitch
                           id="community-background"
-                          name="显示社区区域背景（2D）"
+                          name={t("text.showCommunityRegions2d")}
                           checked={settings.communityBackground}
                           disabled={settings.dimensions === 3}
                           onChange={(communityBackground) =>
                             state.setGraphSettings({ communityBackground })
                           }
                         />
-                        <FieldDescription>区域背景随节点移动更新，仅在二维显示。</FieldDescription>
+                        <FieldDescription>
+                          {t("text.regionsFollowNodeMovementAndAreShownOnly")}
+                        </FieldDescription>
                       </>
                     )}
                   </FieldGroup>
                 </FieldSet>
-                {parameter("repulsion", "节点斥力", "提高后，节点之间更分散。")}
-                {parameter("gravity", "中心引力")}
-                {parameter("linkDistance", "连线目标距离")}
-                {parameter("linkSpring", "连线弹力")}
-                {parameter("friction", "运动惯性", "数值越大，节点越不容易停下。")}
-                {parameter("collision", "碰撞强度")}
-                {parameter("collisionPadding", "碰撞间距")}
+                {parameter(
+                  "repulsion",
+                  t("text.nodeRepulsion"),
+                  t("text.higherValuesSpreadNodesFurtherApart"),
+                )}
+                {parameter("gravity", t("text.centerGravity"))}
+                {parameter("linkDistance", t("text.targetLinkDistance"))}
+                {parameter("linkSpring", t("text.linkStrength"))}
+                {parameter(
+                  "friction",
+                  t("text.motionInertia"),
+                  t("text.higherValuesKeepNodesMovingLonger"),
+                )}
+                {parameter("collision", t("text.collisionStrength"))}
+                {parameter("collisionPadding", t("text.collisionSpacing"))}
                 {parameter(
                   "decay",
-                  "布局冷却步数",
-                  "按模拟步数计，不是毫秒；数值越大，布局冷却越慢。",
+                  t("text.layoutCoolingSteps"),
+                  t("text.measuredInSimulationStepsNotMillisecondsHigherValues"),
                 )}
               </FieldGroup>
             </TabsContent>
             <TabsContent value="spatial" className="m-0 p-4 pt-0">
               <FieldGroup>
-                <FieldDescription>
-                  在工具栏切换 2D / 3D。三维模式下拖动空白旋转，Space 拖动平移，滚轮缩放。
-                </FieldDescription>
-                {parameter("depthFade", "远处节点淡化")}
+                <FieldDescription>{t("text.switchBetween2dAnd3dInTheToolbar")}</FieldDescription>
+                {parameter("depthFade", t("text.fadeDistantNodes"))}
                 <SettingSwitch
                   id="sphere-shading"
-                  name="球体光照"
+                  name={t("text.sphereLighting")}
                   checked={settings.sphereShading}
                   onChange={(sphereShading) => state.setGraphSettings({ sphereShading })}
                 />
                 <FieldDescription>
-                  Shift 拖动所选节点，会在当前视角下整体移动并保持彼此位置。
+                  {t("text.shiftDragToMoveSelectedNodesTogetherIn")}
                 </FieldDescription>
               </FieldGroup>
             </TabsContent>
@@ -312,7 +332,7 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
         <SheetFooter>
           <Button variant="outline" onClick={state.resetAppearance}>
             <RotateCcw data-icon="inline-start" />
-            恢复默认设置
+            {t("text.restoreDefaults")}
           </Button>
         </SheetFooter>
       </SheetContent>

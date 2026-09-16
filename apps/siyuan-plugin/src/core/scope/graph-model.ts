@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../diagnostics/message";
 import type { GraphDataset, GraphEdge, GraphNode, GraphProvenance } from "../graph/types";
 import type { GraphProjectionRules } from "./rules";
 import { getGraphLookups, type GraphLike } from "../graph/graph-lookups";
@@ -514,7 +515,8 @@ export function numericTopology(graph: GraphView) {
   graph.edges.forEach((edge, index) => {
     const source = sourceToDense.get(edge.source);
     const target = sourceToDense.get(edge.target);
-    if (source === undefined || target === undefined) throw new Error("当前图包含不可用的关系端点");
+    if (source === undefined || target === undefined)
+      throw new MessageError(msg("text.theCurrentGraphContainsUnavailableRelationshipEndpoints"));
     endpoints[index * 2] = source;
     endpoints[index * 2 + 1] = target;
   });

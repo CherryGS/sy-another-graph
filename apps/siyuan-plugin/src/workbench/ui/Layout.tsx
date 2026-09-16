@@ -11,7 +11,7 @@ export function Layout() {
   const state = useWorkbench();
   const hostActive = useHostVisibility();
   useEffect(() => {
-    if (state.toast) toast(state.toast);
+    if (state.toast) toast(state.toast, { id: "atlas-status" });
   }, [state.toast]);
   return (
     <TooltipProvider>

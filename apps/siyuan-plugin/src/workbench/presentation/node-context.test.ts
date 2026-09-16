@@ -1,4 +1,7 @@
-import { expect, it } from "vitest";
+import { beforeEach as beforeLocaleTest, expect, it } from "vitest";
+import { setLocale } from "../../shared/i18n/runtime";
+beforeLocaleTest(() => setLocale("zh-CN"));
+
 import { nodeContext } from "./node-context";
 
 it("explains search origin separately from a node's type and source title", () => {

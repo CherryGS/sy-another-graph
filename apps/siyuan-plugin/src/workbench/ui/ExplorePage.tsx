@@ -1,3 +1,5 @@
+import { useLocale } from "../../shared/i18n/react";
+import { t } from "../../shared/i18n/runtime";
 import { presentNodes } from "../presentation/present-nodes";
 import { useMemo, useRef } from "react";
 import { ChevronDown, Focus, Pause, Play, X } from "lucide-react";
@@ -27,6 +29,7 @@ import { EdgeInspector } from "./inspector/EdgeInspector";
 import { MentionNotice } from "../../modules/mentions/ui/MentionNotice";
 
 export function ExplorePage({ active }: { active: boolean }) {
+  useLocale();
   const state = useWorkbench();
   const { Renderer } = useWorkbenchServices();
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -54,7 +57,7 @@ export function ExplorePage({ active }: { active: boolean }) {
     <div className="explore-page">
       <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
         <PopoverAnchor virtualRef={toolbarRef} />
-        <div ref={toolbarRef} className="exploration-toolbar" aria-label="图谱操作">
+        <div ref={toolbarRef} className="exploration-toolbar" aria-label={t("text.graphActions")}>
           <div className="search-tools">
             <GraphSearch state={state} anchorRef={toolbarRef} />
             <Tooltip>
@@ -63,9 +66,14 @@ export function ExplorePage({ active }: { active: boolean }) {
                   <Button
                     variant={state.filtersOpen ? "secondary" : "outline"}
                     className="max-w-[min(14rem,100%)]"
-                    aria-label={`图谱筛选：${state.filterPresets.activeName}${state.filterPresets.modified ? "，已修改" : ""}`}
+                    aria-label={t("text.graphFilterValueValue", {
+                      p0: state.filterPresets.activeName,
+                      p1: state.filterPresets.modified ? t("text.modified") : "",
+                    })}
                   >
-                    <span className="truncate">筛选：{state.filterPresets.activeName}</span>
+                    <span className="truncate">
+                      {t("preset.filterLabel", { name: state.filterPresets.activeName })}
+                    </span>
                     {state.filterPresets.modified && <span aria-hidden="true">*</span>}
                     {state.filterPresets.temporaryActive && (
                       <Badge
@@ -76,8 +84,10 @@ export function ExplorePage({ active }: { active: boolean }) {
                         }
                       >
                         {state.filterPresets.missingSearchIds.length && !state.loading
-                          ? `缺失 ${state.filterPresets.missingSearchIds.length}`
-                          : "临时"}
+                          ? t("text.missingValue", {
+                              p0: state.filterPresets.missingSearchIds.length,
+                            })
+                          : t("text.temporary")}
                       </Badge>
                     )}
                     <ChevronDown data-icon="inline-end" />
@@ -92,15 +102,17 @@ export function ExplorePage({ active }: { active: boolean }) {
               anchorRef={toolbarRef}
             />
           </div>
-          <div className="neighborhood-tools" aria-label="邻域扩展设置">
+          <div className="neighborhood-tools" aria-label={t("text.neighborhoodSettings")}>
             <div className="flex shrink-0 items-center gap-1">
-              <Badge variant="secondary">已选 {state.chosenIds.length} 个节点</Badge>
+              <Badge variant="secondary">
+                {t("selection.count", { count: state.chosenIds.length })}
+              </Badge>
               {!!state.chosenIds.length && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="清空选择"
-                  title="清空选择 · Shift 双击空白"
+                  aria-label={t("text.clearSelection")}
+                  title={t("text.clearSelectionShiftDoubleClickTheBackground")}
                   onClick={state.clearChosen}
                 >
                   <X />
@@ -110,38 +122,38 @@ export function ExplorePage({ active }: { active: boolean }) {
             <FieldGroup className="w-32 shrink-0">
               <Field orientation="horizontal" className="w-auto items-center">
                 <FieldLabel htmlFor="graph-depth" className="whitespace-nowrap">
-                  邻域
+                  {t("text.neighborhood")}
                 </FieldLabel>
                 <Input
                   id="graph-depth"
                   className="w-16 shrink-0"
-                  aria-label="邻域深度"
+                  aria-label={t("text.neighborhoodDepth")}
                   type="number"
                   min="0"
                   max="100"
                   value={state.depth}
                   onChange={(event) => state.setDepth(Number(event.target.value))}
                 />
-                <span className="text-xs text-muted-foreground">跳</span>
+                <span className="text-xs text-muted-foreground">{t("text.hops")}</span>
               </Field>
             </FieldGroup>
             <ToggleGroup
               type="single"
               variant="outline"
-              aria-label="遍历方向"
+              aria-label={t("text.traversalDirection")}
               value={state.direction}
               onValueChange={(value) => {
                 if (value) state.setDirection(value as GraphDirection);
               }}
             >
-              <ToggleGroupItem value="both">双向</ToggleGroupItem>
-              <ToggleGroupItem value="out">沿箭头</ToggleGroupItem>
-              <ToggleGroupItem value="in">逆箭头</ToggleGroupItem>
+              <ToggleGroupItem value="both">{t("text.bothWays")}</ToggleGroupItem>
+              <ToggleGroupItem value="out">{t("text.alongArrows")}</ToggleGroupItem>
+              <ToggleGroupItem value="in">{t("text.againstArrows")}</ToggleGroupItem>
             </ToggleGroup>
             {state.busy && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
                 <Spinner />
-                更新邻域
+                {t("text.updateNeighborhood")}
               </span>
             )}
           </div>
@@ -149,17 +161,17 @@ export function ExplorePage({ active }: { active: boolean }) {
             <ToggleGroup
               type="single"
               variant="outline"
-              aria-label="图谱维度"
+              aria-label={t("text.graphDimension")}
               value={String(state.graphSettings.dimensions)}
               onValueChange={(value) => {
                 if (value === "2" || value === "3")
                   state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
               }}
             >
-              <ToggleGroupItem value="2" aria-label="二维模式">
+              <ToggleGroupItem value="2" aria-label={t("text.2dMode")}>
                 2D
               </ToggleGroupItem>
-              <ToggleGroupItem value="3" aria-label="三维模式">
+              <ToggleGroupItem value="3" aria-label={t("text.3dMode")}>
                 3D
               </ToggleGroupItem>
             </ToggleGroup>
@@ -176,7 +188,7 @@ export function ExplorePage({ active }: { active: boolean }) {
         </Alert>
       )}
       <div className={cn("explore-layout", hasInspector && "has-inspector")}>
-        <section className="graph-stage" aria-label="图谱画布区域">
+        <section className="graph-stage" aria-label={t("text.graphCanvas")}>
           <ReadDiagnostics state={state} />
           {data && (
             <Renderer
@@ -214,7 +226,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <AlertDescription>
                 <p>{state.error}</p>
                 <Button variant="outline" size="sm" onClick={() => void state.load()}>
-                  重新读取
+                  {t("text.refreshData")}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -223,22 +235,24 @@ export function ExplorePage({ active }: { active: boolean }) {
             <Empty className="stage-message">
               <EmptyHeader>
                 <EmptyTitle>
-                  {scopeMissing ? "范围块不在当前已读取的内容中" : "当前范围没有节点"}
+                  {scopeMissing
+                    ? t("text.theScopeBlockIsNotInTheAcquired")
+                    : t("text.noNodesInTheCurrentScope")}
                 </EmptyTitle>
               </EmptyHeader>
               <EmptyContent>
                 <Button variant="outline" onClick={state.resetFilters}>
-                  清除筛选
+                  {t("text.clearFilters")}
                 </Button>
               </EmptyContent>
             </Empty>
           )}
-          <div className="canvas-controls" role="group" aria-label="画布布局控制">
+          <div className="canvas-controls" role="group" aria-label={t("text.canvasLayoutControls")}>
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="适应画布"
-              title="适应画布"
+              aria-label={t("text.fitToCanvas")}
+              title={t("text.fitToCanvas")}
               onClick={state.fit}
             >
               <Focus />
@@ -246,8 +260,8 @@ export function ExplorePage({ active }: { active: boolean }) {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={state.paused ? "继续布局" : "暂停布局"}
-              title={state.paused ? "继续布局" : "暂停布局"}
+              aria-label={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
+              title={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
               onClick={() => state.setPaused(!state.paused)}
             >
               {state.paused ? <Play /> : <Pause />}
@@ -265,13 +279,15 @@ export function ExplorePage({ active }: { active: boolean }) {
       </div>
       <footer className="graph-summary">
         <span>
-          {view.nodes.length.toLocaleString()} 节点 · {view.edges.length.toLocaleString()} 关系
+          {t("graph.counts", { nodes: view.nodes.length, edges: view.edges.length })}
           {filters.mentions !== "off" &&
-            ` · ${state.mentionState.result.edges.length.toLocaleString()} 条文本提及`}
+            t("text.textMentionsValue2", { p0: state.mentionState.result.edges.length })}
         </span>
         <span className="gesture-help">
-          {state.graphSettings.dimensions === 3 ? "空白拖动旋转 · Space 拖动平移 · " : ""}
-          Shift 点击多选 · Shift 拖动所选节点整体移动
+          {state.graphSettings.dimensions === 3
+            ? t("text.dragTheBackgroundToRotateSpaceDragTo") + " "
+            : ""}
+          {t("text.shiftClickToSelectMultipleNodesShiftDrag")}
         </span>
       </footer>
     </div>

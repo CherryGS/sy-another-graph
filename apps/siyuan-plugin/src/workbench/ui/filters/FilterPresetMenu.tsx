@@ -1,3 +1,5 @@
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useRef, useState, type FormEvent, type Ref } from "react";
 import {
   Check,
@@ -35,13 +37,22 @@ type NamingAction =
   { kind: "create" | "saveAs" } | { kind: "copy" | "rename"; preset: FilterPreset };
 
 const NAMING_TITLES = {
-  create: "新增筛选预设",
-  copy: "复制筛选预设",
-  rename: "重命名筛选预设",
-  saveAs: "将当前筛选另存为预设",
+  get create() {
+    return t("text.newFilterPreset");
+  },
+  get copy() {
+    return t("text.copyFilterPreset");
+  },
+  get rename() {
+    return t("text.renameFilterPreset");
+  },
+  get saveAs() {
+    return t("text.saveCurrentFiltersAsAPreset");
+  },
 };
 
 export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
+  useLocale();
   const presets = state.filterPresets;
   const [details, setDetails] = useState(false);
   const [naming, setNaming] = useState<NamingAction | null>(null);
@@ -71,13 +82,15 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
   const saveActions = !presets.temporaryActive && (presets.modified || !presets.activeId) && (
     <div className="flex flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-xs text-muted-foreground">当前：{presets.activeName}</span>
-        {presets.modified && <Badge variant="secondary">已修改</Badge>}
+        <span className="truncate text-xs text-muted-foreground">
+          {t("preset.current", { name: presets.activeName })}
+        </span>
+        {presets.modified && <Badge variant="secondary">{t("text.modified2")}</Badge>}
       </div>
       <div className="flex gap-2">
         {presets.activeId && (
           <Button size="sm" disabled={disabled} onClick={() => void presets.update()}>
-            更新预设
+            {t("text.updatePreset")}
           </Button>
         )}
         <Button
@@ -86,7 +99,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
           disabled={disabled || full}
           onClick={() => startNaming({ kind: "saveAs" })}
         >
-          另存为预设
+          {t("text.saveAsPreset")}
         </Button>
       </div>
     </div>
@@ -98,20 +111,24 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
         <Alert role="status">
           <AlertDescription className="flex flex-col gap-2">
             <p>
-              临时搜索范围：{presets.temporary.ids.size.toLocaleString()} 个命中 +{" "}
-              {presets.searchAncestorCount.toLocaleString()}{" "}
-              个上级节点。沿包含关系上溯至顶层文档。筛选只影响此临时图；返回后恢复原来的配置和未保存修改。
+              {t("search.scopeDescription", {
+                matches: presets.temporary.ids.size,
+                ancestors: presets.searchAncestorCount,
+              })}
             </p>
-            <p className="break-words">搜索：{presets.temporary.snapshot.label}</p>
+            <p className="break-words">
+              {t("text.searchValue", { p0: presets.temporary.snapshot.label })}
+            </p>
             {presets.missingSearchIds.length > 0 && (
               <p>
-                当前图谱数据缺少 {presets.missingSearchIds.length.toLocaleString()}{" "}
-                个命中块，图谱不完整。请重新读取数据；已删除、加密或未能读取的块无法显示。缺失 ID
-                示例：{presets.missingSearchIds.slice(0, 5).join("、")}
+                {t("search.missingMatches", {
+                  count: presets.missingSearchIds.length,
+                  examples: presets.missingSearchIds.slice(0, 5).join(", "),
+                })}
               </p>
             )}
             <Button variant="outline" size="sm" onClick={presets.leaveSearch}>
-              返回原配置
+              {t("text.returnToPreviousConfiguration")}
             </Button>
           </AlertDescription>
         </Alert>
@@ -127,14 +144,16 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
               disabled={busy}
               onClick={presets.retry}
             >
-              重新读取预设
+              {t("text.reloadPresets")}
             </Button>
           </AlertDescription>
         </Alert>
       )}
       {presets.deleted && (
         <Alert role="status">
-          <AlertDescription className="truncate">已删除「{presets.deleted.name}」</AlertDescription>
+          <AlertDescription className="truncate">
+            {t("preset.deleted", { name: presets.deleted.name })}
+          </AlertDescription>
           <AlertAction>
             <Button
               variant="ghost"
@@ -143,7 +162,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
               onClick={() => void presets.undoDelete()}
             >
               <Undo2 data-icon="inline-start" />
-              撤销
+              {t("text.undo")}
             </Button>
           </AlertAction>
         </Alert>
@@ -156,7 +175,9 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       <PopoverContent
         align="start"
         className="filter-popover gap-0 p-0"
-        aria-label={details ? `编辑筛选：${presets.activeName}` : "筛选预设"}
+        aria-label={
+          details ? t("text.editFilterValue", { p0: presets.activeName }) : t("text.filterPresets")
+        }
         onCloseAutoFocus={(event) => {
           if (naming) event.preventDefault();
           else {
@@ -189,16 +210,16 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                 onClick={() => startNaming({ kind: "create" })}
               >
                 <Plus data-icon="inline-start" />
-                新增预设
+                {t("text.newPreset")}
               </Button>
               <Separator />
               {presets.loading ? (
                 <div className="flex items-center gap-2 p-2" role="status">
                   <Spinner />
-                  正在读取预设
+                  {t("text.loadingPresets")}
                 </div>
               ) : (
-                <ul className="flex flex-col gap-1" aria-label="筛选预设列表">
+                <ul className="flex flex-col gap-1" aria-label={t("text.filterPresetList")}>
                   {presets.temporary && (
                     <li className="flex min-w-0 items-center gap-1">
                       <Button
@@ -212,12 +233,15 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                         }}
                       >
                         {presets.temporaryActive && <Check data-icon="inline-start" />}
-                        <span className="truncate">搜索：{presets.temporary.snapshot.label}</span>
-                        <Badge variant="outline">临时</Badge>
+                        <span className="truncate">
+                          {t("text.search")}
+                          {presets.temporary.snapshot.label}
+                        </span>
+                        <Badge variant="outline">{t("text.temporary")}</Badge>
                       </Button>
                       <PresetAction
-                        label="编辑临时搜索筛选"
-                        hint="编辑筛选"
+                        label={t("text.editTemporarySearchFilters")}
+                        hint={t("text.editFilters")}
                         icon={SlidersHorizontal}
                         disabled={false}
                         onClick={() => {
@@ -232,17 +256,17 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                       <Button
                         variant="secondary"
                         className="min-w-0 flex-1 justify-start"
-                        aria-label="当前筛选：自定义"
+                        aria-label={t("text.currentFilterCustom")}
                         aria-pressed
                         onClick={() => state.setFiltersOpen(false)}
                       >
                         <Check data-icon="inline-start" />
-                        <span className="truncate">自定义</span>
+                        <span className="truncate">{t("text.custom")}</span>
                       </Button>
                       <PresetAction
                         buttonRef={editButtonRef}
-                        label="编辑筛选：自定义"
-                        hint="编辑筛选"
+                        label={t("text.editFilterCustom")}
+                        hint={t("text.editFilters")}
                         icon={SlidersHorizontal}
                         disabled={false}
                         onClick={() => setDetails(true)}
@@ -255,7 +279,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                         variant={preset.id === presets.activeId ? "secondary" : "ghost"}
                         className="min-w-0 flex-1 justify-start"
                         disabled={disabled}
-                        aria-label={`应用预设：${preset.name}`}
+                        aria-label={t("text.applyPresetValue", { p0: preset.name })}
                         aria-pressed={preset.id === presets.activeId}
                         title={preset.name}
                         onClick={() => {
@@ -269,29 +293,29 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                       </Button>
                       <PresetAction
                         buttonRef={preset.id === presets.activeId ? editButtonRef : undefined}
-                        label={`编辑筛选：${preset.name}`}
-                        hint="编辑筛选"
+                        label={t("text.editFilterValue", { p0: preset.name })}
+                        hint={t("text.editFilters")}
                         icon={SlidersHorizontal}
                         disabled={preset.id !== presets.activeId && disabled}
                         onClick={() => void editPreset(preset)}
                       />
                       <PresetAction
-                        label={`复制预设：${preset.name}`}
-                        hint="复制"
+                        label={t("text.copyPresetValue", { p0: preset.name })}
+                        hint={t("text.copy")}
                         icon={Copy}
                         disabled={disabled || full}
                         onClick={() => startNaming({ kind: "copy", preset })}
                       />
                       <PresetAction
-                        label={`重命名预设：${preset.name}`}
-                        hint="重命名"
+                        label={t("text.renamePresetValue", { p0: preset.name })}
+                        hint={t("text.rename")}
                         icon={Pencil}
                         disabled={disabled}
                         onClick={() => startNaming({ kind: "rename", preset })}
                       />
                       <PresetAction
-                        label={`删除预设：${preset.name}`}
-                        hint="删除"
+                        label={t("text.deletePresetValue", { p0: preset.name })}
+                        hint={t("text.delete")}
                         icon={Trash2}
                         disabled={disabled}
                         onClick={() => void presets.remove(preset.id)}
@@ -300,7 +324,11 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
                   ))}
                 </ul>
               )}
-              {full && <p className="px-2 text-xs text-muted-foreground">最多保存 50 个预设。</p>}
+              {full && (
+                <p className="px-2 text-xs text-muted-foreground">
+                  {t("text.youCanSaveUpTo50Presets")}
+                </p>
+              )}
               {(saveActions || presets.error || presets.deleted) && <Separator />}
               {saveActions && <div className="p-2">{saveActions}</div>}
               {feedback}
@@ -328,6 +356,7 @@ function PresetAction({
   disabled: boolean;
   onClick: () => void;
 }) {
+  useLocale();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -356,12 +385,14 @@ function PresetNameDialog({
   presets: WorkbenchState["filterPresets"];
   onClose: () => void;
 }) {
+  useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(() => {
     if (action.kind === "rename") return action.preset.name;
-    if (action.kind === "copy") return `${action.preset.name.slice(0, 77)} 副本`;
-    if (action.kind === "saveAs") return `${presets.activeName.slice(0, 77)} 副本`;
-    return "新预设";
+    if (action.kind === "copy") return t("text.valueCopy", { p0: action.preset.name.slice(0, 77) });
+    if (action.kind === "saveAs")
+      return t("text.valueCopy", { p0: presets.activeName.slice(0, 77) });
+    return t("text.newPreset2");
   });
   const [attempted, setAttempted] = useState(false);
   const busy = presets.loading || presets.saving;
@@ -409,18 +440,18 @@ function PresetNameDialog({
           <DialogTitle>{NAMING_TITLES[action.kind]}</DialogTitle>
           <DialogDescription>
             {action.kind === "create"
-              ? "从仅文档、关闭包含关系和文本提及的配置开始。"
+              ? t("text.startWithDocumentsOnlyWithContainmentAndText")
               : action.kind === "copy"
-                ? "复制此预设保存的筛选配置。"
+                ? t("text.copyTheFiltersSavedInThisPreset")
                 : action.kind === "rename"
-                  ? "为预设设置一个易于辨认的名称。"
-                  : "保存当前筛选，之后可从菜单快速切换。"}
+                  ? t("text.giveThePresetARecognizableName")
+                  : t("text.saveTheCurrentFiltersToSwitchBackTo")}
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
           <FieldGroup>
             <Field data-invalid={invalid} data-disabled={busy}>
-              <FieldLabel htmlFor="filter-preset-name">预设名称</FieldLabel>
+              <FieldLabel htmlFor="filter-preset-name">{t("text.presetName")}</FieldLabel>
               <Input
                 id="filter-preset-name"
                 ref={inputRef}
@@ -431,7 +462,7 @@ function PresetNameDialog({
                 autoComplete="off"
                 onChange={(event) => setName(event.target.value)}
               />
-              {invalid && <FieldError>请输入预设名称。</FieldError>}
+              {invalid && <FieldError>{t("text.enterAPresetName")}</FieldError>}
             </Field>
           </FieldGroup>
           {attempted && presets.error && (
@@ -447,7 +478,7 @@ function PresetNameDialog({
                     disabled={busy}
                     onClick={presets.retry}
                   >
-                    重新读取预设
+                    {t("text.reloadPresets")}
                   </Button>
                 )}
               </AlertDescription>
@@ -455,11 +486,11 @@ function PresetNameDialog({
           )}
           <DialogFooter>
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
-              取消
+              {t("text.cancel")}
             </Button>
             <Button type="submit" disabled={busy || !presets.available}>
               {presets.saving && <Spinner data-icon="inline-start" />}
-              保存
+              {t("text.save")}
             </Button>
           </DialogFooter>
         </form>

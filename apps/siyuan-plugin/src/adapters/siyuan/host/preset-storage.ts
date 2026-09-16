@@ -1,3 +1,9 @@
+import {
+  message as msg,
+  MessageError,
+  failureOf,
+  type Failure,
+} from "../../../core/diagnostics/message";
 import { readPresetStore, type PresetStore } from "../../../modules/presets/model";
 import {
   isPresetRequestId,
@@ -14,7 +20,8 @@ interface PluginDataStorage {
   saveData(name: string, data: PresetStore): Promise<unknown>;
 }
 
-function errorMessage(error: unknown): string {
+function errorMessage(error: unknown): Failure {
+  if (error instanceof MessageError) return failureOf(error);
   const message =
     error instanceof Error
       ? error.message
@@ -23,7 +30,8 @@ function errorMessage(error: unknown): string {
           "msg" in error &&
           typeof error.msg === "string"
         ? error.msg
-        : "存储请求失败";
+        : msg("text.storageRequestFailed");
+  if (typeof message !== "string") return message;
   return Array.from(message, (character) => {
     const code = character.charCodeAt(0);
     return code < 32 || (code >= 127 && code <= 159) ? " " : character;
@@ -75,14 +83,14 @@ export class PresetStorage {
         type: "preset-response",
         request,
         ok: false,
-        error: "预设内容无效，未保存。",
+        error: msg("text.invalidPresetContentNothingWasSaved"),
       });
       return true;
     }
     this.pending.add(request);
     let replied = false;
     const respond = (
-      result: { ok: true; store: PresetStore | null } | { ok: false; error: string },
+      result: { ok: true; store: PresetStore | null } | { ok: false; error: Failure },
     ) => {
       if (replied) return;
       replied = true;
@@ -97,7 +105,7 @@ export class PresetStorage {
       });
     };
     const timer = setTimeout(
-      () => respond({ ok: false, error: "预设存储未完成，请稍后重试；若持续失败，请重载思源。" }),
+      () => respond({ ok: false, error: msg("text.presetStorageDidNotFinishRetryLaterReload") }),
       REQUEST_TIMEOUT_MS,
     );
     this.timers.add(timer);
@@ -106,7 +114,7 @@ export class PresetStorage {
       if (this.disposed || replied) return;
       try {
         if (store) {
-          if (!this.initialized) throw new Error("请先重新加载预设，再保存。");
+          if (!this.initialized) throw new MessageError(msg("text.reloadPresetsBeforeSaving"));
           // Preserve an existing malformed file even if it changed after load.
           await this.readVerifiedFile();
           if (this.disposed || replied) return;
@@ -117,7 +125,7 @@ export class PresetStorage {
             !("code" in result) ||
             result.code !== 0
           ) {
-            throw new Error(`保存失败：${errorMessage(result)}`);
+            throw new MessageError(msg("text.saveFailedValue", { p0: errorMessage(result) }));
           }
           respond({ ok: true, store });
         } else {
@@ -167,20 +175,21 @@ export class PresetStorage {
         body: JSON.stringify({ path: PRESET_STORAGE_PATH }),
         signal: controller.signal,
       });
-      if (!response.ok) throw new Error(`读取预设失败（HTTP ${response.status}）。`);
+      if (!response.ok)
+        throw new MessageError(msg("text.failedToReadPresetsHttpValue", { p0: response.status }));
       let data: unknown;
       try {
         data = await response.json();
       } catch {
-        throw new Error("预设文件不是有效的 JSON，原文件已保留。");
+        throw new MessageError(msg("text.thePresetFileIsNotValidJsonThe"));
       }
       if (response.status === 202) {
         if (typeof data === "object" && data !== null && "code" in data && data.code === 404)
           return null;
-        throw new Error(`读取预设失败：${errorMessage(data)}`);
+        throw new MessageError(msg("text.failedToReadPresetsValue", { p0: errorMessage(data) }));
       }
       const store = readPresetStore(data);
-      if (!store) throw new Error("预设文件格式无效或版本不受支持，原文件已保留。");
+      if (!store) throw new MessageError(msg("text.thePresetFileIsInvalidOrItsVersion"));
       return store;
     } finally {
       clearTimeout(timer);

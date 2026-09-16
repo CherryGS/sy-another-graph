@@ -1,12 +1,16 @@
+import {
+  subscribeHostLanguage,
+  initializeWorkbenchLanguage,
+} from "../adapters/siyuan/bridge/language";
 import { prepareGraphExport } from "../modules/export/export";
 import { writeGraphFile } from "../adapters/siyuan/data/export-file";
-import type { WorkbenchServices } from "../workbench/model/services";
+import { type WorkbenchServices, WorkbenchServicesProvider } from "../workbench/model/services";
 import { SourceStore } from "../application/workspace/source-store";
 import { loadSiYuanGraph } from "../adapters/siyuan/data/source";
 import { subscribeSourceRefresh } from "../adapters/siyuan/bridge/source-subscription";
 import { createGraphEngine } from "../adapters/wasm/client";
 import { CosmographCanvas } from "../adapters/cosmograph/CosmographCanvas";
-import { WorkbenchServicesProvider } from "../workbench/model/services";
+
 import { createRoot } from "react-dom/client";
 import {
   createHashHistory,
@@ -41,13 +45,21 @@ declare module "@tanstack/react-router" {
   }
 }
 
+initializeWorkbenchLanguage(window);
 const workspace = new SourceStore(loadSiYuanGraph, {
   delay: (callback, milliseconds) => window.setTimeout(callback, milliseconds),
   cancel: (id) => window.clearTimeout(id),
 });
 const services: WorkbenchServices = {
   workspace,
-  connectSource: () => subscribeSourceRefresh(window, workspace),
+  connectSource: () => {
+    const language = subscribeHostLanguage(window);
+    const source = subscribeSourceRefresh(window, workspace);
+    return () => {
+      language();
+      source();
+    };
+  },
   createEngine: createGraphEngine,
   exportGraph: (view, signal) => prepareGraphExport(view, signal, writeGraphFile),
   Renderer: CosmographCanvas,

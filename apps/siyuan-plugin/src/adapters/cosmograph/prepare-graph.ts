@@ -1,12 +1,10 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import { Table, tableFromArrays, vectorFromArray, Utf8 } from "apache-arrow";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { CanvasEdge, CanvasNode } from "../../workbench/presentation/types";
 import { nodeColor } from "../../workbench/presentation/node-colors";
-import {
-  searchNodeOrigin,
-  SEARCH_MATCH_RING_COLOR,
-  type SearchOrigins,
-} from "../../modules/search/origins";
+import { SEARCH_MATCH_RING_COLOR } from "../../workbench/presentation/search-origins";
+import { searchNodeOrigin, type SearchOrigins } from "../../modules/search/origins";
 
 const CHUNK_SIZE = 8192;
 const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
@@ -79,10 +77,10 @@ export async function prepareGraph(
     ) {
       const node = nodes[position];
       if (!node.id || idToIndex.has(node.id) || originalToDense.has(node.index)) {
-        throw new Error("图谱包含空白或重复的节点标识。");
+        throw new MessageError(msg("text.theGraphContainsEmptyOrDuplicateNodeIds"));
       }
       if (!Number.isSafeInteger(node.index) || node.index < 0) {
-        throw new Error("图谱包含无效的节点索引。");
+        throw new MessageError(msg("text.theGraphContainsInvalidNodeIndices"));
       }
       id[position] = node.id;
       // Cosmograph renders sanitized HTML for both regular and hovered labels.
@@ -203,7 +201,9 @@ export async function prepareGraph(
     },
     indexToId: id,
     indexToLabel,
-    indexToNode: [...nodes],
+    // Render inputs are immutable. Keep their identity so consumers can reject
+    // a prepared result that belongs to an earlier graph, without comparing IDs.
+    indexToNode: nodes,
     indexToEdge,
     idToIndex,
     pointsCount: nodes.length,

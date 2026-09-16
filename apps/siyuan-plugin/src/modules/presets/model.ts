@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
 import { isMentionMode } from "../mentions/types";
 import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
@@ -30,7 +31,7 @@ const uniqueSorted = (values: readonly string[]) => [...new Set(values)].sort();
 export function presetName(value: string): string {
   const name = value.replace(/\s+/gu, " ").trim();
   if (!name || name.length > PRESET_NAME_LIMIT || hasControl(name))
-    throw new Error(`请输入 1–${PRESET_NAME_LIMIT} 个字符的预设名称。`);
+    throw new MessageError(msg("text.enterAPresetNameBetween1AndValue", { p0: PRESET_NAME_LIMIT }));
   return name;
 }
 
@@ -80,10 +81,10 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
   };
 }
 
-export function createPresetStore(): PresetStore {
+export function createPresetStore(defaultName = "Document references"): PresetStore {
   return {
     version: 1,
-    presets: [{ id: "documents", name: "文档引用", filters: presetFilters(DEFAULT_FILTERS) }],
+    presets: [{ id: "documents", name: defaultName, filters: presetFilters(DEFAULT_FILTERS) }],
     activePresetId: "documents",
   };
 }

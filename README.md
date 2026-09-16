@@ -25,9 +25,12 @@ or press **Alt+Shift+G**. Document and block context menus also provide a graph 
 
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations. In the search page or dialog, click
-**Build graph from all results** to create a temporary graph while preserving
+**Graph all results** to create a temporary graph while preserving
 your original preset. See the [user guide](apps/siyuan-plugin/public/README.md)
 for search behavior and limits.
+
+The interface follows SiYuan's language: Simplified Chinese or English, with
+English as the fallback. Note content and saved preset names retain their original text.
 
 The plugin reads local indexed data without editing notes. Read issues appear
 in a toast with expandable diagnostics. Large-graph performance depends on

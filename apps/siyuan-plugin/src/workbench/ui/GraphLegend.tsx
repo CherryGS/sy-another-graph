@@ -1,3 +1,6 @@
+import { locale, t } from "../../shared/i18n/runtime";
+import { useLocale } from "../../shared/i18n/react";
+
 import { useId, useMemo, type RefObject } from "react";
 import { List } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -15,9 +18,8 @@ import { getNodeTypeCounts } from "../../core/graph/graph-summary";
 import { NODE_TYPE_LABELS } from "../presentation/graph-labels";
 import { NODE_TYPE_COLORS, nodeTypeColor } from "../presentation/node-colors";
 import type { GraphNode } from "../../core/graph/types";
+import { SEARCH_ORIGIN_LABELS, SEARCH_MATCH_RING_COLOR } from "../presentation/search-origins";
 import {
-  SEARCH_ORIGIN_LABELS,
-  SEARCH_MATCH_RING_COLOR,
   searchNodeOrigin,
   type SearchOrigin,
   type SearchOrigins,
@@ -32,6 +34,7 @@ export function GraphLegend({
   searchOrigins?: SearchOrigins;
   anchorRef: RefObject<HTMLElement | null>;
 }) {
+  useLocale();
   const titleId = useId();
   const origins = useMemo(() => {
     if (!searchOrigins) return null;
@@ -57,23 +60,26 @@ export function GraphLegend({
       <PopoverTrigger asChild>
         <Button variant="outline" disabled={!nodes.length}>
           <List data-icon="inline-start" />
-          图例
+          {t("text.legend")}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" aria-labelledby={titleId} className="legend-popover gap-0 p-0">
         <PopoverHeader className="px-3 py-3">
-          <PopoverTitle id={titleId}>图例</PopoverTitle>
+          <PopoverTitle id={titleId}>{t("text.legend")}</PopoverTitle>
         </PopoverHeader>
         <ScrollArea className="legend-scroll" data-scroll-panel>
           <div
             role="region"
-            aria-label="节点类型列表"
+            aria-label={t("text.nodeTypeList")}
             tabIndex={0}
             className="flex flex-col gap-3 px-3 pb-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
           >
             {origins && (
               <>
-                <dl className="flex flex-col gap-2 text-sm" aria-label="搜索来源图例">
+                <dl
+                  className="flex flex-col gap-2 text-sm"
+                  aria-label={t("text.searchOriginLegend")}
+                >
                   {(["match", "projected-match", "ancestor"] as const)
                     .filter((origin) => origin !== "projected-match" || origins[origin] > 0)
                     .map((origin) => (
@@ -89,20 +95,20 @@ export function GraphLegend({
                           >
                             <span className="size-1 rounded-full bg-foreground" />
                           </span>
-                          {origin === "ancestor" ? "无色环" : "洋红色环"} ·{" "}
+                          {origin === "ancestor" ? t("text.noRing") : t("text.magentaRing")} ·{" "}
                           {SEARCH_ORIGIN_LABELS[origin]}
                         </dt>
-                        <dd className="tabular-nums">{origins[origin].toLocaleString()}</dd>
+                        <dd className="tabular-nums">{origins[origin].toLocaleString(locale())}</dd>
                       </div>
                     ))}
                 </dl>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  洋红色环标记搜索命中及其文档投影，小节点也保留可见环宽。节点颜色和标签沿用原样，选中与查看状态仍使用原有标记。数量以当前可见节点为准。
+                  {t("text.magentaRingsMarkSearchMatchesAndTheirDocument")}
                 </p>
                 <Separator />
               </>
             )}
-            <p className="text-sm font-medium">节点类型与数量</p>
+            <p className="text-sm font-medium">{t("text.nodeTypesAndCounts")}</p>
             <dl className="flex flex-col gap-1 text-sm">
               {types.map(([type, count]) => {
                 const label = Object.hasOwn(NODE_TYPE_LABELS, type) ? NODE_TYPE_LABELS[type] : type;
@@ -118,21 +124,23 @@ export function GraphLegend({
                         {label}
                       </span>
                     </dt>
-                    <dd className="shrink-0 text-right tabular-nums">{count.toLocaleString()}</dd>
+                    <dd className="shrink-0 text-right tabular-nums">
+                      {count.toLocaleString(locale())}
+                    </dd>
                   </div>
                 );
               })}
             </dl>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              数量基于当前图谱节点；色点对应按类型着色。
+              {t("text.countsReferToTheCurrentGraphDotsShow")}
             </p>
             <div
               className="flex flex-col gap-1 text-xs text-muted-foreground"
-              aria-label="关系线型"
+              aria-label={t("text.relationshipLineStyles")}
             >
-              <span>实线：块引用和数据库关系</span>
-              <span>虚线：包含关系</span>
-              <span>金色点线：文本提及候选，可查看命中依据</span>
+              <span>{t("text.solidBlockReferencesAndDatabaseRelationships")}</span>
+              <span>{t("text.dashedContainment")}</span>
+              <span>{t("text.goldDottedPossibleTextMentionsInspectTheMatching")}</span>
             </div>
           </div>
         </ScrollArea>

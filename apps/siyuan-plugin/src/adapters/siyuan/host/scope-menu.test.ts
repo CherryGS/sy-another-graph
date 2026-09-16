@@ -1,5 +1,8 @@
+import { beforeEach as beforeLocaleTest, describe, expect, it, vi } from "vitest";
+import { setLocale } from "../../../shared/i18n/runtime";
+beforeLocaleTest(() => setLocale("zh-CN"));
 import type { EventBus, IEventBusMap } from "siyuan";
-import { describe, expect, it, vi } from "vitest";
+
 import {
   blockScopeId,
   documentScopeId,

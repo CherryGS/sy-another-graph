@@ -1,3 +1,5 @@
+import { useLocale } from "../../shared/i18n/react";
+import { t, text } from "../../shared/i18n/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CurrentGraph } from "../../core/scope/graph-model";
 import type { GraphDataset } from "../../core/graph/types";
@@ -19,6 +21,7 @@ export function useMentions(
   chosenIds: readonly string[],
   excludedPhrases: readonly string[],
 ) {
+  useLocale();
   const [snapshot, setSnapshot] = useState<MentionSnapshot>(EMPTY_MENTION_SNAPSHOT);
   const client = useRef<MentionClient | null>(null);
   const selected = mode === "selected" ? chosenIds : NO_SELECTION;
@@ -51,9 +54,9 @@ export function useMentions(
     pending: input !== null && (!current || snapshot.pending),
     error:
       data && !data.mentionBlocks
-        ? "请刷新图谱以读取文本提及所需的正文。"
+        ? t("text.refreshTheGraphToReadTheTextNeeded")
         : current
-          ? snapshot.error
+          ? text(snapshot.error)
           : "",
     retry: () => client.current?.retry(),
   };

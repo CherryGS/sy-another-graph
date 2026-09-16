@@ -1,3 +1,6 @@
+import { locale } from "../../../shared/i18n/runtime";
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, Repeat2 } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
@@ -14,9 +17,36 @@ import { groupNodeRelations } from "../../model/node-relations";
 
 const PAGE_SIZE = 12;
 const GROUPS = [
-  { key: "outgoing", label: "出向关系", description: "此节点指向", icon: ArrowUpRight },
-  { key: "incoming", label: "入向关系", description: "指向此节点", icon: ArrowDownLeft },
-  { key: "self", label: "自身关系", description: "起点与终点均为此节点", icon: Repeat2 },
+  {
+    key: "outgoing",
+    get label() {
+      return t("text.outgoingRelationships");
+    },
+    get description() {
+      return t("text.thisNodePointsTo");
+    },
+    icon: ArrowUpRight,
+  },
+  {
+    key: "incoming",
+    get label() {
+      return t("text.incomingRelationships");
+    },
+    get description() {
+      return t("text.pointsToThisNode");
+    },
+    icon: ArrowDownLeft,
+  },
+  {
+    key: "self",
+    get label() {
+      return t("text.selfRelationships");
+    },
+    get description() {
+      return t("text.thisNodeIsBothTheSourceAndTarget");
+    },
+    icon: Repeat2,
+  },
 ] as const;
 
 function RelationGroup({
@@ -30,6 +60,7 @@ function RelationGroup({
   node: GraphNode;
   state: WorkbenchState;
 }) {
+  useLocale();
   const [limit, setLimit] = useState(PAGE_SIZE);
   const byIndex = getGraphLookups(state.view).byIndex;
   const Icon = group.icon;
@@ -39,7 +70,7 @@ function RelationGroup({
         <Button variant="ghost" className="group w-full justify-start gap-2">
           <Icon data-icon="inline-start" />
           {group.label}
-          <Badge variant="secondary">{edges.length.toLocaleString()}</Badge>
+          <Badge variant="secondary">{edges.length.toLocaleString(locale())}</Badge>
           <ChevronDown
             data-icon="inline-end"
             className="ml-auto transition-transform group-data-[state=open]:rotate-180"
@@ -62,13 +93,17 @@ function RelationGroup({
                 variant="ghost"
                 className="h-auto w-full flex-col items-start gap-1.5 py-2.5"
                 onClick={() => state.inspectEdge(edge)}
-                aria-label={`${group.description}：${other?.label ?? "未知端点"}，${EDGE_KIND_LABELS[edge.kind]}，查看关系详情`}
+                aria-label={t("text.valueValueValueViewRelationshipDetails", {
+                  p0: group.description,
+                  p1: other?.label ?? t("text.unknownEndpoint"),
+                  p2: EDGE_KIND_LABELS[edge.kind],
+                })}
               >
                 <span
                   data-native-preview-anchor
                   className="line-clamp-2 w-full whitespace-normal break-words text-left"
                 >
-                  {other?.label ?? "未知端点"}
+                  {other?.label ?? t("text.unknownEndpoint")}
                 </span>
                 {context && (
                   <span
@@ -80,7 +115,9 @@ function RelationGroup({
                 )}
                 <span className="flex w-full flex-wrap items-center gap-1.5">
                   <Badge variant="outline">{EDGE_KIND_LABELS[edge.kind]}</Badge>
-                  {edge.ambiguous && <Badge variant="secondary">同名候选</Badge>}
+                  {edge.ambiguous && (
+                    <Badge variant="secondary">{t("text.sameNameCandidate")}</Badge>
+                  )}
                   {other && (
                     <span className="text-xs text-muted-foreground">
                       {NODE_TYPE_LABELS[nodeType(other)] ?? nodeType(other)}
@@ -88,7 +125,7 @@ function RelationGroup({
                   )}
                   {edge.weight > 1 && (
                     <span className="ml-auto text-xs text-muted-foreground">
-                      {edge.weight.toLocaleString()} 条记录
+                      {edge.weight.toLocaleString(locale())} {t("text.records")}
                     </span>
                   )}
                 </span>
@@ -96,7 +133,9 @@ function RelationGroup({
             );
           })}
           {!edges.length && (
-            <p className="px-2.5 py-2 text-xs text-muted-foreground">当前没有{group.label}。</p>
+            <p className="px-2.5 py-2 text-xs text-muted-foreground">
+              {t("relations.emptyGroup", { group: group.label })}
+            </p>
           )}
           {edges.length > limit && (
             <Button
@@ -105,7 +144,7 @@ function RelationGroup({
               className="mt-1 w-full"
               onClick={() => setLimit((value) => value + PAGE_SIZE)}
             >
-              显示更多{group.label}（剩余 {(edges.length - limit).toLocaleString()}）
+              {t("relations.showMore", { group: group.label, count: edges.length - limit })}
             </Button>
           )}
         </div>
@@ -115,18 +154,19 @@ function RelationGroup({
 }
 
 export function NodeRelations({ node, state }: { node: GraphNode; state: WorkbenchState }) {
+  useLocale();
   const incident = getGraphLookups(state.view).incidentEdges(node.index);
   const groups = useMemo(() => groupNodeRelations(node.index, incident), [node.index, incident]);
   return (
-    <section aria-label="当前显示的关系" className="flex flex-col gap-2">
+    <section aria-label={t("text.visibleRelationships")} className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">当前显示的关系</h3>
-        <Badge variant="outline">{incident.length.toLocaleString()}</Badge>
+        <h3 className="text-sm font-medium">{t("text.visibleRelationships")}</h3>
+        <Badge variant="outline">{incident.length.toLocaleString(locale())}</Badge>
       </div>
       {incident.length > 0 ? (
         <>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            悬浮预览原文 · 点击查看关系详情
+            {t("text.hoverToPreviewTheSourceClickForRelationship")}
           </p>
           {GROUPS.filter((group) => group.key !== "self" || groups.self.length).map((group) => (
             <RelationGroup
@@ -141,8 +181,8 @@ export function NodeRelations({ node, state }: { node: GraphNode; state: Workben
       ) : (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>当前没有显示的关系</EmptyTitle>
-            <EmptyDescription>可调整图谱筛选与扩展范围。</EmptyDescription>
+            <EmptyTitle>{t("text.noVisibleRelationships")}</EmptyTitle>
+            <EmptyDescription>{t("text.adjustTheGraphFiltersOrExpansionScope")}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}

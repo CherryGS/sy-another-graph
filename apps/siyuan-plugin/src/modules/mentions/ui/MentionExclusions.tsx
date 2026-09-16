@@ -1,3 +1,5 @@
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useEffect, useId, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -13,6 +15,7 @@ export function MentionExclusions({
   phrases: readonly string[];
   onApply: (phrases: string[]) => void;
 }) {
+  useLocale();
   const id = useId();
   const [draft, setDraft] = useState(() => phrases.join("\n"));
   useEffect(() => {
@@ -31,9 +34,10 @@ export function MentionExclusions({
           variant="ghost"
           size="sm"
           className="group w-full justify-start"
-          aria-label="编辑文本提及排除词组"
+          aria-label={t("text.editExcludedMentionPhrases")}
         >
-          排除词组{phrases.length > 0 && `（${phrases.length}）`}
+          {t("text.excludedPhrases")}
+          {phrases.length > 0 && `（${phrases.length}）`}
           <ChevronDown
             data-icon="inline-end"
             className="ml-auto transition-transform group-data-[state=open]:rotate-180"
@@ -43,26 +47,27 @@ export function MentionExclusions({
       <CollapsibleContent className="pt-2">
         <Field data-invalid={parsed === null}>
           <FieldLabel htmlFor={id} className="sr-only">
-            文本提及排除词组
+            {t("text.excludedMentionPhrases")}
           </FieldLabel>
           <Textarea
             id={id}
             rows={3}
             className="max-h-48"
-            placeholder={"每行一个词组，例如：\n01\n待办"}
+            placeholder={t("text.onePhrasePerLineForExample01Todo")}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             aria-invalid={parsed === null}
             aria-describedby={`${id}-description`}
           />
           <FieldDescription id={`${id}-description`}>
-            按完整名称或词组排除，忽略大小写、全半角和多余空格。排除 01 不会排除
-            101；节点和块引用仍保留。
+            {t("text.excludeCompleteNamesOrPhrasesIgnoringCaseCharacter")}
           </FieldDescription>
           {parsed === null && (
             <FieldError>
-              最多 {EXCLUDED_PHRASE_LIMIT.toLocaleString()} 项，每项不超过 {KEYWORD_LENGTH_LIMIT}{" "}
-              个字符，不能包含控制字符。
+              {t("mentions.exclusionLimit", {
+                count: EXCLUDED_PHRASE_LIMIT,
+                length: KEYWORD_LENGTH_LIMIT,
+              })}
             </FieldError>
           )}
           <Button
@@ -74,9 +79,11 @@ export function MentionExclusions({
               if (parsed) onApply(parsed);
             }}
           >
-            应用排除
+            {t("text.applyExclusions")}
           </Button>
-          {changed && <FieldDescription>点击应用后重新计算文本提及。</FieldDescription>}
+          {changed && (
+            <FieldDescription>{t("text.applyToRecalculateTextMentions")}</FieldDescription>
+          )}
         </Field>
       </CollapsibleContent>
     </Collapsible>

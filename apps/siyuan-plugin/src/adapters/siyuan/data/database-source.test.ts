@@ -254,8 +254,8 @@ describe("complete logical database acquisition", () => {
       ),
     ).toBe(false);
     expect(JSON.stringify(graph.warnings)).toContain(AV_B);
-    expect(JSON.stringify(graph.warnings)).toContain("绑定块不在当前读取范围");
-    expect(JSON.stringify(graph.warnings)).toContain("实际条目端点不可用");
+    expect(JSON.stringify(graph.warnings)).toContain("database-bindings");
+    expect(JSON.stringify(graph.warnings)).toContain("database-relations");
   });
 
   it("does not invent items from dangling relation values, even when target display content exists", async () => {
@@ -266,7 +266,7 @@ describe("complete logical database acquisition", () => {
     const graph = await acquire([embedding()]);
     expect(graph.nodes.filter((node) => node.entity === "database-item")).toHaveLength(0);
     expect(graph.edges.filter((edge) => edge.kind === "database-relation")).toHaveLength(0);
-    expect(JSON.stringify(graph.warnings)).toContain("实际条目端点不可用");
+    expect(JSON.stringify(graph.warnings)).toContain("database-relations");
   });
 
   it("accepts omitted empty values and ignores unconfigured relation columns", async () => {
@@ -319,10 +319,10 @@ describe("complete logical database acquisition", () => {
       details: [
         {
           fields: {
-            "数据库 ID": AV_A,
-            接口: "/api/av/getAttributeView",
-            位置: "av.keyValues[0].values[0].block.id",
-            实际值: "not-a-block-id",
+            "text.databaseId": AV_A,
+            "text.api": "/api/av/getAttributeView",
+            "text.location": "av.keyValues[0].values[0].block.id",
+            "text.actualValue": "not-a-block-id",
           },
           openBlockId: EMBEDDING_A,
         },
@@ -337,10 +337,14 @@ describe("complete logical database acquisition", () => {
     const graph = await acquire([embedding()]);
     expect(
       graph.warnings.find((issue) => issue.code === "database-bindings")?.details[0].fields,
-    ).toMatchObject({ "条目 ID": ITEM_A, "绑定块 ID": BOUND_BLOCK });
+    ).toMatchObject({ "text.itemId": ITEM_A, "text.boundBlockId": BOUND_BLOCK });
     expect(
       graph.warnings.find((issue) => issue.code === "database-relations")?.details[0].fields,
-    ).toMatchObject({ "来源条目 ID": ITEM_A, "目标条目 ID": ITEM_B, "目标数据库 ID": AV_B });
+    ).toMatchObject({
+      "text.sourceItemId": ITEM_A,
+      "text.targetItemId": ITEM_B,
+      "text.targetDatabaseId": AV_B,
+    });
   });
 
   it("reports an invalid logical payload and continues with another independent database", async () => {
@@ -351,7 +355,7 @@ describe("complete logical database acquisition", () => {
     const graph = await acquire([embedding(), embedding(EMBEDDING_MIRROR, AV_B)]);
     expect(graph.nodes.some((node) => node.id === `av:${AV_A}`)).toBe(false);
     expect(graph.nodes.some((node) => node.itemId === ITEM_B)).toBe(true);
-    expect(JSON.stringify(graph.warnings)).toContain("重复条目标识");
+    expect(JSON.stringify(graph.warnings)).toContain("text.theDatabaseReturnedDuplicateItemIds");
   });
 
   it("recognizes formatter attributes without confusing bindings or quoted attribute content", async () => {
@@ -371,7 +375,7 @@ describe("complete logical database acquisition", () => {
     const fetchMock = mockDatabases({ [AV_B]: database(AV_B, FIELD_B, []) });
     const graph = await acquire(blocks);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(graph.warnings)).toContain("无法识别 1 个数据库块");
+    expect(JSON.stringify(graph.warnings)).toContain("database-identifier");
     expect(graph.nodes.find((node) => node.id === BOUND_BLOCK)?.databaseId).toBeUndefined();
   });
 
@@ -405,7 +409,7 @@ describe("complete logical database acquisition", () => {
     const graph = await acquire(blocks);
     expect(fetch).toHaveBeenCalledTimes(4096);
     expect(graph.nodes.filter((node) => node.entity === "database")).toHaveLength(4096);
-    expect(JSON.stringify(graph.warnings)).toContain("逻辑库的上限");
-    expect(JSON.stringify(graph.warnings)).toContain("不完整");
+    expect(JSON.stringify(graph.warnings)).toContain("text.logicalDatabaseLimit");
+    expect(graph.warnings[0]).toMatchObject({ code: "database-budget", count: 1 });
   });
 });

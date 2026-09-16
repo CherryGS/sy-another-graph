@@ -1,3 +1,5 @@
+import { useLocale } from "../../shared/i18n/react";
+import { t } from "../../shared/i18n/runtime";
 import { presentNode } from "../presentation/present-nodes";
 import { useId, useMemo, useRef, useState, type RefObject } from "react";
 import { Search, X } from "lucide-react";
@@ -24,6 +26,7 @@ export function GraphSearch({
   state: WorkbenchState;
   anchorRef: RefObject<HTMLElement | null>;
 }) {
+  useLocale();
   const { filters, setFilters } = state;
   const [open, setOpen] = useState(false);
   const resultsId = useId();
@@ -42,10 +45,10 @@ export function GraphSearch({
       <InputGroup className="search-group">
         <InputGroupInput
           ref={input}
-          aria-label="搜索图谱节点"
+          aria-label={t("text.searchGraphNodes")}
           aria-expanded={open && !!filters.query.trim()}
           aria-controls={resultsId}
-          placeholder="查找节点标题或 ID…"
+          placeholder={t("text.findANodeByTitleOrId")}
           value={filters.query}
           onFocus={() => {
             if (!restoreInputAfterEscape.current) setOpen(true);
@@ -75,7 +78,7 @@ export function GraphSearch({
           <InputGroupAddon align="inline-end">
             <InputGroupButton
               size="icon-xs"
-              aria-label="清空搜索"
+              aria-label={t("text.clearSearch")}
               onClick={() => setFilters((previous) => ({ ...previous, query: "" }))}
             >
               <X />
@@ -84,7 +87,7 @@ export function GraphSearch({
         )}
       </InputGroup>
       <PopoverContent
-        aria-label="搜索结果"
+        aria-label={t("text.searchResults")}
         align="start"
         className="search-popover p-1"
         onOpenAutoFocus={(event) => {
@@ -103,7 +106,7 @@ export function GraphSearch({
       >
         <ScrollArea
           id={resultsId}
-          aria-label="节点搜索结果"
+          aria-label={t("text.nodeSearchResults")}
           className="search-results"
           data-scroll-panel
         >
@@ -154,8 +157,8 @@ export function GraphSearch({
           ) : (
             <Empty>
               <EmptyHeader>
-                <EmptyTitle>没有匹配节点</EmptyTitle>
-                <EmptyDescription>请尝试其他标题或 ID。</EmptyDescription>
+                <EmptyTitle>{t("text.noMatchingNodes")}</EmptyTitle>
+                <EmptyDescription>{t("text.tryAnotherTitleOrId")}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}

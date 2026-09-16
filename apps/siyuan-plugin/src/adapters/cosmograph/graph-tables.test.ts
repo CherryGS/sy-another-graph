@@ -1,7 +1,12 @@
 import { createRequire } from "node:module";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { createDuckDB, NODE_RUNTIME, VoidLogger } from "@duckdb/duckdb-wasm/blocking";
-import type { DuckDBConnection } from "@duckdb/duckdb-wasm/blocking";
+import {
+  createDuckDB,
+  NODE_RUNTIME,
+  VoidLogger,
+  type DuckDBConnection,
+} from "@duckdb/duckdb-wasm/blocking";
+
 import { GraphTableStore } from "./graph-tables";
 import { prepareGraph } from "./prepare-graph";
 

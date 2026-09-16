@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import CommunityWorker from "./community.worker.ts?worker";
 import type { CommunityRequest, CommunityResponse } from "./protocol";
 import type { GraphLike } from "../../core/graph/graph-lookups";
@@ -28,7 +29,7 @@ export async function communityEndpoints(data: GraphLike, signal: AbortSignal) {
     const source = indices.get(edge.source),
       target = indices.get(edge.target);
     if (source === undefined || target === undefined)
-      throw new Error("社区关系端点与当前图不一致。");
+      throw new MessageError(msg("text.communityEndpointsDoNotMatchTheCurrentGraph"));
     endpoints[i * 2] = source;
     endpoints[i * 2 + 1] = target;
   }
@@ -61,10 +62,15 @@ export function calculateCommunities(
       reject(error);
     };
     const abort = () => fail(new DOMException("Community calculation was replaced", "AbortError"));
-    const timeout = setTimeout(() => fail(new Error("社区计算超时，请缩小范围后重试。")), 60_000);
+    const timeout = setTimeout(
+      () => fail(new MessageError(msg("text.communityCalculationTimedOutReduceTheScopeAnd"))),
+      60_000,
+    );
     signal.addEventListener("abort", abort, { once: true });
-    worker.onerror = (event) => fail(new Error(event.message || "社区计算失败。"));
-    worker.onmessageerror = () => fail(new Error("无法读取社区计算结果。"));
+    worker.onerror = (event) =>
+      fail(new MessageError(event.message || msg("text.communityCalculationFailed2")));
+    worker.onmessageerror = () =>
+      fail(new MessageError(msg("text.cannotReadTheCommunityCalculationResult")));
     worker.onmessage = ({ data }) => {
       if (finished) return;
       if ("error" in data) {
@@ -78,7 +84,7 @@ export function calculateCommunities(
         membership.some((id) => id >= request.nodes) ||
         !Number.isFinite(calculationMs)
       ) {
-        fail(new Error("社区结果与当前图不一致。"));
+        fail(new MessageError(msg("text.communityResultsDoNotMatchTheCurrentGraph")));
         return;
       }
       const sizes = new Uint32Array(request.nodes);

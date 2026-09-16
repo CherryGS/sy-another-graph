@@ -1,3 +1,6 @@
+import { message as msg, MessageError, failureOf } from "../../../core/diagnostics/message";
+
+import { t, text } from "../../../shared/i18n/runtime";
 import { api } from "../data/api";
 import type { EventBus, IEventBusMap } from "siyuan";
 import {
@@ -37,11 +40,11 @@ export function registerSearchGraphs(
     for (const panel of panels.values()) if (!panel.input.isConnected) remove(panel);
   };
   const update = (panel: SearchPanel) => {
-    panel.button.textContent = "用全部结果建图";
+    panel.button.textContent = t("text.graphAllResults");
     panel.button.disabled = !panel.config;
     panel.button.title = panel.config
-      ? unsupportedSearch(panel.config) || "将全部分页结果放入独立临时预设"
-      : "等待搜索完成后建图";
+      ? text(unsupportedSearch(panel.config)) || t("text.useAllResultPagesInAnIndependentTemporary")
+      : t("text.waitForTheSearchToFinish");
   };
   const ensure = (input: HTMLInputElement) => {
     prune();
@@ -85,7 +88,7 @@ export function registerSearchGraphs(
       if (!panel.config) return;
       const reason = unsupportedSearch(panel.config);
       if (reason) {
-        report(reason);
+        report(text(reason));
         return;
       }
       const notebooks =
@@ -96,7 +99,7 @@ export function registerSearchGraphs(
           notebooks.some((book) => book.id === path.split("/")[0] && book.encrypted),
         )
       ) {
-        report("暂不支持加密笔记本的搜索结果建图，请选择普通笔记本后重试。");
+        report(t("text.searchGraphsDoNotSupportEncryptedNotebooksSelect"));
         return;
       }
       // A newer click in any search panel supersedes the previous request.
@@ -109,18 +112,22 @@ export function registerSearchGraphs(
       const abort = new AbortController();
       panel.abort = abort;
       const timeout = setTimeout(
-        () => abort.abort(new Error("搜索读取超过 2 分钟，请缩小范围后重试。")),
+        () =>
+          abort.abort(
+            new MessageError(msg("text.readingSearchResultsExceededTwoMinutesNarrowThe")),
+          ),
         120_000,
       );
       const config = structuredClone(panel.config);
-      const label = input.value.trim().slice(0, 120) || config.hPath?.slice(0, 120) || "指定路径";
-      button.textContent = "正在读取全部结果… 点击取消";
+      const label =
+        input.value.trim().slice(0, 120) || config.hPath?.slice(0, 120) || t("text.specifiedPath");
+      button.textContent = t("text.readingAllResultsClickToCancel");
       void collectSearchResults(
         config,
         abort.signal,
         (read, total) => {
           if (!abort.signal.aborted)
-            button.textContent = `${read.toLocaleString()} / ${total.toLocaleString()} · 取消`;
+            button.textContent = t("text.valueValueCancel", { p0: read, p1: total });
         },
         api,
       )
@@ -142,7 +149,7 @@ export function registerSearchGraphs(
             !(abort.signal.reason instanceof Error && abort.signal.reason.name !== "AbortError")
           )
             return;
-          report(failure instanceof Error ? failure.message : String(failure));
+          report(text(failureOf(failure)));
         })
         .finally(() => {
           clearTimeout(timeout);

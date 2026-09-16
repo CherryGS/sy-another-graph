@@ -1,3 +1,5 @@
+import { useLocale } from "../../shared/i18n/react";
+import { t } from "../../shared/i18n/runtime";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import type { GraphDataset } from "../../core/graph/types";
 import { getGraphLookups } from "../../core/graph/graph-lookups";
@@ -15,6 +17,7 @@ export function useWorkbenchFilters(
   loading: string,
   reload: () => Promise<unknown>,
 ) {
+  useLocale();
   const [sessions] = useState(() => new FilterSessions());
   const state = useSyncExternalStore(sessions.subscribe, sessions.getSnapshot);
   const normal = useFilterPresets(
@@ -91,11 +94,15 @@ export function useWorkbenchFilters(
     resetFilters: sessions.reset,
     matchedIds,
     searchIds,
-    searchScope: temporary ? `搜索 ${temporary.ids.size.toLocaleString()} 个命中及上级` : undefined,
+    searchScope: temporary
+      ? t("text.searchValueMatchesAndAncestors", { p0: temporary.ids.size })
+      : undefined,
     filterPresets: {
       ...normal,
       activeId: temporary ? null : normal.activeId,
-      activeName: temporary ? `搜索：${temporary.snapshot.label}` : normal.activeName,
+      activeName: temporary
+        ? t("text.searchValue", { p0: temporary.snapshot.label })
+        : normal.activeName,
       modified: temporary ? false : normal.modified,
       temporary: state.temporary,
       temporaryActive: !!temporary,

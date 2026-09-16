@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../../core/diagnostics/message";
 import { diagnosticValue, ReadDiagnosticError } from "../../../core/diagnostics/read-issues";
 
 export async function api<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
@@ -6,7 +7,10 @@ export async function api<T>(path: string, body: unknown, signal?: AbortSignal):
   const abort = () => controller.abort(signal?.reason);
   signal?.addEventListener("abort", abort, { once: true });
   const timeout = setTimeout(
-    () => controller.abort(new DOMException("思源接口请求超时，请重试", "TimeoutError")),
+    () =>
+      controller.abort(
+        new MessageError(msg("text.theSiyuanApiRequestTimedOutPleaseRetry"), "TimeoutError"),
+      ),
     30_000,
   );
   try {
@@ -18,18 +22,21 @@ export async function api<T>(path: string, body: unknown, signal?: AbortSignal):
       signal: controller.signal,
     });
     if (!response.ok)
-      throw new ReadDiagnosticError(`思源接口返回 HTTP ${response.status}`, {
-        接口: path,
-        "HTTP 状态": String(response.status),
-      });
+      throw new ReadDiagnosticError(
+        msg("text.theSiyuanApiReturnedHttpValue", { p0: response.status }),
+        {
+          "text.api": path,
+          "text.httpStatus": String(response.status),
+        },
+      );
     let result: unknown;
     try {
       result = await response.json();
     } catch (error) {
       controller.signal.throwIfAborted();
-      throw new ReadDiagnosticError("思源接口返回了无法解析的 JSON", {
-        接口: path,
-        原因: error instanceof Error ? error.message : String(error),
+      throw new ReadDiagnosticError(msg("text.theSiyuanApiReturnedInvalidJson"), {
+        "text.api": path,
+        "text.reason": error instanceof Error ? error.message : String(error),
       });
     }
     controller.signal.throwIfAborted();
@@ -39,17 +46,17 @@ export async function api<T>(path: string, body: unknown, signal?: AbortSignal):
       !("code" in result) ||
       typeof result.code !== "number"
     ) {
-      throw new ReadDiagnosticError("思源接口返回了无效数据", {
-        接口: path,
-        实际类型: diagnosticValue(result),
+      throw new ReadDiagnosticError(msg("text.theSiyuanApiReturnedInvalidData"), {
+        "text.api": path,
+        "text.actualType": diagnosticValue(result),
       });
     }
     const envelope = result as { code: number; msg?: string; data: T };
     if (envelope.code !== 0)
-      throw new ReadDiagnosticError(envelope.msg || "思源接口请求失败", {
-        接口: path,
-        错误码: String(envelope.code),
-        接口消息: envelope.msg || "（未提供）",
+      throw new ReadDiagnosticError(envelope.msg || msg("text.theSiyuanApiRequestFailed"), {
+        "text.api": path,
+        "text.errorCode": String(envelope.code),
+        "text.apiMessage": envelope.msg || msg("text.notProvided"),
       });
     return envelope.data;
   } finally {

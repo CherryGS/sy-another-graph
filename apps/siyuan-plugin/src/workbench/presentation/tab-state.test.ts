@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach as beforeLocaleTest, describe, expect, it } from "vitest";
+import { setLocale } from "../../shared/i18n/runtime";
+beforeLocaleTest(() => setLocale("zh-CN"));
+
 import { type GraphDataset } from "../../core/graph/types";
 import { DEFAULT_FILTERS } from "../../modules/presets/filters";
 import { GraphTabTitle } from "../../adapters/siyuan/host/graph-tab-title";

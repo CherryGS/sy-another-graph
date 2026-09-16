@@ -1,6 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { tableToIPC } from "apache-arrow";
-import type { Table } from "apache-arrow";
+import { tableToIPC, type Table } from "apache-arrow";
+
 import type { PreparedGraph } from "./prepare-graph";
 
 export interface UploadedGraph {

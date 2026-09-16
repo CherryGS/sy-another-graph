@@ -1,9 +1,12 @@
+import { hostLanguage, watchHostLanguage } from "./language";
+import { setLocale, t } from "../../../shared/i18n/runtime";
+
 import { Plugin, openTab, showMessage, type Custom } from "siyuan";
 import { PersistentWorkbench, WORKBENCH_CHANNEL } from "./persistent-workbench";
 import { isNativeBlockId, registerScopeMenus } from "./scope-menu";
 import { registerSourceChanges } from "./source-events";
 import { PresetStorage } from "./preset-storage";
-import { GraphTabTitle, DEFAULT_GRAPH_TAB_TITLE } from "./graph-tab-title";
+import { GraphTabTitle, defaultGraphTabTitle } from "./graph-tab-title";
 import { registerSearchGraphs } from "./search-graphs";
 
 const TAB_TYPE = "atlas";
@@ -18,10 +21,14 @@ export default class SiYuanGraphPlugin extends Plugin {
   private presetStorage: PresetStorage | null = null;
   private graphTitle: GraphTabTitle | null = null;
 
+  private removeLanguage: (() => void) | null = null;
+
   onload() {
+    setLocale(hostLanguage());
     this.unloaded = false;
     const workbench = new PersistentWorkbench(this.name);
     this.workbench = workbench;
+    this.removeLanguage = watchHostLanguage(() => workbench.announceLanguage());
     const ownsMessage = (event: MessageEvent) => workbench.ownsMessage(event);
     this.presetStorage = new PresetStorage(this, ownsMessage, window.location.origin);
     const graphTitle = new GraphTabTitle(ownsMessage);
@@ -62,7 +69,7 @@ export default class SiYuanGraphPlugin extends Plugin {
     });
     this.addCommand({
       langKey: "openAtlasGraph",
-      langText: "打开一个思源图谱",
+      langText: t("text.open"),
       hotkey: "⌥⇧G",
       callback: () => {
         void this.openGraph();
@@ -130,7 +137,7 @@ export default class SiYuanGraphPlugin extends Plugin {
       app: this.app,
       custom: {
         id: this.name + TAB_TYPE,
-        title: this.graphTitle?.title ?? DEFAULT_GRAPH_TAB_TITLE,
+        title: this.graphTitle?.title ?? defaultGraphTabTitle(),
         icon: "iconAtlasGraph",
       },
     }).finally(() => {
@@ -160,6 +167,10 @@ export default class SiYuanGraphPlugin extends Plugin {
       this.workbench.acknowledgeSearch(data.requestId);
       return;
     }
+    if (data?.channel === WORKBENCH_CHANNEL && data.type === "language-ready") {
+      this.workbench.announceLanguage();
+      return;
+    }
     if (data?.channel === WORKBENCH_CHANNEL && data.type === "workbench-ready") {
       this.workbench.announceVisibility();
       return;
@@ -187,6 +198,8 @@ export default class SiYuanGraphPlugin extends Plugin {
 
   onunload() {
     this.unloaded = true;
+    this.removeLanguage?.();
+    this.removeLanguage = null;
     window.removeEventListener("message", this.onMessage);
     this.eventBus.off("switch-protyle", this.onHostSwitch);
     this.removeScopeMenus?.();

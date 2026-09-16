@@ -1,3 +1,4 @@
+import { t } from "../../shared/i18n/runtime";
 import type { GraphDataset } from "../../core/graph/types";
 import type { GraphFilters } from "../../modules/presets/filters";
 import { getGraphLookups } from "../../core/graph/graph-lookups";
@@ -33,37 +34,64 @@ export function graphTabState(
 ) {
   const source = data ? getGraphLookups(data).byId : null;
   const notebook = filters.notebook
-    ? (data?.notebooks.find((book) => book.id === filters.notebook)?.name ?? "指定笔记本")
-    : "全部";
+    ? (data?.notebooks.find((book) => book.id === filters.notebook)?.name ??
+      t("text.specifiedNotebook"))
+    : t("text.all");
   const scope =
-    searchScope ?? (filters.scopeId ? source?.get(filters.scopeId)?.label || "指定范围" : notebook);
-  const preset = clean(name) || "自定义";
-  const title = `图谱 · ${short(scope, 28)} · ${short(preset, 28)}${modified ? "*" : ""}`;
+    searchScope ??
+    (filters.scopeId ? source?.get(filters.scopeId)?.label || t("text.specifiedScope") : notebook);
+  const preset = clean(name) || t("text.custom");
+  const title = t("text.graphValueValueValue", {
+    p0: short(scope, 28),
+    p1: short(preset, 28),
+    p2: modified ? "*" : "",
+  });
   const relations = [
-    filters.references && "引用",
-    filters.hierarchy && "包含关系",
-    filters.databases && "数据库关系",
+    filters.references && t("text.references"),
+    filters.hierarchy && t("text.containment"),
+    filters.databases && t("text.databaseRelationships"),
   ].filter(Boolean);
   const types = filters.documentsOnly
-    ? "仅文档"
+    ? t("text.documentsOnly")
     : filters.hiddenTypes.length
-      ? `自定义（隐藏：${filters.hiddenTypes.map((type) => NODE_TYPE_LABELS[type] ?? type).join("、")}）`
-      : "全部类型";
+      ? t("text.customHiddenValue", {
+          p0: filters.hiddenTypes
+            .map((type) => NODE_TYPE_LABELS[type] ?? type)
+            .join(t("common.listSeparator")),
+        })
+      : t("text.allTypes");
   const description = clean(
     [
-      `图谱范围：${scope}${filters.scopeId ? `（${filters.scopeId}）` : ""}`,
-      `笔记本：${notebook}`,
-      `预设：${preset}${modified ? "（已修改，尚未更新预设）" : ""}`,
-      `类型：${types}`,
-      `关系：${relations.join("、") || "关闭"}`,
-      `文本提及：${filters.mentions === "off" ? "关闭" : filters.mentions === "selected" ? "已选节点" : "范围内全部"}`,
+      t("text.graphScopeValueValue", {
+        p0: scope,
+        p1: filters.scopeId ? `（${filters.scopeId}）` : "",
+      }),
+      t("text.notebookValue", { p0: notebook }),
+      t("text.presetValueValue", {
+        p0: preset,
+        p1: modified ? t("text.modifiedNotSavedToPreset") : "",
+      }),
+      t("text.typesValue", { p0: types }),
+      t("text.relationshipsValue", { p0: relations.join("、") || t("text.off") }),
+      t("text.textMentionsValue", {
+        p0:
+          filters.mentions === "off"
+            ? t("text.off")
+            : filters.mentions === "selected"
+              ? t("text.selectedNodes")
+              : t("text.allInScope"),
+      }),
       ...(filters.excludedMentionPhrases.length
-        ? [`排除词组：${filters.excludedMentionPhrases.length} 项`]
+        ? [t("text.excludedPhrasesValue", { p0: filters.excludedMentionPhrases.length })]
         : []),
-      `子文档：${filters.includeChildDocuments ? "包含" : "不包含"}`,
-      `排除：${filters.excludeIds.length} 项`,
-      `孤立节点：${filters.hideIsolated ? "隐藏未选中的节点" : "显示"}`,
-    ].join("；"),
+      t("text.childDocumentsValue", {
+        p0: filters.includeChildDocuments ? t("text.included") : t("text.excluded"),
+      }),
+      t("text.excludedIdsValue", { p0: filters.excludeIds.length }),
+      t("text.isolatedNodesValue", {
+        p0: filters.hideIsolated ? t("text.hideUnselectedNodes") : t("text.shown"),
+      }),
+    ].join(t("common.summarySeparator")),
   );
   return { title, description: short(description, 900) };
 }

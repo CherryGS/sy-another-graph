@@ -1,3 +1,4 @@
+import type { Failure } from "../../core/diagnostics/message";
 import type { PresetStore } from "./model";
 
 export const WORKBENCH_PRESET_CHANNEL = "sy-another-graph";
@@ -19,7 +20,7 @@ export type PresetResponse = {
   channel: typeof WORKBENCH_PRESET_CHANNEL;
   type: "preset-response";
   request: string;
-} & ({ ok: true; store: PresetStore | null } | { ok: false; error: string });
+} & ({ ok: true; store: PresetStore | null } | { ok: false; error: Failure });
 
 export interface GraphTabStateMessage {
   channel: typeof WORKBENCH_PRESET_CHANNEL;

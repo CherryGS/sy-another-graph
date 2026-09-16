@@ -19,6 +19,8 @@ export function boundaryViolation(from, target) {
     return "application code must receive concrete adapters through its own contracts";
   if (layer === "application" && /(?:^|\/)ui(?:\/|\.)|(?:^|\/)use-[^/]+$/.test(target))
     return "application code cannot depend on feature UI or React bindings";
+  if (layer === "application" && target.startsWith("shared/i18n/"))
+    return "application results must remain independent of localization";
   if (layer === "modules" && !["core", "modules", "shared"].includes(destination))
     return "capabilities cannot import workbench state or concrete application adapters";
   if (
@@ -119,7 +121,12 @@ export function checkBoundaries(root) {
       const file = pending.pop();
       if (visited.has(file)) continue;
       visited.add(file);
-      if (file.endsWith(".tsx") || file.startsWith("workbench/") || file.startsWith("shared/ui/"))
+      if (
+        file.endsWith(".tsx") ||
+        file.startsWith("workbench/") ||
+        file.startsWith("shared/ui/") ||
+        file.startsWith("shared/i18n/")
+      )
         failures.push(`${worker}: Worker runtime reaches browser UI through ${file}`);
       if (/^package:(?:react(?:-dom|-i18next)?(?:\/|$)|radix-ui$|siyuan$|@cosmograph\/)/.test(file))
         failures.push(`${worker}: Worker runtime reaches a browser UI package through ${file}`);

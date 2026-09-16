@@ -1,3 +1,5 @@
+import { useLocale } from "../i18n/react";
+import { t } from "../i18n/runtime";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
   CircleCheckIcon,
@@ -8,9 +10,11 @@ import {
 } from "lucide-react";
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  useLocale();
   return (
     <Sonner
       theme="dark"
+      containerAriaLabel={t("common.notifications")}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
@@ -28,6 +32,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        closeButtonAriaLabel: t("common.close"),
         classNames: {
           toast: "cn-toast",
         },

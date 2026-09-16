@@ -1,5 +1,12 @@
-import { AsyncDuckDB, VoidLogger, selectBundle } from "@duckdb/duckdb-wasm";
-import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { message as msg, MessageError } from "../../core/diagnostics/message";
+import { t } from "../../shared/i18n/runtime";
+import {
+  AsyncDuckDB,
+  VoidLogger,
+  selectBundle,
+  type AsyncDuckDBConnection,
+} from "@duckdb/duckdb-wasm";
+
 import mvpWasmUrl from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 import mvpWorkerUrl from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
 import ehWasmUrl from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
@@ -44,7 +51,8 @@ export async function createLocalDuckDB(signal: AbortSignal): Promise<LocalDuckD
     eh: { mainModule: ehWasmUrl, mainWorker: ehWorkerUrl },
   });
   signal.throwIfAborted();
-  if (!bundle.mainWorker) throw new Error("当前浏览器没有可用的本地图数据库运行环境。");
+  if (!bundle.mainWorker)
+    throw new MessageError(msg("text.thisBrowserCannotRunTheLocalGraphDatabase"));
   const mainWorkerUrl = new URL(bundle.mainWorker, window.location.href).href;
   const mainModuleUrl = new URL(bundle.mainModule, window.location.href).href;
   // A blob worker inherits the iframe's CSP; a direct URL worker does not.
@@ -69,12 +77,12 @@ export async function createLocalDuckDB(signal: AbortSignal): Promise<LocalDuckD
   });
   const abort = () => {
     worker.terminate();
-    rejectInterrupted?.(new DOMException("图谱初始化已取消。", "AbortError"));
+    rejectInterrupted?.(new DOMException(t("text.graphInitializationWasCancelled"), "AbortError"));
   };
   signal.addEventListener("abort", abort, { once: true });
   const timeout = setTimeout(() => {
     worker.terminate();
-    rejectInterrupted?.(new Error("本地图数据库启动超时，请重试图谱。"));
+    rejectInterrupted?.(new MessageError(msg("text.theLocalGraphDatabaseTimedOutRetryThe")));
   }, 45_000);
 
   try {
@@ -90,7 +98,7 @@ export async function createLocalDuckDB(signal: AbortSignal): Promise<LocalDuckD
       interrupted,
     ]);
     signal.throwIfAborted();
-    if (!connection) throw new Error("无法建立本地图数据库连接。");
+    if (!connection) throw new MessageError(msg("text.cannotConnectToTheLocalGraphDatabase"));
     const activeConnection = connection;
     return {
       duckdb,

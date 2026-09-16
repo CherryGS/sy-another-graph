@@ -1,3 +1,6 @@
+import { locale } from "../../../shared/i18n/runtime";
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useState } from "react";
 import { ArrowUpRight, ChevronDown, X } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
@@ -33,6 +36,7 @@ function SourceEntry({
   open: (id: string) => void;
   nativeId: string | null;
 }) {
+  useLocale();
   const canOpen = !!nativeId;
   return (
     <NativePreviewButton
@@ -41,7 +45,11 @@ function SourceEntry({
       className="h-auto w-full flex-col items-start gap-1.5 py-2"
       disabled={!canOpen}
       onClick={() => open(id)}
-      aria-label={canOpen ? `打开原始位置：${node?.label ?? id}` : "暂无可打开的原生上下文"}
+      aria-label={
+        canOpen
+          ? t("text.openOriginalLocationValue", { p0: node?.label ?? id })
+          : t("text.noNativeContextAvailable")
+      }
     >
       <span className="flex w-full min-w-0 items-center justify-between gap-2">
         <span data-native-preview-anchor className="min-w-0 truncate">
@@ -73,6 +81,7 @@ function SourceEntry({
 }
 
 export function EdgeInspector({ state }: { state: WorkbenchState }) {
+  useLocale();
   const [limit, setLimit] = useState(15);
   const edge = state.inspectedEdge;
   if (!edge || !state.data) return null;
@@ -83,7 +92,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
   const occurrences = edge.provenance ?? [];
 
   return (
-    <aside className="inspector-panel edge-inspector" aria-label="关系出处">
+    <aside className="inspector-panel edge-inspector" aria-label={t("text.relationshipEvidence")}>
       <Card className="h-full min-h-0">
         <CardHeader>
           <CardTitle>{EDGE_KIND_LABELS[edge.kind]}</CardTitle>
@@ -93,18 +102,19 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="关闭关系出处"
+                  aria-label={t("text.closeRelationshipEvidence")}
                   onClick={state.closeEdge}
                 >
                   <X />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>关闭关系出处</TooltipContent>
+              <TooltipContent>{t("text.closeRelationshipEvidence")}</TooltipContent>
             </Tooltip>
           </CardAction>
           <CardDescription>
             <span className="break-words">
-              {source?.label ?? "未知端点"} → {target?.label ?? "未知端点"}
+              {source?.label ?? t("text.unknownEndpoint")} →{" "}
+              {target?.label ?? t("text.unknownEndpoint")}
             </span>
           </CardDescription>
         </CardHeader>
@@ -112,39 +122,44 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
           <CardContent className="flex min-w-0 flex-col gap-4">
             <p className="text-xs leading-relaxed text-muted-foreground">
               {edge.kind === "hierarchy"
-                ? "虚线表示内容包含，不是正文引用。"
+                ? t("text.dashedLinksRepresentContainmentNotReferencesInThe")
                 : edge.kind === "text-mention"
-                  ? "点线表示正文命中了目标名称，是可能的文本提及；可结合原始段落判断。"
+                  ? t("text.dottedLinksIndicateTextMatchingTheTargetS")
                   : edge.kind === "reference"
-                    ? "以下是这条连线对应的原始引用端点。"
-                    : "以下关系来自数据库的真实成员、绑定或关系字段。"}
+                    ? t("text.theseAreTheOriginalReferenceEndpointsRepresentedBy")
+                    : t("text.theseRelationshipsComeFromActualDatabaseMembershipsBindings")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{occurrences.length.toLocaleString()} 组出处</Badge>
-              <Badge variant="secondary">{edge.weight.toLocaleString()} 条记录</Badge>
+              <Badge variant="outline">
+                {occurrences.length.toLocaleString(locale())} {t("text.evidenceGroups")}
+              </Badge>
+              <Badge variant="secondary">
+                {edge.weight.toLocaleString(locale())} {t("text.records")}
+              </Badge>
             </div>
             {!!edge.omittedProvenance && (
               <p className="text-xs text-muted-foreground">
-                另有 {edge.omittedProvenance.toLocaleString()}{" "}
-                组出处超出展示上限；计数包含这些命中。
+                {t("evidence.omitted", { count: edge.omittedProvenance })}
               </p>
             )}
             {occurrences.slice(0, limit).map((occurrence, index) => (
               <section
                 className="flex min-w-0 flex-col gap-2"
-                aria-label={occurrence.fieldName || `出处 ${index + 1}`}
+                aria-label={occurrence.fieldName || t("text.evidenceValue", { p0: index + 1 })}
                 key={`${occurrence.sourceId}:${occurrence.targetId}:${occurrence.fieldId ?? ""}:${index}`}
               >
                 {index > 0 && <Separator className="mb-2" />}
                 <h3 className="text-sm font-medium">
-                  {occurrence.fieldName || `出处 ${String(index + 1).padStart(2, "0")}`}
+                  {occurrence.fieldName ||
+                    t("text.evidenceValue", { p0: String(index + 1).padStart(2, "0") })}
                 </h3>
                 <div className="flex min-w-0 flex-col gap-2">
                   {occurrence.mention && (
                     <div className="flex flex-col gap-2">
                       <Badge variant="outline" className="max-w-full">
                         <span className="truncate" title={occurrence.mention.keyword}>
-                          命中名称：{occurrence.mention.keyword}
+                          {t("text.matchedName")}
+                          {occurrence.mention.keyword}
                         </span>
                       </Badge>
                       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
@@ -159,8 +174,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       </p>
                       {occurrence.mention.candidates > 1 && (
                         <p className="text-xs text-muted-foreground">
-                          此名称对应范围内 {occurrence.mention.candidates}{" "}
-                          个原始位置；当前目标为同名候选之一。
+                          {t("evidence.ambiguity", { count: occurrence.mention.candidates })}
                         </p>
                       )}
                     </div>
@@ -172,7 +186,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                     nativeId={state.nativeBlockId(occurrence.sourceId)}
                   />
                   <span className="self-center text-xs text-muted-foreground">
-                    {occurrence.kind === "hierarchy" ? "包含 ↓" : "↓"}
+                    {occurrence.kind === "hierarchy" ? t("text.contains") : "↓"}
                   </span>
                   {occurrence.viaIds?.map((id) => (
                     <SourceEntry
@@ -192,14 +206,16 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                   {occurrence.weight > 1 && (
                     <Badge variant="outline">
                       {occurrence.weight}{" "}
-                      {occurrence.kind === "text-mention" ? "处文本命中" : "条索引记录"}
+                      {occurrence.kind === "text-mention"
+                        ? t("text.textMatches")
+                        : t("text.indexRecords")}
                     </Badge>
                   )}
                   {occurrence.databaseId && (
                     <Collapsible>
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" className="group w-full justify-between">
-                          数据库来源
+                          {t("text.databaseSource")}
                           <ChevronDown
                             data-icon="inline-end"
                             className="transition-transform group-data-[state=open]:rotate-180"
@@ -208,18 +224,33 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
-                          <p className="break-all">数据库：{occurrence.databaseId}</p>
+                          <p className="break-all">
+                            {t("text.database2")}
+                            {occurrence.databaseId}
+                          </p>
                           {occurrence.targetDatabaseId && (
-                            <p className="break-all">目标数据库：{occurrence.targetDatabaseId}</p>
+                            <p className="break-all">
+                              {t("text.targetDatabase")}
+                              {occurrence.targetDatabaseId}
+                            </p>
                           )}
                           {occurrence.fieldId && (
-                            <p className="break-all">字段：{occurrence.fieldId}</p>
+                            <p className="break-all">
+                              {t("text.field")}
+                              {occurrence.fieldId}
+                            </p>
                           )}
                           {occurrence.sourceItemId && (
-                            <p className="break-all">来源条目：{occurrence.sourceItemId}</p>
+                            <p className="break-all">
+                              {t("text.sourceItem2")}
+                              {occurrence.sourceItemId}
+                            </p>
                           )}
                           {occurrence.targetItemId && (
-                            <p className="break-all">目标条目：{occurrence.targetItemId}</p>
+                            <p className="break-all">
+                              {t("text.targetItem2")}
+                              {occurrence.targetItemId}
+                            </p>
                           )}
                         </div>
                       </CollapsibleContent>
@@ -231,8 +262,10 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
             {!occurrences.length && (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>暂无可用出处</EmptyTitle>
-                  <EmptyDescription>这条关系没有附带可展开的原始位置。</EmptyDescription>
+                  <EmptyTitle>{t("text.noEvidenceAvailable")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t("text.thisRelationshipHasNoOriginalLocationsToExpand")}
+                  </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             )}
@@ -242,7 +275,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                 className="w-full"
                 onClick={() => setLimit((value) => value + 15)}
               >
-                显示更多出处（剩余 {occurrences.length - limit}）
+                {t("evidence.showMore", { count: occurrences.length - limit })}
               </Button>
             )}
           </CardContent>

@@ -1,3 +1,5 @@
+import { useLocale } from "../../shared/i18n/react";
+import { t } from "../../shared/i18n/runtime";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty";
@@ -20,16 +22,17 @@ export function GraphCanvasState({
   nodeCount,
   onRetry,
 }: GraphCanvasStateProps) {
+  useLocale();
   if (error)
     return (
       <div className="ag-canvas__state">
         <Alert variant="destructive">
-          <AlertTitle>图谱暂时无法显示</AlertTitle>
+          <AlertTitle>{t("text.theGraphCannotBeDisplayed")}</AlertTitle>
           <AlertDescription>
             <div className="flex flex-col items-start gap-3">
               <p>{error}</p>
               <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-                重试图谱
+                {t("text.retryGraph")}
               </Button>
             </div>
           </AlertDescription>
@@ -43,12 +46,12 @@ export function GraphCanvasState({
           <Spinner aria-hidden="true" className="motion-reduce:animate-none" />
           <AlertTitle>
             {initializing
-              ? "正在启动图谱引擎"
+              ? t("text.startingTheGraphEngine")
               : preparing
-                ? "正在准备图谱数据"
-                : "正在绘制知识连接"}
+                ? t("text.preparingGraphData")
+                : t("text.drawingKnowledgeConnections")}
           </AlertTitle>
-          <AlertDescription>{nodeCount.toLocaleString()} 个节点 · 在本机处理</AlertDescription>
+          <AlertDescription>{t("canvas.localNodes", { count: nodeCount })}</AlertDescription>
         </Alert>
       </div>
     );
@@ -57,8 +60,8 @@ export function GraphCanvasState({
     <div className="ag-canvas__state">
       <Empty className="border bg-card text-card-foreground" role="status">
         <EmptyHeader>
-          <EmptyTitle>当前范围中没有节点</EmptyTitle>
-          <EmptyDescription>调整筛选条件，探索更多笔记。</EmptyDescription>
+          <EmptyTitle>{t("text.noNodesInThisScope")}</EmptyTitle>
+          <EmptyDescription>{t("text.adjustTheFiltersToExploreMoreNotes")}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </div>

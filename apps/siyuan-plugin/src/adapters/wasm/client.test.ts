@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GraphEngineClient } from "./client";
-import type { EngineWorker } from "./client";
-import type { EngineRequest, EngineResponse } from "./protocol";
-import { copyForTransport, directionCode, transferableBuffers, validateUint32 } from "./protocol";
+import { GraphEngineClient, type EngineWorker } from "./client";
+
+import {
+  type EngineRequest,
+  type EngineResponse,
+  copyForTransport,
+  directionCode,
+  transferableBuffers,
+  validateUint32,
+} from "./protocol";
+
 import type { EngineStats } from "../../application/sessions/graph-engine";
 
 const wasmMock = vi.hoisted(() => ({ initialize: vi.fn() }));

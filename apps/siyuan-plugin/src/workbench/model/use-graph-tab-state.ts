@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { useLocale } from "../../shared/i18n/react";
+import { useEffect } from "react";
 import type { GraphDataset } from "../../core/graph/types";
 import type { GraphFilters } from "../../modules/presets/filters";
 import { graphTabState } from "../presentation/tab-state";
@@ -14,10 +15,8 @@ export function useGraphTabState(
   modified: boolean,
   searchScope?: string,
 ) {
-  const state = useMemo(
-    () => graphTabState(filters, data, name, modified, searchScope),
-    [filters, data, name, modified, searchScope],
-  );
+  useLocale();
+  const state = graphTabState(filters, data, name, modified, searchScope);
   const { title, description } = state;
   useEffect(() => {
     if (window.parent === window) return;

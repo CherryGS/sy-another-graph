@@ -1,3 +1,4 @@
+import { t } from "../../../shared/i18n/runtime";
 import type { EventBus, IEventBusMap } from "siyuan";
 
 const SCOPE_MENU_ID = "sy-another-graph-scope";
@@ -41,7 +42,7 @@ export function registerScopeMenus(
     menu.addItem({
       id: SCOPE_MENU_ID,
       icon: "iconAtlasGraph",
-      label: "在图谱中查看",
+      label: t("text.viewInGraph"),
       click: () => {
         if (!disposed) openScope(id);
       },

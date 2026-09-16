@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import type { Cosmograph } from "@cosmograph/cosmograph";
 import {
   cameraDepthOffset,
@@ -36,7 +37,7 @@ export function positionApi(renderer: unknown): PositionApi {
   if (hasPositionApi(renderer)) return renderer;
   const engine = (renderer as { _cosmos?: unknown } | null)?._cosmos;
   if (hasPositionApi(engine)) return engine;
-  throw new Error("当前渲染器不支持节点位置更新，请重新加载图谱。");
+  throw new MessageError(msg("text.theRendererCannotUpdateNodePositionsPleaseReload"));
 }
 
 export type NodePositions = ReadonlyMap<string, readonly number[]>;
@@ -92,7 +93,7 @@ export function captureNodePositions(
 ): NodePositions {
   const values = positionApi(renderer).getPointPositions({ dimensions });
   if (!values || values.length !== ids.length * dimensions)
-    throw new Error("节点坐标与当前图谱不一致，无法安全保留布局。");
+    throw new MessageError(msg("text.nodeCoordinatesDoNotMatchTheGraphThe"));
   const positions = new Map<string, PointPosition>();
   ids.forEach((id, index) => {
     const point = pointAt(values, index, dimensions);
@@ -111,7 +112,7 @@ export function restoreNodePositions(
   const api = positionApi(renderer);
   const current = api.getPointPositions({ dimensions });
   if (!current || current.length !== ids.length * dimensions)
-    throw new Error("更新后的节点坐标与图谱不一致，无法安全恢复布局。");
+    throw new MessageError(msg("text.updatedCoordinatesDoNotMatchTheGraphThe"));
   const next = new Float32Array(current);
   let restored = 0;
   let changed = false;
@@ -252,11 +253,11 @@ export function beginGroupMotion(
   const api = positionApi(renderer);
   const initial = api.getPointPositions({ dimensions });
   if (!initial || initial.length % dimensions !== 0)
-    throw new Error("暂时无法读取节点位置，请等待图谱完成布局后重试。");
+    throw new MessageError(msg("text.nodePositionsAreNotAvailableYetWaitFor"));
   const roots = [...new Set(indices)].map((index) => {
     const point = pointAt(initial, index, dimensions);
     if (!Number.isSafeInteger(index) || index < 0 || !point.every(Number.isFinite))
-      throw new Error("选中节点的位置已变化，请重新开始拖动。");
+      throw new MessageError(msg("text.selectedNodePositionsChangedPleaseStartDraggingAgain"));
     return { index, point };
   });
   return {
@@ -268,7 +269,7 @@ export function beginGroupMotion(
       if (!delta.every(Number.isFinite)) return;
       const current = api.getPointPositions({ dimensions });
       if (!current || current.length !== initial.length)
-        throw new Error("拖动期间图谱内容发生了变化，请重新开始拖动。");
+        throw new MessageError(msg("text.theGraphChangedWhileDraggingPleaseStartDragging"));
       // Readback is owned by the renderer. Do not mutate a borrowed buffer.
       const next = new Float32Array(current);
       for (const { index, point } of roots)
@@ -295,24 +296,26 @@ export function beginCanvasGroupMotion(
       ? renderer.screenToSpacePosition(screen, { dimensions: 3 })
       : renderer.screenToSpacePosition(screen);
   const origin = unproject(originScreen);
-  if (!origin?.every(Number.isFinite)) throw new Error("暂时无法确定拖动平面，请重试。");
+  if (!origin?.every(Number.isFinite))
+    throw new MessageError(msg("text.cannotDetermineTheDragPlanePleaseRetry"));
   let depthScale = 1;
   if (is3D) {
     const camera = renderer.getCameraState?.();
     const positions = positionApi(renderer).getPointPositions({ dimensions: 3 });
     const grabbed = positions && pointAt(positions, grabbedIndex, 3);
     if (!camera || !grabbed?.every(Number.isFinite))
-      throw new Error("暂时无法确定三维拖动平面，请重试。");
+      throw new MessageError(msg("text.cannotDetermineThe3dDragPlanePleaseRetry"));
     // Public unprojection uses the target-depth plane. Perspective scales its
     // displacement by grabbed-depth / target-depth to reach the root's plane.
     depthScale = 1 - cameraDepthOffset(camera, grabbed) / camera.distance;
     if (!Number.isFinite(depthScale) || depthScale <= 0)
-      throw new Error("节点不在相机前方，请重新开始拖动。");
+      throw new MessageError(msg("text.theNodeIsBehindTheCameraPleaseStart"));
   }
   const motion = beginGroupMotion(renderer, indices, origin, dimensions, depthScale);
   return {
     move(screen) {
-      if (Boolean(renderer.is3D) !== is3D) throw new Error("视图维度已变化，请重新开始拖动。");
+      if (Boolean(renderer.is3D) !== is3D)
+        throw new MessageError(msg("text.theViewDimensionChangedPleaseStartDraggingAgain"));
       const point = unproject([screen[0], screen[1]]);
       if (point?.every(Number.isFinite)) motion.move(point);
     },

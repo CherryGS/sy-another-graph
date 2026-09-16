@@ -18,7 +18,7 @@ describe("persistent preset schema", () => {
     const second = createPresetStore();
     expect(first.activePresetId).toBe(first.presets[0].id);
     expect(first.presets[0]).toMatchObject({
-      name: "文档引用",
+      name: "Document references",
       filters: {
         references: true,
         hierarchy: false,

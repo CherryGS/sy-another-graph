@@ -351,6 +351,7 @@ describe("plugin-lifetime workbench browsing context", () => {
     frame.contentWindow.postMessage.mockClear();
     host.session.announceVisibility();
     expect(frame.contentWindow.postMessage.mock.calls.map(([data]) => data.type)).toEqual([
+      "host-language",
       "host-visibility",
     ]);
     host.session.dispose();

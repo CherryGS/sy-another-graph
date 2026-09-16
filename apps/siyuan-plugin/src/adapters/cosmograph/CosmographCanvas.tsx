@@ -1,10 +1,20 @@
-import { Cosmograph } from "@cosmograph/cosmograph";
-import type { CosmographConfig } from "@cosmograph/cosmograph";
+import {
+  failureOf,
+  type Failure,
+  message as msg,
+  MessageError,
+} from "../../core/diagnostics/message";
+import { text, t } from "../../shared/i18n/runtime";
+
+import { useLocale } from "../../shared/i18n/react";
+
+import { Cosmograph, type CosmographConfig } from "@cosmograph/cosmograph";
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createLocalDuckDB } from "./local-duckdb";
-import type { LocalDuckDB } from "./local-duckdb";
-import { prepareGraph } from "./prepare-graph";
-import type { PreparedGraph } from "./prepare-graph";
+import { createLocalDuckDB, type LocalDuckDB } from "./local-duckdb";
+
+import { prepareGraph, type PreparedGraph } from "./prepare-graph";
+
 import { GraphTableStore } from "./graph-tables";
 import { RendererSession } from "./renderer-session";
 import { DragLabelGuard } from "./drag-label-guard";
@@ -87,13 +97,14 @@ const BASE_CONFIG: CosmographConfig = {
 // Rapid empty-view/remount cycles finish releasing the previous GPU and worker first.
 let previousCleanup: Promise<void> = Promise.resolve();
 const errorMessage = (error: unknown) =>
-  error instanceof Error && error.message ? error.message : "无法绘制图谱，请重试。";
+  error instanceof Error ? failureOf(error) : msg("text.cannotDrawTheGraphPleaseRetry");
 const reportCleanupError = (error: unknown) =>
   console.error("Graph resource cleanup failed", error);
 const subscribeNothing = () => () => {};
 const noDiagnostics = () => null;
 
 export function CosmographCanvas(props: GraphCanvasProps) {
+  const language = useLocale();
   const {
     nodes,
     edges,
@@ -169,8 +180,8 @@ export function CosmographCanvas(props: GraphCanvasProps) {
   const [counts, setCounts] = useState({ nodes: 0, links: 0 });
   const [isPreparing, setIsPreparing] = useState(true);
   const [isRendering, setIsRendering] = useState(false);
-  const [initializationError, setInitializationError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [initializationError, setInitializationError] = useState<Failure | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [hovered, setHovered] = useState<CanvasNode | null>(null);
   const context = hovered ? nodeContext(hovered, props.notebookNames, searchOrigins) : null;
   const [retry, setRetry] = useState(0);
@@ -222,7 +233,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       background?.setActive(false);
       labelGuard?.end();
       owned?.suspend();
-      if (active) setInitializationError("图形上下文已丢失，请重试图谱以恢复显示。");
+      if (active) setInitializationError(t("text.theGraphicsContextWasLostRetryTheGraph"));
     };
     element?.addEventListener("webglcontextlost", handleContextLost, true);
     const initialize = async () => {
@@ -350,12 +361,13 @@ export function CosmographCanvas(props: GraphCanvasProps) {
           pointerPosition: localPosition,
           begin: (ids, origin, grabbedId) => {
             const displayed = owned?.displayed;
-            if (!displayed) throw new Error("图谱尚未就绪。");
+            if (!displayed) throw new MessageError(msg("text.theGraphIsNotReadyYet"));
             const indices = ids.map((id) => displayed.idToIndex.get(id));
             if (indices.some((index) => index === undefined))
-              throw new Error("选中节点已变化，请重新开始拖动。");
+              throw new MessageError(msg("text.theSelectionChangedPleaseStartDraggingAgain"));
             const grabbedIndex = displayed.idToIndex.get(grabbedId);
-            if (grabbedIndex === undefined) throw new Error("拖动节点已变化，请重新开始拖动。");
+            if (grabbedIndex === undefined)
+              throw new MessageError(msg("text.theDraggedNodesChangedPleaseStartDraggingAgain"));
             return beginCanvasGroupMotion(
               graph,
               indices as number[],
@@ -537,17 +549,18 @@ export function CosmographCanvas(props: GraphCanvasProps) {
   }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
   useEffect(() => {
     chosenLabels.current?.update(session?.displayed ?? null, chosenIds, spotlightIds);
-  }, [session, chosenIds, spotlightIds]);
+  }, [session, chosenIds, spotlightIds, language]);
   useEffect(() => {
     session?.fit();
   }, [session, fitRequest]);
 
   const loading = isPreparing || isRendering || !session;
-  const visibleError = initializationError ?? error;
+  const rawError = initializationError ?? error;
+  const visibleError = rawError ? text(rawError) : null;
   return (
     <div
       className="ag-canvas"
-      aria-label="交互式知识图谱"
+      aria-label={t("text.interactiveKnowledgeGraph")}
       aria-busy={loading && !visibleError}
       data-rendered-nodes={counts.nodes}
       data-rendered-links={counts.links}
@@ -614,18 +627,18 @@ export function CosmographCanvas(props: GraphCanvasProps) {
           {communities.error ? (
             <Alert variant="destructive">
               <AlertDescription>
-                社区计算失败：{communities.error} 可重新启用社区聚合重试。
+                {t("community.failure", { detail: communities.error })}
               </AlertDescription>
             </Alert>
           ) : (
             <Badge variant="secondary">
               {communities.pending
-                ? "正在计算社区…"
+                ? t("text.calculatingCommunities")
                 : communities.partition
                   ? communities.partition.count
-                    ? `${communities.partition.count} 个可聚合社区`
-                    : "暂无可聚合社区"
-                  : "准备社区…"}
+                    ? t("text.communitiesAvailableValue", { p0: communities.partition.count })
+                    : t("text.noCommunitiesToGroup")
+                  : t("text.preparingCommunities")}
             </Badge>
           )}
         </div>

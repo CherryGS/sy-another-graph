@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import type { AsyncPointGeometry } from "./geometry";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CommunityPartition } from "../../modules/communities/community-client";
@@ -51,7 +52,8 @@ export class CommunityBackground {
     const context = canvas.getContext("2d");
     const raster = canvas.ownerDocument.createElement("canvas");
     const rasterContext = raster.getContext("2d");
-    if (!context || !rasterContext) throw new Error("无法创建社区背景画布。");
+    if (!context || !rasterContext)
+      throw new MessageError(msg("text.cannotCreateTheCommunityBackgroundCanvas"));
     this.context = context;
     this.raster = raster;
     this.rasterContext = rasterContext;
@@ -164,7 +166,7 @@ export class CommunityBackground {
       if (this.pending !== capture || capture.generation !== this.generation || !this.usable())
         return;
       if (positions.length !== this.data!.pointsCount * 2)
-        throw new Error("社区坐标与当前图不一致。");
+        throw new MessageError(msg("text.communityCoordinatesDoNotMatchTheCurrentGraph"));
       this.positions = positions;
       this.readCount++;
       this.canvas.dataset.positionReads = String(this.readCount);

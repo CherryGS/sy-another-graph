@@ -1,3 +1,5 @@
+import { message as msg, failureOf, type Failure } from "../../core/diagnostics/message";
+import { useLocale } from "../../shared/i18n/react";
 import { explorationLabel } from "../presentation/exploration";
 import {
   hasExplorationNotice,
@@ -52,6 +54,7 @@ type ExplorationResult = ExplorationSummary & {
 };
 
 export function useWorkbenchState() {
+  useLocale();
   const { workspace } = useWorkbenchServices();
   const source = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot);
   const data = source.data;
@@ -61,7 +64,7 @@ export function useWorkbenchState() {
     source.progress ?? (!data && !source.error ? { phase: "preparing" } : null),
   );
   const error = source.error ? userMessage(source.error) : "";
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<Failure>("");
   const [selection, setSelection] = useState({ ...EMPTY_SELECTION });
   const [inspectedEdge, setInspectedEdge] = useState<{
     graph: CurrentGraph;
@@ -257,7 +260,7 @@ export function useWorkbenchState() {
       })
       .catch((failure: unknown) => {
         if (active && ownership.currentToken === requestToken) {
-          setToast(userMessage(failure));
+          setToast(failureOf(failure));
           // A failed replacement must not silently keep a different hop/direction result.
           setExploration((previous) =>
             previous?.graph === loaded.graph &&
@@ -351,11 +354,11 @@ export function useWorkbenchState() {
   };
   const findPath = async (targetId: string) => {
     if (source.refreshing) {
-      setToast("正在更新源数据，请稍后再查找路径。");
+      setToast(msg("text.sourceDataIsUpdatingWaitBeforeFindingA"));
       return;
     }
     if (mentionsPending) {
-      setToast("文本提及仍在计算，完成后可查找包含提及关系的路径。");
+      setToast(msg("text.textMentionsAreStillBeingCalculatedPathsIncluding"));
       return;
     }
     const loadedGraph = engine.current;
@@ -365,7 +368,7 @@ export function useWorkbenchState() {
     const from = selected ? loadedGraph?.topology.idToDense.get(selected.id) : undefined;
     const to = target ? loadedGraph?.topology.idToDense.get(target.id) : undefined;
     if (!loadedGraph || loadedGraph.graph !== currentGraph || from == null || to == null) {
-      setToast("请选择当前图中有效的起点和终点");
+      setToast(msg("text.selectValidStartAndEndNodesInThe"));
       return;
     }
     setBusy(true);
@@ -375,7 +378,7 @@ export function useWorkbenchState() {
       const path = await pendingPath;
       if (!path || requests.current.currentToken !== requestToken) return;
       if (!path.length) {
-        setToast("当前关系设置下没有连接路径");
+        setToast(msg("text.noPathExistsUnderTheCurrentRelationshipSettings"));
         return;
       }
       setExploration({
@@ -388,14 +391,14 @@ export function useWorkbenchState() {
         steps: Math.max(0, path.length - 1),
       });
     } catch (failure) {
-      if (requests.current.currentToken === requestToken) setToast(userMessage(failure));
+      if (requests.current.currentToken === requestToken) setToast(failureOf(failure));
     } finally {
       if (requests.current.currentToken === requestToken) setBusy(false);
     }
   };
   const openNativeBlock = (nativeId: string | null) => {
     if (!nativeId || !NATIVE_ID.test(nativeId)) {
-      setToast("该节点在当前范围内暂无可打开的原生上下文");
+      setToast(msg("text.thisNodeHasNoNativeContextAvailableIn"));
       return;
     }
     if (window.parent !== window)
@@ -403,7 +406,7 @@ export function useWorkbenchState() {
         { channel: CHANNEL, type: "open-block", id: nativeId },
         window.location.origin,
       );
-    else setToast("请从思源插件页签打开图谱，以跳转到原文");
+    else setToast(msg("text.openTheGraphInASiyuanPluginTab2"));
   };
   const openDocument = (id: string) =>
     openNativeBlock(data && currentGraph ? resolveOpenBlock(id, data, currentGraph) : null);
@@ -421,7 +424,7 @@ export function useWorkbenchState() {
     currentLookups,
     loading,
     error: error || engineError,
-    toast,
+    toast: toast ? userMessage(toast) : "",
     setToast,
     load,
     filters,

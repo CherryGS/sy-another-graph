@@ -1,3 +1,6 @@
+import { failureOf, type Failure } from "../../core/diagnostics/message";
+import { useLocale } from "../../shared/i18n/react";
+import { text } from "../../shared/i18n/runtime";
 import { useEffect, useMemo, useState } from "react";
 import type { GraphLike } from "../../core/graph/graph-lookups";
 import {
@@ -14,10 +17,11 @@ interface Input {
 interface Result {
   input: Input;
   partition?: CommunityPartition;
-  error?: string;
+  error?: Failure;
 }
 
 export function useCommunities(data: GraphLike | null, enabled: boolean, resolution: number) {
+  useLocale();
   const input = useMemo(() => ({ data, enabled, resolution }), [data, enabled, resolution]);
   const [result, setResult] = useState<Result | null>(null);
   useEffect(() => {
@@ -39,8 +43,7 @@ export function useCommunities(data: GraphLike | null, enabled: boolean, resolut
         if (!controller.signal.aborted) setResult({ input, partition });
       })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({ input, error: error instanceof Error ? error.message : "社区计算失败。" });
+        if (!controller.signal.aborted) setResult({ input, error: failureOf(error) });
       });
     return () => controller.abort();
   }, [input]);
@@ -50,7 +53,7 @@ export function useCommunities(data: GraphLike | null, enabled: boolean, resolut
   return {
     graph: current?.input.data,
     partition,
-    error: current?.error,
+    error: current?.error ? text(current.error) : undefined,
     pending: enabled && !!data?.nodes.length && !current,
   };
 }

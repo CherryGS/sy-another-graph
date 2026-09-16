@@ -1,3 +1,6 @@
+import { message as msg } from "../../core/diagnostics/message";
+import { useLocale } from "../../shared/i18n/react";
+import { t, text } from "../../shared/i18n/runtime";
 import { useEffect, useRef, useState, type RefObject, type SetStateAction } from "react";
 import type { GraphDataset } from "../../core/graph/types";
 import type { GraphFilters } from "./filters";
@@ -14,12 +17,14 @@ export function useFilterPresets(
   dataRef: RefObject<GraphDataset | null>,
   setFilters: (action: SetStateAction<GraphFilters>) => void,
 ) {
+  useLocale();
   const [snapshot, setSnapshot] = useState(initialPresetSnapshot);
   const controller = useRef<PresetController | null>(null);
   useEffect(() => {
     const current = new PresetController(
       new PresetClient(window),
       {
+        defaultName: () => t("text.documentReferences"),
         getFilters: () => filtersRef.current,
         applyFilters: (rules) => setFilters((previous) => applyPresetFilters(previous, rules)),
         ruleRevision: () => ruleRevisionRef.current,
@@ -27,11 +32,13 @@ export function useFilterPresets(
         validate: (rules) => {
           const data = dataRef.current;
           if (!data)
-            return rules.scopeId || rules.notebook ? "请等待图谱数据读取完成后切换预设。" : "";
+            return rules.scopeId || rules.notebook
+              ? msg("text.waitForTheGraphDataToFinishLoading")
+              : "";
           if (rules.notebook && !data.notebooks.some((book) => book.id === rules.notebook))
-            return "该预设的笔记本已不可用；当前范围保持不变。";
+            return msg("text.thePresetSNotebookIsUnavailableTheCurrent");
           if (rules.scopeId && !getGraphLookups(data).byId.has(rules.scopeId))
-            return "该预设的范围已不可用；当前范围保持不变。";
+            return msg("text.thePresetSScopeIsUnavailableTheCurrent");
           return "";
         },
       },
@@ -54,10 +61,13 @@ export function useFilterPresets(
     loading: snapshot.loading,
     saving: snapshot.saving,
     available: snapshot.available,
-    error: snapshot.error,
+    error: text(snapshot.error),
     presets: snapshot.store.presets,
     activeId: active?.id ?? null,
-    activeName: active?.name ?? "自定义",
+    activeName:
+      snapshot.loading && active?.id === "documents"
+        ? t("text.documentReferences")
+        : (active?.name ?? t("text.custom")),
     modified: !!active && !samePresetFilters(filters, active.filters),
     deleted: snapshot.deleted,
     retry: () => {

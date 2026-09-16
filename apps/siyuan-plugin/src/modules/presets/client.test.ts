@@ -98,12 +98,28 @@ describe("preset host client", () => {
     {
       label: "unsupported store",
       payload: { ok: true, store: { version: 2 } },
-      error: "预设数据格式不受支持",
+      error: "text.thePresetFormatIsUnsupportedTheOriginalFile",
     },
-    { label: "missing store", payload: { ok: true }, error: "预设数据格式不受支持" },
-    { label: "missing status", payload: { store: null }, error: "无效的预设响应" },
-    { label: "non-boolean status", payload: { ok: "true", store: null }, error: "无效的预设响应" },
-    { label: "invalid failure detail", payload: { ok: false, error: 42 }, error: "无效的预设响应" },
+    {
+      label: "missing store",
+      payload: { ok: true },
+      error: "text.thePresetFormatIsUnsupportedTheOriginalFile",
+    },
+    {
+      label: "missing status",
+      payload: { store: null },
+      error: "text.siyuanReturnedAnInvalidPresetResponse",
+    },
+    {
+      label: "non-boolean status",
+      payload: { ok: "true", store: null },
+      error: "text.siyuanReturnedAnInvalidPresetResponse",
+    },
+    {
+      label: "invalid failure detail",
+      payload: { ok: false, error: 42 },
+      error: "text.siyuanReturnedAnInvalidPresetResponse",
+    },
   ])("rejects $label and clears its timeout", async ({ payload, error }) => {
     const h = host();
     const loaded = h.client.load();
@@ -116,7 +132,7 @@ describe("preset host client", () => {
   it("times out once, ignores a late reply, and accepts a subsequent request", async () => {
     const h = host();
     const loaded = h.client.load();
-    const rejected = expect(loaded).rejects.toThrow("思源未及时回应预设请求");
+    const rejected = expect(loaded).rejects.toThrow("text.siyuanDidNotRespondToThePresetRequest");
     await vi.advanceTimersByTimeAsync(1_000);
     await rejected;
     expect(vi.getTimerCount()).toBe(0);
@@ -136,8 +152,10 @@ describe("preset host client", () => {
 
   it("disposes the listener and all pending requests, then refuses more work", async () => {
     const h = host();
-    const loaded = expect(h.client.load()).rejects.toThrow("预设连接已关闭");
-    const saved = expect(h.client.save(createPresetStore())).rejects.toThrow("预设连接已关闭");
+    const loaded = expect(h.client.load()).rejects.toThrow("text.thePresetConnectionIsClosed");
+    const saved = expect(h.client.save(createPresetStore())).rejects.toThrow(
+      "text.thePresetConnectionIsClosed",
+    );
     expect(vi.getTimerCount()).toBe(2);
     h.client.dispose();
     await Promise.all([loaded, saved]);
@@ -145,9 +163,9 @@ describe("preset host client", () => {
     expect(h.removeListener).toHaveBeenCalledWith("message", h.addListener.mock.calls[0]![1]);
     expect(vi.getTimerCount()).toBe(0);
     h.message(h.response(h.request().request, { ok: true, store: null }));
-    await expect(h.client.load()).rejects.toThrow("请在思源插件页签中读取和保存预设");
+    await expect(h.client.load()).rejects.toThrow("text.openTheGraphInASiyuanPluginTab");
     await expect(h.client.save(createPresetStore())).rejects.toThrow(
-      "请在思源插件页签中读取和保存预设",
+      "text.openTheGraphInASiyuanPluginTab",
     );
     expect(h.parent.postMessage).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
@@ -156,9 +174,9 @@ describe("preset host client", () => {
   it("rejects standalone browser requests without sending or scheduling them", async () => {
     const h = host();
     Object.defineProperty(h.target, "parent", { value: h.target });
-    await expect(h.client.load()).rejects.toThrow("请在思源插件页签中读取和保存预设");
+    await expect(h.client.load()).rejects.toThrow("text.openTheGraphInASiyuanPluginTab");
     await expect(h.client.save(createPresetStore())).rejects.toThrow(
-      "请在思源插件页签中读取和保存预设",
+      "text.openTheGraphInASiyuanPluginTab",
     );
     expect(h.parent.postMessage).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);

@@ -1,3 +1,5 @@
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { presentNode } from "../../presentation/present-nodes";
 import { useId, useState } from "react";
 import { ArrowUpRight, ChevronDown, GitBranch, X } from "lucide-react";
@@ -24,9 +26,10 @@ import { NODE_TYPE_LABELS } from "../../presentation/graph-labels";
 import { NodeRelations } from "./NodeRelations";
 import { NativePreviewButton } from "./NativePreviewButton";
 import { SearchOriginBadge } from "./SearchOriginBadge";
-import { searchOriginDescription } from "../../../modules/search/origins";
+import { searchOriginDescription } from "../../presentation/search-origins";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
+  useLocale();
   const [target, setTarget] = useState("");
   const targetId = useId();
   const node = state.selected;
@@ -35,7 +38,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
   const notebook = state.data?.notebooks.find((book) => book.id === node.notebook);
 
   return (
-    <aside className="inspector-panel" aria-label="节点详情">
+    <aside className="inspector-panel" aria-label={t("text.nodeDetails")}>
       <Card className="h-full min-h-0">
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-2">
@@ -53,7 +56,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 nativeId={nativeId}
                 variant="ghost"
                 className="h-auto min-w-0 flex-1 justify-start px-1 py-0.5"
-                aria-label={`打开当前节点原文：${node.label}`}
+                aria-label={t("text.openNodeSourceValue", { p0: node.label })}
                 onClick={() => state.openDocument(node.id)}
               >
                 <span data-native-preview-anchor className="min-w-0 truncate">
@@ -73,13 +76,13 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="关闭节点详情"
+                  aria-label={t("text.closeNodeDetails")}
                   onClick={state.closeInspector}
                 >
                   <X />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>关闭节点详情</TooltipContent>
+              <TooltipContent>{t("text.closeNodeDetails")}</TooltipContent>
             </Tooltip>
           </CardAction>
           <CardDescription className="flex flex-wrap items-center gap-2">
@@ -110,14 +113,16 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 </p>
               )}
             <p className="text-xs text-muted-foreground">
-              {nativeId ? "悬浮上方标题预览原文，点击标题打开。" : "该节点暂无可预览的原生上下文。"}
+              {nativeId
+                ? t("text.hoverOverTheTitleToPreviewTheSource")
+                : t("text.thisNodeHasNoNativeContextAvailableFor")}
             </p>
             <Separator />
             <NodeRelations node={node} state={state} />
             <Collapsible>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="group w-full justify-between">
-                  节点信息
+                  {t("text.nodeInformation")}
                   <ChevronDown
                     data-icon="inline-end"
                     className="transition-transform group-data-[state=open]:rotate-180"
@@ -128,15 +133,25 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
                   <code className="break-all">{node.id}</code>
                   {node.path && <p className="break-all">{node.path}</p>}
-                  {node.databaseId && <p className="break-all">数据库：{node.databaseId}</p>}
-                  {node.itemId && <p className="break-all">条目：{node.itemId}</p>}
+                  {node.databaseId && (
+                    <p className="break-all">
+                      {t("text.database2")}
+                      {node.databaseId}
+                    </p>
+                  )}
+                  {node.itemId && (
+                    <p className="break-all">
+                      {t("text.item")}
+                      {node.itemId}
+                    </p>
+                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
             <Collapsible>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="group w-full justify-between">
-                  已有路径工具
+                  {t("text.pathFinder")}
                   <ChevronDown
                     data-icon="inline-end"
                     className="transition-transform group-data-[state=open]:rotate-180"
@@ -153,10 +168,10 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                 >
                   <FieldGroup>
                     <Field>
-                      <FieldLabel htmlFor={targetId}>目标标题或 ID</FieldLabel>
+                      <FieldLabel htmlFor={targetId}>{t("text.targetTitleOrId")}</FieldLabel>
                       <Input
                         id={targetId}
-                        aria-label="路径目标节点"
+                        aria-label={t("text.pathTargetNode")}
                         value={target}
                         onChange={(event) => setTarget(event.target.value)}
                       />
@@ -168,7 +183,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
                       disabled={state.busy || !target}
                     >
                       <GitBranch data-icon="inline-start" />
-                      查找路径
+                      {t("text.findPath")}
                     </Button>
                   </FieldGroup>
                 </form>

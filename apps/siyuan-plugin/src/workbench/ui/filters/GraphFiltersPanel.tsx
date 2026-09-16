@@ -1,3 +1,6 @@
+import { locale } from "../../../shared/i18n/runtime";
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -42,6 +45,7 @@ export function GraphFiltersPanel({
   onBack: () => void;
   footer: ReactNode;
 }) {
+  useLocale();
   const { filters, setFilters, data } = state;
   const backRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -69,36 +73,38 @@ export function GraphFiltersPanel({
     .filter(Boolean)
     .every((id) => NATIVE_ID.test(id));
   return (
-    <section className="filter-panel" aria-label="图谱筛选">
+    <section className="filter-panel" aria-label={t("text.graphFilters")}>
       <div className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Button
             ref={backRef}
             variant="ghost"
             size="icon-sm"
-            aria-label="返回筛选预设"
+            aria-label={t("text.backToFilterPresets")}
             onClick={onBack}
           >
             <ArrowLeft />
           </Button>
           <h2 className="min-w-0 truncate font-medium" title={state.filterPresets.activeName}>
-            编辑筛选：{state.filterPresets.activeName}
+            {t("preset.edit", { name: state.filterPresets.activeName })}
           </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           {state.filterPresets.temporaryActive
-            ? "临时范围包含命中节点及其到顶层文档的祖先链，以下筛选可进一步缩小范围。"
-            : "筛选自动生效，排除词组需点击应用。"}
+            ? t("text.theTemporaryScopeIncludesMatchesAndTheirAncestor")
+            : t("text.filtersApplyAutomaticallyApplyExcludedPhrasesWithThe")}
         </p>
       </div>
       <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
         <div className="px-4 pb-4">
           <FieldGroup>
             <Field data-invalid={!scopeValid}>
-              <FieldLabel htmlFor="graph-scope">初始范围 · 文档或块 ID</FieldLabel>
+              <FieldLabel htmlFor="graph-scope">
+                {t("text.initialScopeDocumentOrBlockId")}
+              </FieldLabel>
               <Input
                 id="graph-scope"
-                placeholder="留空查看全部内容"
+                placeholder={t("text.leaveEmptyToViewEverything")}
                 value={scopeDraft}
                 aria-invalid={!scopeValid}
                 onChange={(event) => {
@@ -109,13 +115,15 @@ export function GraphFiltersPanel({
                 }}
               />
               <FieldDescription>
-                多跳仅在初始范围内查找，不展示范围外节点；范围内背景保持可见。
+                {t("text.traversalStaysWithinTheInitialScopeNodesOutside")}
               </FieldDescription>
-              {!scopeValid && <FieldError>请输入完整块 ID；当前范围保持原值。</FieldError>}
+              {!scopeValid && (
+                <FieldError>{t("text.enterACompleteBlockIdThePreviousScope")}</FieldError>
+              )}
             </Field>
             <SettingSwitch
               id="include-children"
-              name="包含子文档"
+              name={t("text.includeChildDocuments")}
               checked={filters.includeChildDocuments}
               onChange={(includeChildDocuments) =>
                 setFilters((previous) => ({
@@ -125,11 +133,13 @@ export function GraphFiltersPanel({
               }
             />
             <Field data-invalid={!exclusionsValid}>
-              <FieldLabel htmlFor="graph-exclusions">排除这些 ID 下的内容</FieldLabel>
+              <FieldLabel htmlFor="graph-exclusions">
+                {t("text.excludeTheseIdsAndTheirDescendants")}
+              </FieldLabel>
               <Textarea
                 id="graph-exclusions"
                 rows={2}
-                placeholder="每行一个文档或块 ID"
+                placeholder={t("text.oneDocumentOrBlockIdPerLine")}
                 value={excludeDraft}
                 aria-invalid={!exclusionsValid}
                 onChange={(event) => {
@@ -143,10 +153,12 @@ export function GraphFiltersPanel({
                     }));
                 }}
               />
-              {!exclusionsValid && <FieldError>包含不完整的 ID；原排除条件仍生效。</FieldError>}
+              {!exclusionsValid && (
+                <FieldError>{t("text.someIdsAreIncompleteThePreviousExclusionsRemain")}</FieldError>
+              )}
             </Field>
             <Field>
-              <FieldLabel htmlFor="notebook-filter">笔记本</FieldLabel>
+              <FieldLabel htmlFor="notebook-filter">{t("text.notebook")}</FieldLabel>
               <Select
                 value={filters.notebook || "all"}
                 onValueChange={(value) =>
@@ -161,7 +173,7 @@ export function GraphFiltersPanel({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="all">全部笔记本</SelectItem>
+                    <SelectItem value="all">{t("text.allNotebooks")}</SelectItem>
                     {data?.notebooks.map((book) => (
                       <SelectItem key={book.id} value={book.id}>
                         {book.name}
@@ -172,28 +184,28 @@ export function GraphFiltersPanel({
               </Select>
             </Field>
             <FieldSet>
-              <FieldLegend>关系</FieldLegend>
+              <FieldLegend>{t("filter.relationships")}</FieldLegend>
               <FieldGroup>
                 <SettingSwitch
                   id="reference-filter"
-                  name="块引用 · 实线"
+                  name={t("text.blockReferencesSolid")}
                   checked={filters.references}
                   onChange={(references) => setFilters((previous) => ({ ...previous, references }))}
                 />
                 <SettingSwitch
                   id="hierarchy-filter"
-                  name="包含关系 · 虚线"
+                  name={t("text.containmentDashed")}
                   checked={filters.hierarchy}
                   onChange={(hierarchy) => setFilters((previous) => ({ ...previous, hierarchy }))}
                 />
                 <SettingSwitch
                   id="database-filter"
-                  name="数据库关系"
+                  name={t("text.databaseRelationships")}
                   checked={filters.databases}
                   onChange={(databases) => setFilters((previous) => ({ ...previous, databases }))}
                 />
                 <FieldDescription>
-                  每条启用的关系计 1 跳；关闭的关系不参与邻域扩展。
+                  {t("text.eachEnabledRelationshipCostsOneHopDisabledRelationships")}
                 </FieldDescription>
                 <MentionControls
                   mode={filters.mentions}
@@ -212,7 +224,7 @@ export function GraphFiltersPanel({
                 />
                 <SettingSwitch
                   id="isolated-filter"
-                  name="隐藏未选中的孤立节点"
+                  name={t("text.hideUnselectedIsolatedNodes")}
                   checked={filters.hideIsolated}
                   onChange={(hideIsolated) =>
                     setFilters((previous) => ({ ...previous, hideIsolated }))
@@ -221,7 +233,7 @@ export function GraphFiltersPanel({
               </FieldGroup>
             </FieldSet>
             <FieldSet>
-              <FieldLegend>节点类型</FieldLegend>
+              <FieldLegend>{t("text.nodeTypes")}</FieldLegend>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -234,7 +246,7 @@ export function GraphFiltersPanel({
                     }))
                   }
                 >
-                  全部类型
+                  {t("text.allTypes")}
                 </Button>
                 <Button
                   variant="outline"
@@ -247,7 +259,7 @@ export function GraphFiltersPanel({
                     }))
                   }
                 >
-                  仅文档
+                  {t("text.documentsOnly")}
                 </Button>
               </div>
               <FieldGroup className="gap-3">
@@ -255,7 +267,7 @@ export function GraphFiltersPanel({
                   <Field key={type} orientation="horizontal" data-disabled={type === "d"}>
                     <Checkbox
                       id={`type-${type}`}
-                      aria-label={`显示${NODE_TYPE_LABELS[type] ?? type}`}
+                      aria-label={t("text.showValue", { p0: NODE_TYPE_LABELS[type] ?? type })}
                       disabled={type === "d"}
                       checked={!isTypeHidden(filters, type)}
                       onCheckedChange={(checked) =>
@@ -279,12 +291,12 @@ export function GraphFiltersPanel({
                     <FieldLabel htmlFor={`type-${type}`}>
                       {NODE_TYPE_LABELS[type] ?? type}
                     </FieldLabel>
-                    <Badge variant="secondary">{count.toLocaleString()}</Badge>
+                    <Badge variant="secondary">{count.toLocaleString(locale())}</Badge>
                   </Field>
                 ))}
               </FieldGroup>
               <FieldDescription>
-                隐藏块的引用归入所属文档；隐藏已选块会取消其选择与固定。
+                {t("text.referencesFromHiddenBlocksBelongToTheirDocument")}
               </FieldDescription>
             </FieldSet>
           </FieldGroup>
@@ -294,7 +306,7 @@ export function GraphFiltersPanel({
       <div className="flex flex-col gap-2 p-3">
         {footer}
         <Button variant="outline" className="w-full" onClick={state.resetFilters}>
-          重置筛选
+          {t("text.resetFilters")}
         </Button>
       </div>
     </section>

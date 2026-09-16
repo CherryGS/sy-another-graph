@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_GRAPH_TAB_TITLE, GraphTabTitle } from "./graph-tab-title";
+import { defaultGraphTabTitle, GraphTabTitle } from "./graph-tab-title";
 
 function harness() {
   const source = {};
@@ -43,7 +43,7 @@ describe("graph tab state", () => {
     const h = harness();
     const first = h.tab();
     h.titles.attach(first);
-    expect(first.title).toBe(DEFAULT_GRAPH_TAB_TITLE);
+    expect(first.title).toBe(defaultGraphTabTitle());
     h.message();
     expect(first.title).toBe("图谱 · 项目 A · 阅读");
     h.titles.detach(first);
@@ -93,7 +93,7 @@ describe("graph tab state", () => {
       { description: "bad\u0085name" },
     ])
       h.message(data);
-    expect(tab.title).toBe(DEFAULT_GRAPH_TAB_TITLE);
+    expect(tab.title).toBe(defaultGraphTabTitle());
     expect(tab.updateTitle).toHaveBeenCalledOnce();
     h.titles.dispose();
     h.message();

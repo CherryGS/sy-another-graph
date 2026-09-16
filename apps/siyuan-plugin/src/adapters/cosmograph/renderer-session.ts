@@ -1,3 +1,5 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
+import { t } from "../../shared/i18n/runtime";
 import type { Cosmograph, CosmographConfig } from "@cosmograph/cosmograph";
 import type { GraphTableStore, UploadedGraph } from "./graph-tables";
 import type { PreparedGraph } from "./prepare-graph";
@@ -396,8 +398,13 @@ export class RendererSession {
         if (!this.isCurrent(revision)) return null;
         const stats = this.graph.stats;
         if (stats.pointsCount !== data.pointsCount || stats.linksCount !== data.linksCount) {
-          throw new Error(
-            `图谱未完整载入：应有 ${data.pointsCount.toLocaleString()} 个节点、${data.linksCount.toLocaleString()} 条连线；实际 ${stats.pointsCount.toLocaleString()} 个节点、${stats.linksCount.toLocaleString()} 条连线。请重试图谱。`,
+          throw new MessageError(
+            msg("text.theGraphIsIncompleteExpectedValueNodesAnd", {
+              p0: data.pointsCount,
+              p1: data.linksCount,
+              p2: stats.pointsCount,
+              p3: stats.linksCount,
+            }),
           );
         }
         this.currentData = data;
@@ -582,7 +589,8 @@ export class RendererSession {
       this.currentConfig = null;
       this.lastViewport = null;
       this.diagnosticListeners.clear();
-      if (failures.length) throw new AggregateError(failures, "图谱资源清理失败。");
+      if (failures.length)
+        throw new AggregateError(failures, t("text.failedToReleaseGraphResources"));
     });
     return this.disposal;
   }

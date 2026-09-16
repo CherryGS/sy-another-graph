@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SearchApi } from "./collect";
-import { collectSearchResults, type SearchConfig } from "./collect";
+import { type SearchApi, collectSearchResults, type SearchConfig } from "./collect";
+
 import { readOnlySearchProbe } from "./sql";
 
 const id = (index: number) => `20260913000000-${index.toString(36).padStart(7, "0")}`;
@@ -67,7 +67,7 @@ describe("complete native search snapshots", () => {
       .mockResolvedValueOnce(page([1], 3))
       .mockResolvedValueOnce(page([2], 4));
     await expect(collectSearchResults(config, signal(), () => {}, request(mock))).rejects.toThrow(
-      "发生变化",
+      "text.searchResultsChangedWhileReadingValueValueSearch",
     );
   });
   it.each([{ indices: [] }, { indices: [1] }])(
@@ -78,7 +78,7 @@ describe("complete native search snapshots", () => {
         .mockResolvedValueOnce(page([1], 3))
         .mockResolvedValueOnce(page(indices, 3));
       await expect(collectSearchResults(config, signal(), () => {}, request(mock))).rejects.toThrow(
-        "分页不完整",
+        "text.searchPaginationIsIncompleteValueValueDistinctBlocks",
       );
       expect(mock).toHaveBeenCalledTimes(2);
     },

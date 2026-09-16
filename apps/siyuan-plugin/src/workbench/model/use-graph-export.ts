@@ -1,9 +1,10 @@
+import { message as msg, failureOf, type Failure } from "../../core/diagnostics/message";
+import { useLocale } from "../../shared/i18n/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphDataset } from "../../core/graph/types";
 import type { GraphView } from "../../core/scope/graph-model";
 import type { ExportFile } from "../../modules/export/export";
 import { presentNodes } from "../presentation/present-nodes";
-import { userMessage } from "../presentation/errors";
 import { useWorkbenchServices } from "./services";
 
 export function useGraphExport(
@@ -11,8 +12,9 @@ export function useGraphExport(
   view: GraphView,
   refreshing: boolean,
   mentionsPending: boolean,
-  notify: (message: string) => void,
+  notify: (message: Failure) => void,
 ) {
+  useLocale();
   const { exportGraph: write } = useWorkbenchServices();
   const input = useMemo(
     () => ({ data, view, refreshing, mentionsPending }),
@@ -36,7 +38,7 @@ export function useGraphExport(
   const exportGraph = async () => {
     if (!data || refreshing || (state?.input === input && state.pending)) return;
     if (mentionsPending) {
-      notify("文本提及仍在计算，完成后可导出包含提及关系的图谱。");
+      notify(msg("text.textMentionsAreStillBeingCalculatedExportThe"));
       return;
     }
     const request = ++sequence.current;
@@ -51,11 +53,11 @@ export function useGraphExport(
       );
       if (request !== sequence.current || controller.signal.aborted) return;
       setState({ input, pending: false, file });
-      notify("JSON 文件已生成，点击「下载 JSON」保存");
+      notify(msg("text.theJsonFileIsReadySelectDownloadJson"));
     } catch (failure) {
       if (request !== sequence.current || controller.signal.aborted) return;
       setState({ input, pending: false, file: null });
-      notify(userMessage(failure));
+      notify(failureOf(failure));
     }
   };
   return {

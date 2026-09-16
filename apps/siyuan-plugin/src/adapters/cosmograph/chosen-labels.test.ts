@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach as beforeLocaleTest, describe, expect, it, vi } from "vitest";
+import { setLocale } from "../../shared/i18n/runtime";
+beforeLocaleTest(() => setLocale("zh-CN"));
+
 import { ChosenLabels } from "./chosen-labels";
 import type { PreparedGraph } from "./prepare-graph";
 import type { Dimensions, PointPosition } from "./geometry";

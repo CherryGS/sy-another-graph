@@ -1,7 +1,13 @@
 import init, { WasmGraph } from "../../../wasm/graph_core.js";
 import wasmUrl from "../../../wasm/graph_core_bg.wasm?url";
-import type { EngineRequest, EngineResponse } from "./protocol";
-import { copyForTransport, directionCode, transferableBuffers } from "./protocol";
+import {
+  type EngineRequest,
+  type EngineResponse,
+  copyForTransport,
+  directionCode,
+  transferableBuffers,
+} from "./protocol";
+
 import type { GraphTransport } from "../../application/sessions/graph-engine";
 
 interface Scope {

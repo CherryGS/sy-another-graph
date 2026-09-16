@@ -1,7 +1,8 @@
 import type { CanvasNode } from "./types";
 import { nodeType } from "../../core/scope/graph-model";
 import { NODE_TYPE_LABELS } from "./graph-labels";
-import { searchOriginDescription, type SearchOrigins } from "../../modules/search/origins";
+import { searchOriginDescription } from "./search-origins";
+import { type SearchOrigins } from "../../modules/search/origins";
 
 /** Context is rendered as text, never as source HTML or Markdown. */
 export function nodeContext(

@@ -1,3 +1,5 @@
+import { useLocale } from "../../../shared/i18n/react";
+import { t } from "../../../shared/i18n/runtime";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/shared/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { Progress } from "@/shared/ui/progress";
@@ -15,16 +17,17 @@ export function MentionControls({
   onModeChange,
   onPhrasesChange,
 }: MentionControlsProps) {
+  useLocale();
   const { progress, ready, error, pending } = status;
   return (
     <FieldGroup className="gap-3">
       <Field>
-        <FieldLabel>文本提及 · 点线</FieldLabel>
+        <FieldLabel>{t("text.textMentionsDotted")}</FieldLabel>
         <ToggleGroup
           type="single"
           size="sm"
           variant="outline"
-          aria-label="文本提及模式"
+          aria-label={t("text.textMentionMode")}
           value={mode}
           className="w-full"
           onValueChange={(value) => {
@@ -32,46 +35,48 @@ export function MentionControls({
           }}
         >
           <ToggleGroupItem value="off" className="flex-1">
-            关闭
+            {t("text.off")}
           </ToggleGroupItem>
           <ToggleGroupItem value="selected" className="flex-1">
-            已选节点
+            {t("text.selectedNodes")}
           </ToggleGroupItem>
           <ToggleGroupItem value="all" className="flex-1">
-            范围内全部
+            {t("text.allInScope")}
           </ToggleGroupItem>
         </ToggleGroup>
         <FieldDescription>
-          按文档标题、命名或别名匹配正文，保留原文依据。已选模式包含所选文档正文和所选块的入向、出向提及；启用后每条关系计
-          1 跳。
+          {t("text.matchDocumentTitlesNamesAndAliasesAgainstProse")}
         </FieldDescription>
         {error ? (
           <>
             <FieldDescription>{error}</FieldDescription>
             <Button variant="outline" size="sm" onClick={status.retry}>
-              重试文本提及
+              {t("text.retryTextMentions")}
             </Button>
           </>
         ) : !ready ? (
           <>
             <Progress
-              aria-label="文本提及索引进度"
+              aria-label={t("text.textMentionIndexingProgress")}
               value={progress.total ? (progress.scanned / progress.total) * 100 : 0}
             />
             <FieldDescription>
-              后台索引 {progress.scanned.toLocaleString()} / {progress.total.toLocaleString()}{" "}
-              个正文块；完成后显示匹配结果。
+              {t("mentions.indexing", { read: progress.scanned, total: progress.total })}
             </FieldDescription>
           </>
         ) : (
           <FieldDescription>
-            {progress.keywords.toLocaleString()} 个名称已就绪 · 复用{" "}
-            {progress.cached.toLocaleString()} 个正文块缓存
-            {pending && " · 更新关系中"}
+            {t("mentions.ready", {
+              names: progress.keywords,
+              cached: progress.cached,
+              updating: pending ? t("text.updatingRelationships") : "",
+            })}
           </FieldDescription>
         )}
         {mode === "selected" && !chosenCount && (
-          <FieldDescription>选择节点后显示相关提及，Shift 点击可以多选。</FieldDescription>
+          <FieldDescription>
+            {t("text.selectNodesToShowRelatedMentionsShiftClick")}
+          </FieldDescription>
         )}
       </Field>
       <MentionExclusions key={editorKey} phrases={phrases} onApply={onPhrasesChange} />

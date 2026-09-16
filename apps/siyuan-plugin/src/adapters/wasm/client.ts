@@ -1,12 +1,14 @@
 import GraphWorkerConstructor from "./engine.worker.ts?worker";
-import type { EngineRequest, EngineResponse } from "./protocol";
 import {
+  type EngineRequest,
+  type EngineResponse,
   copyForTransport,
   directionCode,
   supportsSharedTransport,
   transferableBuffers,
   validateUint32,
 } from "./protocol";
+
 import type {
   EngineStats,
   GraphDirection,

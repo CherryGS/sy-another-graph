@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach as beforeLocaleTest, describe, expect, it } from "vitest";
+import { setLocale } from "../../shared/i18n/runtime";
+beforeLocaleTest(() => setLocale("zh-CN"));
+
 import { projectGraph, searchAncestorIds } from "../../core/scope/graph-model";
 import { type GraphDataset } from "../../core/graph/types";
 import { DEFAULT_FILTERS, type GraphFilters } from "../presets/filters";
-import { buildSearchOrigins, searchNodeOrigin, searchOriginDescription } from "./origins";
+import { searchOriginDescription } from "../../workbench/presentation/search-origins";
+import { buildSearchOrigins, searchNodeOrigin } from "./origins";
 
 const data: GraphDataset = {
   nodes: [

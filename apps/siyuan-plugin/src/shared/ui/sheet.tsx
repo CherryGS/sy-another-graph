@@ -1,3 +1,5 @@
+import { useLocale } from "../i18n/react";
+import { t } from "../i18n/runtime";
 import * as React from "react";
 import { cn } from "cn";
 import { Dialog as SheetPrimitive } from "radix-ui";
@@ -6,18 +8,22 @@ import { Button } from "@/shared/ui/button";
 import { XIcon } from "lucide-react";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  useLocale();
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
 function SheetTrigger({ ...props }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+  useLocale();
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
 function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  useLocale();
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
 function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  useLocale();
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
@@ -25,6 +31,7 @@ function SheetOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+  useLocale();
   return (
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
@@ -47,6 +54,7 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
+  useLocale();
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -64,7 +72,7 @@ function SheetContent({
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm">
               <XIcon />
-              <span className="sr-only">关闭</span>
+              <span className="sr-only">{t("common.close")}</span>
             </Button>
           </SheetPrimitive.Close>
         )}
@@ -74,6 +82,7 @@ function SheetContent({
 }
 
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
+  useLocale();
   return (
     <div
       data-slot="sheet-header"
@@ -84,6 +93,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
+  useLocale();
   return (
     <div
       data-slot="sheet-footer"
@@ -94,6 +104,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Title>) {
+  useLocale();
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
@@ -107,6 +118,7 @@ function SheetDescription({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Description>) {
+  useLocale();
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"

@@ -1,3 +1,4 @@
+import type { Failure } from "../../core/diagnostics/message";
 import type {
   MentionBlock,
   MentionMode,
@@ -28,4 +29,4 @@ export type MentionResponse =
       request: number;
       result: MentionResult;
     }
-  | { kind: "error"; revision: number; scopeRevision?: number; request?: number; message: string };
+  | { kind: "error"; revision: number; scopeRevision?: number; request?: number; message: Failure };

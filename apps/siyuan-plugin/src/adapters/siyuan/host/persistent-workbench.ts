@@ -1,3 +1,4 @@
+import { locale } from "../../../shared/i18n/runtime";
 import { isNativeBlockId } from "./scope-menu";
 import { NativeBlockPreview } from "./native-preview";
 import { readSearchSnapshot, type SearchGraphSnapshot } from "../../../modules/search/model";
@@ -99,8 +100,17 @@ export class PersistentWorkbench {
   }
 
   /** Respond to the child handshake even if visibility has not changed. */
+  announceLanguage(): void {
+    if (this.disposed) return;
+    this.frame?.contentWindow?.postMessage(
+      { channel: WORKBENCH_CHANNEL, type: "host-language", language: locale() },
+      window.location.origin,
+    );
+  }
+
   announceVisibility(): void {
     if (this.disposed) return;
+    this.announceLanguage();
     this.synchronize();
     this.postVisibility();
     this.postScope();
@@ -152,7 +162,7 @@ export class PersistentWorkbench {
     container.style.cssText =
       "position:fixed;left:0;top:0;width:1px;height:1px;z-index:1;overflow:hidden;visibility:hidden;pointer-events:none;background:#11121a;";
     const frame = document.createElement("iframe");
-    frame.src = `/plugins/${encodeURIComponent(this.pluginName)}/ui/index.html?session=${this.sessionId}#/`;
+    frame.src = `/plugins/${encodeURIComponent(this.pluginName)}/ui/index.html?session=${this.sessionId}&lang=${locale()}#/`;
     frame.title = "一个思源图谱";
     frame.dataset.atlasSession = this.sessionId;
     frame.dataset.atlasActive = "false";

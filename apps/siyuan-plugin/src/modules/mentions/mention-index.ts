@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../core/diagnostics/message";
 import type { GraphEdge, GraphProvenance } from "../../core/graph/types";
 import { KeywordMatcher, type KeywordHit } from "./matcher";
 import { nativeNames, ordinaryProse } from "./prose";
@@ -51,7 +52,8 @@ export class MentionIndex {
   replace(blocks: readonly MentionBlock[], excludedPhrases: readonly string[] = []): void {
     this.ready = false;
     this.blocks = new Map(blocks.map((block) => [block.id, block]));
-    if (this.blocks.size !== blocks.length) throw new Error("文本索引包含重复的原始块 ID");
+    if (this.blocks.size !== blocks.length)
+      throw new MessageError(msg("text.theTextIndexContainsDuplicateSourceBlockIds"));
     this.names = new Map();
     this.targets = new Map();
     this.roots = new Map();

@@ -170,7 +170,9 @@ describe("chosen position movement", () => {
       _cosmos: { unavailable: true },
     };
     expect(positionApi(renderer)).toBe(renderer);
-    expect(() => positionApi({ _cosmos: {} })).toThrow("不支持");
+    expect(() => positionApi({ _cosmos: {} })).toThrow(
+      "text.theRendererCannotUpdateNodePositionsPleaseReload",
+    );
   });
 
   it("does not write against changed topology or a missing chosen point", () => {
@@ -180,10 +182,14 @@ describe("chosen position movement", () => {
       setPointPositions: vi.fn(),
       render: vi.fn(),
     };
-    expect(() => beginGroupMotion(api, [2], [0, 0])).toThrow("位置已变化");
+    expect(() => beginGroupMotion(api, [2], [0, 0])).toThrow(
+      "text.selectedNodePositionsChangedPleaseStartDraggingAgain",
+    );
     const movement = beginGroupMotion(api, [0], [0, 0]);
     positions = new Float32Array([1, 2]);
-    expect(() => movement.move([2, 2])).toThrow("图谱内容发生了变化");
+    expect(() => movement.move([2, 2])).toThrow(
+      "text.theGraphChangedWhileDraggingPleaseStartDragging",
+    );
     expect(api.setPointPositions).not.toHaveBeenCalled();
   });
 
@@ -215,8 +221,12 @@ describe("chosen position movement", () => {
       setPointPositions: vi.fn(),
       render: vi.fn(),
     };
-    expect(() => captureNodePositions(api, ["a", "b"])).toThrow("坐标与当前图谱不一致");
-    expect(() => restoreNodePositions(api, ["a", "b"], new Map())).toThrow("更新后的节点坐标");
+    expect(() => captureNodePositions(api, ["a", "b"])).toThrow(
+      "text.nodeCoordinatesDoNotMatchTheGraphThe",
+    );
+    expect(() => restoreNodePositions(api, ["a", "b"], new Map())).toThrow(
+      "text.updatedCoordinatesDoNotMatchTheGraphThe",
+    );
     expect(api.setPointPositions).not.toHaveBeenCalled();
   });
 });

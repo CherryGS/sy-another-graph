@@ -54,7 +54,9 @@ describe("SiYuan JSON export", () => {
       "fetch",
       vi.fn(async () => Response.json({ code: 0, data: { file } })),
     );
-    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow("无效");
+    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow(
+      "text.siyuanReturnedAnInvalidJsonDownloadUrl",
+    );
   });
 
   it("reports an HTTP failure without reporting export success", async () => {
@@ -62,7 +64,9 @@ describe("SiYuan JSON export", () => {
       "fetch",
       vi.fn(async () => new Response("Unauthorized", { status: 401 })),
     );
-    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toThrow("HTTP 401");
+    await expect(prepareGraphExport({ nodes: [], edges: [] })).rejects.toMatchObject({
+      detail: { code: "text.jsonExportFailedHttpValue", params: { p0: 401 } },
+    });
   });
 
   it("reports SiYuan application errors", async () => {

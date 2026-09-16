@@ -11,7 +11,7 @@ describe("bounded read diagnostics", () => {
     expect(issue.detailCount).toBe(103);
     expect(issue.details).toHaveLength(20);
     expect(issue.details[19].fields["来源"]).toBe("source-19");
-    expect(issue.summary).toContain("309");
+    expect(issue.code).toBe("reference-endpoints");
   });
 
   it("preserves diagnostic literals as text and marks truncation without expanding arbitrary payloads", () => {
@@ -21,10 +21,12 @@ describe("bounded read diagnostics", () => {
     fields["实际值"] = "changed";
     const [issue] = issues.finish();
     expect(issue.details[0].fields["实际值"]).toBe("<script>alert(1)</script>");
-    expect(issue.details[0].fields["长值"]).toContain("已截断");
-    expect(issue.details[0].fields["长值"].length).toBeLessThan(520);
-    expect(diagnosticValue({ large: "x".repeat(100000) })).toBe("对象");
-    expect(diagnosticValue(undefined)).toBe("（缺失）");
-    expect(diagnosticValue("")).toBe("（空字符串）");
+    expect(issue.details[0].fields["长值"]).toEqual({
+      code: "text.valueTruncated",
+      params: { p0: "x".repeat(500) },
+    });
+    expect(diagnosticValue({ large: "x".repeat(100000) })).toEqual({ code: "text.object" });
+    expect(diagnosticValue(undefined)).toEqual({ code: "text.missing" });
+    expect(diagnosticValue("")).toEqual({ code: "text.emptyString" });
   });
 });

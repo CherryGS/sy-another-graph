@@ -1,3 +1,4 @@
+import { message as msg, MessageError } from "../../../core/diagnostics/message";
 import type { SourceProgress } from "../../../core/diagnostics/progress";
 import { api } from "./api";
 import { addDatabaseGraph } from "./database-source";
@@ -38,7 +39,7 @@ type Progress = (message: SourceProgress) => void;
 
 async function sql<T>(stmt: string, signal?: AbortSignal): Promise<T[]> {
   const rows = await api<T[]>("/api/query/sql", { stmt, mode: "readonly" }, signal);
-  if (!Array.isArray(rows)) throw new Error("思源查询未返回数据行");
+  if (!Array.isArray(rows)) throw new MessageError(msg("text.theSiyuanQueryReturnedNoRows"));
   return rows;
 }
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -50,22 +51,22 @@ const REFERENCE_BATCH_SIZE = 4096;
 function checkedCount(value: unknown): number {
   const number = Number(value);
   if (value == null || !Number.isSafeInteger(number) || number < 0)
-    throw new Error("思源返回了无效的图谱计数");
+    throw new MessageError(msg("text.siyuanReturnedAnInvalidGraphCount"));
   return number;
 }
 
 async function blockState(signal: AbortSignal): Promise<BlockState> {
   const [state] = await sql<BlockState>(BLOCK_STATE_SQL, signal);
-  if (!state) throw new Error("无法校验块总量");
+  if (!state) throw new MessageError(msg("text.cannotValidateTheBlockCount"));
   const total = checkedCount(state.total);
   if (total > 0 && (typeof state.last !== "string" || !state.last))
-    throw new Error("无法确定块分页边界");
+    throw new MessageError(msg("text.cannotDetermineTheBlockPaginationBoundary"));
   return { total, last: total === 0 ? null : state.last };
 }
 
 async function referenceState(signal: AbortSignal): Promise<ReferenceState> {
   const [state] = await sql<ReferenceState>(REFERENCE_STATE_SQL, signal);
-  if (!state) throw new Error("无法校验引用总量");
+  if (!state) throw new MessageError(msg("text.cannotValidateTheReferenceCount"));
   const total = checkedCount(state.total);
   return { total, high: total === 0 ? null : checkedRowId(state.high) };
 }
@@ -73,10 +74,10 @@ async function referenceState(signal: AbortSignal): Promise<ReferenceState> {
 function checkedRowId(value: unknown): string {
   // SQLite rowids are signed 64-bit integers; Number would round large values.
   if (typeof value !== "string" || !/^-?\d{1,19}$/.test(value))
-    throw new Error("无法确定引用分页边界");
+    throw new MessageError(msg("text.cannotDetermineTheReferencePaginationBoundary"));
   const rowid = BigInt(value);
   if (rowid < -9223372036854775808n || rowid > 9223372036854775807n)
-    throw new Error("引用分页边界超出 SQLite 范围");
+    throw new MessageError(msg("text.theReferencePaginationBoundaryExceedsSqliteSRange"));
   return rowid.toString();
 }
 
@@ -98,9 +99,10 @@ function decodeReferenceWindow(window: ReferenceWindow): ReferenceRow[] {
   try {
     groups = JSON.parse(window.groups);
   } catch {
-    throw new Error("思源返回了无效的引用批次");
+    throw new MessageError(msg("text.siyuanReturnedAnInvalidReferenceBatch"));
   }
-  if (!Array.isArray(groups)) throw new Error("思源返回了无效的引用批次");
+  if (!Array.isArray(groups))
+    throw new MessageError(msg("text.siyuanReturnedAnInvalidReferenceBatch"));
   const rows: ReferenceRow[] = [];
   let total = 0;
   for (const group of groups) {
@@ -110,14 +112,14 @@ function decodeReferenceWindow(window: ReferenceWindow): ReferenceRow[] {
       typeof group[0] !== "string" ||
       typeof group[1] !== "string"
     )
-      throw new Error("思源返回了无效的引用批次");
+      throw new MessageError(msg("text.siyuanReturnedAnInvalidReferenceBatch"));
     const weight = checkedCount(group[2]);
-    if (weight === 0) throw new Error("思源返回了无效的引用权重");
+    if (weight === 0) throw new MessageError(msg("text.siyuanReturnedAnInvalidReferenceWeight"));
     total = checkedCount(total + weight);
     rows.push({ source: group[0], target: group[1], weight });
   }
   if (total !== checkedCount(window.total) || total > REFERENCE_BATCH_SIZE)
-    throw new Error("思源返回了不完整的引用批次");
+    throw new MessageError(msg("text.siyuanReturnedAnIncompleteReferenceBatch"));
   return rows;
 }
 
@@ -180,26 +182,33 @@ export function normalizeGraph(
         "reference-endpoints",
         {
           fields: {
-            "来源块 ID": reference.source,
-            "目标块 ID": reference.target,
-            缺失端点: [source === undefined ? "来源" : "", target === undefined ? "目标" : ""]
-              .filter(Boolean)
-              .join("、"),
-            原因:
+            "text.sourceBlockId": reference.source,
+            "text.targetBlockId": reference.target,
+            "text.missingEndpoints": msg(
+              source === undefined && target === undefined
+                ? "diagnostics.missingBothEndpoints"
+                : source === undefined
+                  ? "text.source"
+                  : "text.target",
+            ),
+            "text.reason":
               !reference.source || !reference.target
-                ? "引用索引中包含空端点 ID"
-                : "端点不在本次读取的块索引中",
-            引用记录数: String(weight),
+                ? msg("text.theReferenceIndexContainsEmptyEndpointIds")
+                : msg("text.theEndpointIsAbsentFromTheAcquiredBlock"),
+            "text.referenceRecords": String(weight),
             ...(available
               ? {
-                  可用端点: available.label,
-                  所属文档: available.documentLabel ?? "",
-                  来源位置: available.humanPath || available.path,
+                  "text.availableEndpoint": available.label,
+                  "text.owningDocument": available.documentLabel ?? "",
+                  "text.sourceLocation": available.humanPath || available.path,
                 }
               : {}),
           },
           openBlockId: available?.id,
-          openLabel: source !== undefined ? "打开引用来源" : "打开可用目标",
+          openLabel:
+            source !== undefined
+              ? msg("text.openReferenceSource")
+              : msg("text.openAvailableTarget"),
         },
         weight,
       );
@@ -245,7 +254,7 @@ export function normalizeGraph(
 
 function blockLabel(block: BlockRow): string {
   const text = (block.content || "").replace(/\s+/g, " ").trim();
-  if (!text) return !block.type || block.type === "d" ? "未命名文档" : `块 ${block.id}`;
+  if (!text) return block.id;
   return text.length > 100 ? `${text.slice(0, 100)}…` : text;
 }
 
@@ -334,12 +343,12 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     // proof of exhaustion; always advance until the initial high watermark.
     for (const row of page) {
       if (typeof row.id !== "string" || row.id <= cursor || row.id > initialBlocks.last)
-        throw new Error("块分页未前进或越过读取边界，请刷新后重试");
+        throw new MessageError(msg("text.blockPaginationStalledOrCrossedTheReadBoundary"));
       cursor = row.id;
     }
     blocks.push(...page);
     if (blocks.length > initialBlocks.total)
-      throw new Error("读取期间块超出初始分页范围，请刷新后重试");
+      throw new MessageError(msg("text.blocksMovedOutsideTheInitialPaginationRangeDuring"));
     progress({ phase: "blocks", completed: blocks.length, total: initialBlocks.total });
   }
   const referencePairs = new Map<string, ReferenceRow>();
@@ -350,11 +359,12 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
       referenceWindowSql(referenceCursor, initialReferences.high),
       signal,
     );
-    if (!window) throw new Error("引用分页结果不完整，请刷新后重试");
+    if (!window) throw new MessageError(msg("text.referencePaginationIsIncompleteRefreshAndRetry"));
     const rows = decodeReferenceWindow(window);
     const total = checkedCount(window.total);
     if (total === 0) {
-      if (window.high !== null) throw new Error("思源返回了无效的引用分页边界");
+      if (window.high !== null)
+        throw new MessageError(msg("text.siyuanReturnedAnInvalidReferencePaginationBoundary"));
       break;
     }
     const next = checkedRowId(window.high);
@@ -362,7 +372,7 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
       (referenceCursor !== null && BigInt(next) <= BigInt(referenceCursor)) ||
       BigInt(next) > BigInt(initialReferences.high)
     )
-      throw new Error("引用分页未前进或越过读取边界，请刷新后重试");
+      throw new MessageError(msg("text.referencePaginationStalledOrCrossedTheReadBoundary"));
     for (const row of rows) {
       const key = JSON.stringify([row.source, row.target]);
       const previous = referencePairs.get(key);
@@ -372,7 +382,7 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     referenceCursor = next;
     rawReferences = checkedCount(rawReferences + total);
     if (rawReferences > initialReferences.total)
-      throw new Error("读取期间引用超出初始分页范围，请刷新后重试");
+      throw new MessageError(msg("text.referencesMovedOutsideTheInitialPaginationRangeDuring"));
     progress({
       phase: "references",
       completed: rawReferences,
@@ -394,18 +404,18 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     initialReferences.total !== finalReferences.total ||
     initialReferences.high !== finalReferences.high;
   if (!blocksChanged && blocks.length !== initialBlocks.total)
-    throw new Error("块分页结果不完整，请刷新后重试");
+    throw new MessageError(msg("text.blockPaginationIsIncompleteRefreshAndRetry"));
   if (!referencesChanged && rawReferences !== initialReferences.total)
-    throw new Error("引用分页结果不完整，请刷新后重试");
+    throw new MessageError(msg("text.referencePaginationIsIncompleteRefreshAndRetry"));
   if (blocksChanged || referencesChanged)
     issues.add("snapshot-changed", {
       fields: {
-        "块总数（开始 → 结束）": `${initialBlocks.total} → ${finalBlocks.total}`,
-        "块分页边界（开始 → 结束）": `${initialBlocks.last} → ${finalBlocks.last}`,
-        实际读取块数: String(blocks.length),
-        "引用总数（开始 → 结束）": `${initialReferences.total} → ${finalReferences.total}`,
-        "引用分页边界（开始 → 结束）": `${initialReferences.high} → ${finalReferences.high}`,
-        实际读取引用数: String(rawReferences),
+        "text.blockCountStartEnd": `${initialBlocks.total} → ${finalBlocks.total}`,
+        "text.blockPaginationBoundaryStartEnd": `${initialBlocks.last} → ${finalBlocks.last}`,
+        "text.actualBlocksRead": String(blocks.length),
+        "text.referenceCountStartEnd": `${initialReferences.total} → ${finalReferences.total}`,
+        "text.referencePaginationBoundaryStartEnd": `${initialReferences.high} → ${finalReferences.high}`,
+        "text.actualReferencesRead": String(rawReferences),
       },
     });
   const graph = normalizeGraph(blocks, [...referencePairs.values()]);

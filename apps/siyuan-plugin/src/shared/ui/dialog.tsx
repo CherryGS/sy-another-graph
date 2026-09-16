@@ -1,4 +1,5 @@
-"use client";
+import { useLocale } from "../i18n/react";
+import { t } from "../i18n/runtime";
 
 import * as React from "react";
 import { cn } from "cn";
@@ -8,18 +9,22 @@ import { Button } from "@/shared/ui/button";
 import { XIcon } from "lucide-react";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  useLocale();
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  useLocale();
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
 function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  useLocale();
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
 function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  useLocale();
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
@@ -27,6 +32,7 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  useLocale();
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
@@ -47,6 +53,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  useLocale();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -63,7 +70,7 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button variant="ghost" className="absolute top-2 right-2" size="icon-sm">
               <XIcon />
-              <span className="sr-only">关闭</span>
+              <span className="sr-only">{t("common.close")}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -73,6 +80,7 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  useLocale();
   return (
     <div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props} />
   );
@@ -86,6 +94,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  useLocale();
   return (
     <div
       data-slot="dialog-footer"
@@ -106,6 +115,7 @@ function DialogFooter({
 }
 
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  useLocale();
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -119,6 +129,7 @@ function DialogDescription({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  useLocale();
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

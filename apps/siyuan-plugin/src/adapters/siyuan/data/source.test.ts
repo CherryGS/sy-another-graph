@@ -184,7 +184,7 @@ describe("SiYuan source block graph", () => {
     expect(graph.nodes.find((node) => node.id === "unknown")).toMatchObject({
       entity: "block",
       blockType: "future-block-type",
-      label: "块 unknown",
+      label: "unknown",
     });
     const facts = graph.edges.map((edge) => edge.provenance?.[0]);
     expect(facts).toContainEqual({
@@ -395,7 +395,7 @@ describe("SiYuan keyset pagination through the API", () => {
         stmt.startsWith("SELECT id, box") && ++pages === 2 ? [] : rows,
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "块分页结果不完整",
+      "text.blockPaginationIsIncompleteRefreshAndRetry",
     );
   });
 
@@ -408,7 +408,7 @@ describe("SiYuan keyset pagination through the API", () => {
         stmt.startsWith("SELECT json_group_array") && ++pages === 2 ? [] : rows,
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "引用分页结果不完整",
+      "text.referencePaginationIsIncompleteRefreshAndRetry",
     );
   });
 
@@ -424,7 +424,7 @@ describe("SiYuan keyset pagination through the API", () => {
       },
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "块分页未前进",
+      "text.blockPaginationStalledOrCrossedTheReadBoundary",
     );
     expect(statements.filter((stmt) => stmt.startsWith("SELECT id, box"))).toHaveLength(2);
   });
@@ -443,7 +443,7 @@ describe("SiYuan keyset pagination through the API", () => {
       },
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "块分页结果不完整",
+      "text.blockPaginationIsIncompleteRefreshAndRetry",
     );
   });
 
@@ -463,7 +463,7 @@ describe("SiYuan keyset pagination through the API", () => {
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(pages).toBe(6);
     expect(graph.nodes).toHaveLength(101);
-    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(true);
+    expect(graph.warnings.some((warning) => warning.code === "snapshot-changed")).toBe(true);
   });
 
   it("notices reference weight changes even when pair count is unchanged", async () => {
@@ -480,7 +480,7 @@ describe("SiYuan keyset pagination through the API", () => {
     });
     const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
     expect(graph.referenceCount).toBe(6000);
-    expect(graph.warnings.some((warning) => warning.summary.includes("发生变化"))).toBe(true);
+    expect(graph.warnings.some((warning) => warning.code === "snapshot-changed")).toBe(true);
   });
 
   it("accounts for missing and empty reference endpoints without losing their weights", async () => {
@@ -498,17 +498,21 @@ describe("SiYuan keyset pagination through the API", () => {
       detailCount: 2,
       details: [
         {
-          fields: { "来源块 ID": "（空字符串）", "目标块 ID": documentId(0), 缺失端点: "来源" },
+          fields: {
+            "text.sourceBlockId": { code: "text.emptyString" },
+            "text.targetBlockId": documentId(0),
+            "text.missingEndpoints": { code: "text.source" },
+          },
           openBlockId: documentId(0),
         },
         {
-          fields: { "来源块 ID": "missing", "目标块 ID": documentId(1) },
+          fields: { "text.sourceBlockId": "missing", "text.targetBlockId": documentId(1) },
           openBlockId: documentId(1),
         },
       ],
     });
     expect(graph.edges).toMatchObject([{ source: 0, target: 0, kind: "reference", weight: 1 }]);
-    expect(graph.warnings.some((warning) => warning.summary.includes("端点不可用"))).toBe(true);
+    expect(graph.warnings.some((warning) => warning.code === "reference-endpoints")).toBe(true);
   });
 
   it("loads a genuinely empty workspace without requesting data pages", async () => {
@@ -571,7 +575,7 @@ describe("SiYuan keyset pagination through the API", () => {
       },
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "不完整的引用批次",
+      "text.siyuanReturnedAnIncompleteReferenceBatch",
     );
   });
 
@@ -586,7 +590,7 @@ describe("SiYuan keyset pagination through the API", () => {
       },
     });
     await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
-      "引用分页未前进",
+      "text.referencePaginationStalledOrCrossedTheReadBoundary",
     );
   });
 
@@ -722,19 +726,23 @@ describe("SiYuan request failure and cancellation", () => {
     vi.stubGlobal("fetch", fetch);
     fetch.mockResolvedValueOnce(new Response("", { status: 503 }));
     await expect(api("/api/query/sql", {})).rejects.toMatchObject({
-      message: "思源接口返回 HTTP 503",
-      fields: { 接口: "/api/query/sql", "HTTP 状态": "503" },
+      detail: { code: "text.theSiyuanApiReturnedHttpValue", params: { p0: 503 } },
+      fields: { "text.api": "/api/query/sql", "text.httpStatus": "503" },
     });
     fetch.mockResolvedValueOnce(Response.json({ data: [] }));
-    await expect(api("/api/query/sql", {})).rejects.toThrow("无效数据");
+    await expect(api("/api/query/sql", {})).rejects.toThrow("text.theSiyuanApiReturnedInvalidData");
     fetch.mockResolvedValueOnce(Response.json({ code: -7, msg: "Database unavailable" }));
     await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({
-      fields: { 接口: "/api/av/getAttributeView", 错误码: "-7", 接口消息: "Database unavailable" },
+      fields: {
+        "text.api": "/api/av/getAttributeView",
+        "text.errorCode": "-7",
+        "text.apiMessage": "Database unavailable",
+      },
     });
     fetch.mockResolvedValueOnce(new Response("{broken"));
     await expect(api("/api/av/getAttributeView", {})).rejects.toMatchObject({
-      message: "思源接口返回了无法解析的 JSON",
-      fields: { 接口: "/api/av/getAttributeView" },
+      detail: { code: "text.theSiyuanApiReturnedInvalidJson" },
+      fields: { "text.api": "/api/av/getAttributeView" },
     });
   });
 });

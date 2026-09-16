@@ -13,17 +13,21 @@ or block context menu to start from specific content.
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 
+The interface follows SiYuan's language. Chinese variants use Simplified Chinese;
+other languages use English. Note titles, aliases, excluded phrases and existing
+preset names keep their original text.
+
 ## Turn a search into a graph
 
 Run a native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search),
-then click **Build graph from all results** in the search tab or dialog.
+then click **Graph all results** in the search tab or dialog.
 
 - All result pages are included, together with ancestor chains up to top-level
   documents. All block types and containment start enabled.
 - **Magenta rings** identify matches while preserving node colors and labels.
   A document representing hidden matched blocks is identified as a projected
   match in the legend and node details.
-- The graph uses a **Temporary** preset. **Return to original configuration**
+- The graph uses a **Temporary** preset. **Return to previous configuration**
   restores your previous preset and unsaved edits. Temporary searches last for
   the session; building another search replaces the previous one.
 

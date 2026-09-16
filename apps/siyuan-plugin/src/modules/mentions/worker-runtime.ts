@@ -1,3 +1,4 @@
+import { failureOf } from "../../core/diagnostics/message";
 import { MentionIndex } from "./mention-index";
 import type { MentionRequest, MentionResponse } from "./protocol";
 import type { MentionBlock, MentionScope } from "./types";
@@ -123,7 +124,7 @@ export class MentionWorkerRuntime {
         revision,
         scopeRevision,
         request,
-        message: error instanceof Error ? error.message : String(error),
+        message: failureOf(error),
       });
   }
 }

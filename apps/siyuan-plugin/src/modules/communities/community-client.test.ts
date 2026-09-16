@@ -47,7 +47,7 @@ describe("community computation lifetime", () => {
     w.onmessage!({
       data: { membership: new Uint32Array([0, 0, 9, 9]), calculationMs: 2 },
     } as MessageEvent);
-    await expect(promise).rejects.toThrow("当前图");
+    await expect(promise).rejects.toThrow("text.communityResultsDoNotMatchTheCurrentGraph");
     expect(w.terminate).toHaveBeenCalledOnce();
   });
 
@@ -56,7 +56,9 @@ describe("community computation lifetime", () => {
     try {
       const w = worker();
       const promise = calculateCommunities(request(), new AbortController().signal, () => w);
-      const rejected = expect(promise).rejects.toThrow("超时");
+      const rejected = expect(promise).rejects.toThrow(
+        "text.communityCalculationTimedOutReduceTheScopeAnd",
+      );
       await vi.advanceTimersByTimeAsync(60_000);
       await rejected;
       expect(w.terminate).toHaveBeenCalledOnce();
@@ -75,6 +77,6 @@ describe("community computation lifetime", () => {
     );
     await expect(
       communityEndpoints({ ...data, nodes: data.nodes.slice(0, 1) }, new AbortController().signal),
-    ).rejects.toThrow("端点");
+    ).rejects.toThrow("text.communityEndpointsDoNotMatchTheCurrentGraph");
   });
 });

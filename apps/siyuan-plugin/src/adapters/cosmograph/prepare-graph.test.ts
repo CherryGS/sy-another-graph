@@ -17,6 +17,14 @@ function node(id: string, index: number): CanvasNode {
 }
 
 describe("prepareGraph", () => {
+  it("preserves the immutable input identity used to accept current community results", async () => {
+    const nodes = Object.freeze([node("a", 7), node("b", 12)]);
+    const prepared = await prepareGraph(nodes, [], new AbortController().signal);
+    expect(prepared.indexToNode).toBe(nodes);
+    expect(prepared.indexToId).toEqual(["a", "b"]);
+    // Equal IDs in a replacement input must not make an old preparation current.
+    expect(prepared.indexToNode).not.toBe([...nodes]);
+  });
   it("marks dense search indices without changing labels, shapes, colors, identities, or interactions", async () => {
     const nodes = [
       { ...node("ancestor", 30), degree: 500 },
@@ -127,10 +135,10 @@ describe("prepareGraph", () => {
   it("rejects duplicate IDs or source indices instead of misdirecting navigation", async () => {
     await expect(
       prepareGraph([node("alpha", 3), node("alpha", 4)], [], new AbortController().signal),
-    ).rejects.toThrow("重复");
+    ).rejects.toThrow("text.theGraphContainsEmptyOrDuplicateNodeIds");
     await expect(
       prepareGraph([node("alpha", 3), node("beta", 3)], [], new AbortController().signal),
-    ).rejects.toThrow("重复");
+    ).rejects.toThrow("text.theGraphContainsEmptyOrDuplicateNodeIds");
   });
 
   it("encodes HTML-capable note titles as literal label text", async () => {

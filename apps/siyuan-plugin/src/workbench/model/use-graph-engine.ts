@@ -1,3 +1,6 @@
+import { failureOf, type Failure } from "../../core/diagnostics/message";
+import { userMessage } from "../presentation/errors";
+import { useLocale } from "../../shared/i18n/react";
 import { useEffect, useRef, useState } from "react";
 import type { GraphEngine } from "../../application/sessions/graph-engine";
 import { useWorkbenchServices } from "./services";
@@ -9,12 +12,16 @@ export interface LoadedGraphEngine {
   topology: ReturnType<typeof numericTopology>;
 }
 
-export function useGraphEngine(graph: CurrentGraph | null, reportError: (message: string) => void) {
+export function useGraphEngine(
+  graph: CurrentGraph | null,
+  reportError: (message: Failure) => void,
+) {
+  useLocale();
   const { createEngine } = useWorkbenchServices();
   const [loaded, setLoaded] = useState<LoadedGraphEngine | null>(null);
   const [failure, setFailure] = useState<{
     graph: CurrentGraph;
-    message: string;
+    message: Failure;
   } | null>(null);
   const current = useRef<LoadedGraphEngine | null>(null);
   useEffect(() => {
@@ -33,7 +40,7 @@ export function useGraphEngine(graph: CurrentGraph | null, reportError: (message
       })
       .catch((error: unknown) => {
         if (active) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = failureOf(error);
           setFailure({ graph, message });
           reportError(message);
         }
@@ -48,6 +55,6 @@ export function useGraphEngine(graph: CurrentGraph | null, reportError: (message
     loaded: loaded?.graph === graph ? loaded : null,
     current,
     loading: graph !== null && loaded?.graph !== graph && failure?.graph !== graph,
-    error: failure?.graph === graph ? failure.message : "",
+    error: failure?.graph === graph ? userMessage(failure.message) : "",
   };
 }

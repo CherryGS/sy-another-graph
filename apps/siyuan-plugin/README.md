@@ -10,18 +10,20 @@ wasm-pack, and the wasm-bindgen helper matching `Cargo.lock`. WASM builds use
 
 Run commands from the repository root:
 
-| Command                          | Result                                                                                                    |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `pnpm install --frozen-lockfile` | Install locked dependencies and apply the tracked dependency patches.                                     |
-| `pnpm check`                     | Validate dependencies, deployment guards, Rust, WASM, TypeScript, tests, and built artifacts.             |
-| `pnpm build:artifacts`           | Build the plugin into `apps/siyuan-plugin/dist/`.                                                         |
-| `pnpm package`                   | Build, validate, and create `apps/siyuan-plugin/dist/package.zip` for the marketplace.                    |
-| `pnpm deploy:test <workspace>`   | Install built artifacts into an explicitly selected workspace.                                            |
-| `pnpm build` / `pnpm release`    | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`.                     |
-| `pnpm publish:plugin`            | Select a patch/minor/major version, validate and package it, then confirm its GitHub Release publication. |
-| `pnpm test:publish`              | Verify release preparation, cancellation, and failure handling in temporary local Git repositories.       |
-| `pnpm deploy:release`            | Validate and install existing artifacts into the personal workspace.                                      |
-| `pnpm dev` / `pnpm dev:ui`       | Watch the host adapter / React workbench in separate terminals.                                           |
+| Command                             | Result                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`    | Install locked dependencies and apply the tracked dependency patches.                                     |
+| `pnpm check`                        | Validate dependencies, deployment guards, Rust, WASM, TypeScript, tests, and built artifacts.             |
+| `pnpm build:artifacts`              | Build the plugin into `apps/siyuan-plugin/dist/`.                                                         |
+| `pnpm package`                      | Build, validate, and create `apps/siyuan-plugin/dist/package.zip` for the marketplace.                    |
+| `pnpm deploy:test <workspace>`      | Install built artifacts into an explicitly selected workspace.                                            |
+| `pnpm build` / `pnpm release`       | Build, validate, and install into the configured personal workspace `E:/Data/Siyuan`.                     |
+| `pnpm publish:plugin`               | Select a patch/minor/major version, validate and package it, then confirm its GitHub Release publication. |
+| `pnpm test:publish`                 | Verify release preparation, cancellation, and failure handling in temporary local Git repositories.       |
+| `pnpm deploy:release`               | Validate and install existing artifacts into the personal workspace.                                      |
+| `pnpm dev` / `pnpm dev:ui`          | Watch the host adapter / React workbench in separate terminals.                                           |
+| `pnpm format` / `pnpm format:check` | Format or check TypeScript, styles, documentation and Rust.                                               |
+| `pnpm check:boundaries`             | Check layer imports and Worker environment isolation.                                                     |
 
 Checks, artifact-only builds, and watchers do not deploy. Deployment replaces
 managed plugin files while preserving unrelated files, and rejects linked
@@ -30,15 +32,17 @@ The configured test workspace is `E:/Data/SYTest`, served on port 6806.
 
 ## Source layout
 
-| Path                         | Responsibility                                                                   |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `src/plugin.ts`, `src/host/` | CommonJS SiYuan adapter and retained graph iframe.                               |
-| `src/app/`                   | React workbench with shadcn/ui and TanStack Router.                              |
-| `src/data/`                  | Read-only acquisition, normalization, scope, and projection.                     |
-| `src/graph/`                 | Cosmograph rendering, interaction, and resource lifecycle.                       |
-| `src/engine/`                | Rust WASM worker adapter.                                                        |
-| `../../crates/graph-core/`   | Graph algorithms and Rust tests.                                                 |
-| `../../patches/`             | Versioned Cosmograph/Cosmos changes and the Arrow CLI entry fix applied by pnpm. |
+| Path                       | Responsibility                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| `src/bootstrap/`           | Host and iframe entrypoints; concrete service composition.                             |
+| `src/core/`                | Graph facts and evidence, scope/projection rules, structured diagnostics.              |
+| `src/application/`         | Workspace source publication, session operation contracts, cross-capability workflows. |
+| `src/modules/`             | Mentions, communities, presets, search and export capabilities.                        |
+| `src/adapters/`            | SiYuan acquisition/storage/host bridge, Cosmograph rendering, Rust WASM transport.     |
+| `src/workbench/`           | React bindings, graph presentation, panels and styles.                                 |
+| `src/shared/`              | shadcn primitives, localization and small utilities.                                   |
+| `../../crates/graph-core/` | Graph algorithms and Rust tests.                                                       |
+| `../../patches/`           | Versioned Cosmograph/Cosmos changes and the Arrow CLI entry fix applied by pnpm.       |
 
 The host retains one iframe across tab switches and close/reopen. Plugin unload
 releases its resources. Runtime assets are bundled locally; requests stay on the
@@ -49,6 +53,18 @@ relationships retain source evidence; temporary search identities stay outside
 saved presets. The worker uses revision-scoped numeric topology with persistent
 native IDs and rejects stale responses. Appearance settings are browser-local;
 JSON export creates a temporary workspace file.
+
+The workspace source store publishes complete snapshots and retains the last
+successful snapshot if refreshing fails. Sessions subscribe without owning the
+reader. Numeric topology belongs to its effective graph; style and community
+rendering indices are adapted separately. A language change never becomes an
+input to source acquisition, projection or analysis caches.
+
+Localization uses bundled i18next catalogs in `src/shared/i18n/`. The host passes
+normalized language through the iframe URL and a checked same-origin handshake.
+Core and Worker failures carry codes and parameters; presentation formats them
+in the current language. Add complete sentences and matching parameters to both
+catalogs. `pnpm test` checks catalog parity and referenced message coverage.
 
 ## Further reading
 

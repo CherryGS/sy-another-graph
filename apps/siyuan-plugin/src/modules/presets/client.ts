@@ -1,3 +1,4 @@
+import { message as msg, MessageError, isFailure } from "../../core/diagnostics/message";
 import { readPresetStore, type PresetStore } from "./model";
 import { WORKBENCH_PRESET_CHANNEL, type PresetRequest } from "./host-protocol";
 
@@ -31,7 +32,7 @@ export class PresetClient {
     this.target.removeEventListener("message", this.onMessage);
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
-      pending.reject(new Error("预设连接已关闭。"));
+      pending.reject(new MessageError(msg("text.thePresetConnectionIsClosed")));
     }
     this.pending.clear();
   }
@@ -40,12 +41,12 @@ export class PresetClient {
     payload: { type: "preset-load" } | { type: "preset-save"; store: PresetStore },
   ): Promise<PresetStore | null> {
     if (this.closed || this.target.parent === this.target)
-      return Promise.reject(new Error("请在思源插件页签中读取和保存预设。"));
+      return Promise.reject(new MessageError(msg("text.openTheGraphInASiyuanPluginTab")));
     const request = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(request);
-        reject(new Error("思源未及时回应预设请求，请重试读取后确认保存结果。"));
+        reject(new MessageError(msg("text.siyuanDidNotRespondToThePresetRequest")));
       }, this.timeout);
       this.pending.set(request, { resolve, reject, timer });
       try {
@@ -79,13 +80,13 @@ export class PresetClient {
     if (!pending) return;
     this.pending.delete(value.request);
     clearTimeout(pending.timer);
-    if (value.ok === false && typeof value.error === "string")
-      pending.reject(new Error(value.error));
+    if (value.ok === false && isFailure(value.error)) pending.reject(new MessageError(value.error));
     else if (value.ok === true && value.store === null) pending.resolve(null);
     else if (value.ok === true) {
       const store = readPresetStore(value.store);
       if (store) pending.resolve(store);
-      else pending.reject(new Error("预设数据格式不受支持；原文件保持不变。"));
-    } else pending.reject(new Error("思源返回了无效的预设响应。"));
+      else
+        pending.reject(new MessageError(msg("text.thePresetFormatIsUnsupportedTheOriginalFile")));
+    } else pending.reject(new MessageError(msg("text.siyuanReturnedAnInvalidPresetResponse")));
   };
 }

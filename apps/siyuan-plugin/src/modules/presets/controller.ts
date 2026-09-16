@@ -1,3 +1,9 @@
+import {
+  message as msg,
+  MessageError,
+  failureOf,
+  type Failure,
+} from "../../core/diagnostics/message";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
 import {
   createPresetStore,
@@ -21,15 +27,16 @@ export interface PresetSnapshot {
   loading: boolean;
   saving: boolean;
   available: boolean;
-  error: string;
+  error: Failure;
   deleted: FilterPreset | null;
 }
 interface Context {
+  defaultName?: () => string;
   getFilters: () => GraphFilters;
   applyFilters: (filters: PresetFilters) => void;
   ruleRevision: () => number;
   sourceReady: () => boolean;
-  validate: (filters: PresetFilters) => string;
+  validate: (filters: PresetFilters) => Failure;
 }
 export const initialPresetSnapshot = (): PresetSnapshot => ({
   store: createPresetStore(),
@@ -66,14 +73,15 @@ export class PresetController {
     try {
       const stored = await this.port.load();
       if (this.closed || generation !== this.generation) return;
-      const store = stored === null ? createPresetStore() : readPresetStore(stored);
-      if (!store) throw new Error("预设数据格式不受支持；原文件保持不变。");
+      const store =
+        stored === null ? createPresetStore(this.context.defaultName?.()) : readPresetStore(stored);
+      if (!store) throw new MessageError(msg("text.thePresetFormatIsUnsupportedTheOriginalFile"));
       this.undo = null;
       this.set({ store, loading: false, available: true, error: "", deleted: null });
       this.hydrate();
     } catch (error) {
       if (!this.closed && generation === this.generation)
-        this.set({ loading: false, available: false, error: this.message(error) });
+        this.set({ loading: false, available: false, error: failureOf(error) });
     }
   }
 
@@ -94,7 +102,7 @@ export class PresetController {
     if (!preset) return;
     const error = this.context.validate(preset.filters);
     if (error) {
-      this.set({ error: `${error}预设未自动应用。` });
+      this.set({ error: msg("text.valueThePresetWasNotAppliedAutomatically", { p0: error }) });
       return;
     }
     this.context.applyFilters(preset.filters);
@@ -104,7 +112,7 @@ export class PresetController {
     return this.action(() => {
       const preset = this.find(id);
       const error = this.context.validate(preset.filters);
-      if (error) throw new Error(error);
+      if (error) throw new MessageError(error);
       const revision = this.context.ruleRevision();
       const apply = () => {
         if (this.context.ruleRevision() === revision) this.context.applyFilters(preset.filters);
@@ -143,7 +151,7 @@ export class PresetController {
   update(): Promise<boolean> {
     return this.action(() => {
       const id = this.snapshot.store.activePresetId;
-      if (!id) throw new Error("请将当前筛选另存为新预设。");
+      if (!id) throw new MessageError(msg("text.saveTheCurrentFiltersAsANewPreset"));
       const filters = presetFilters(this.context.getFilters());
       return this.commit({
         ...this.snapshot.store,
@@ -181,7 +189,7 @@ export class PresetController {
       const undo = this.undo;
       if (!undo) return true;
       if (this.snapshot.store.presets.length >= PRESET_LIMIT)
-        throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
+        throw new MessageError(msg("text.youCanSaveUpToValuePresets", { p0: PRESET_LIMIT }));
       if (this.snapshot.store.presets.some((item) => item.id === undo.preset.id)) return true;
       const presets = [...this.snapshot.store.presets];
       presets.splice(Math.min(undo.index, presets.length), 0, undo.preset);
@@ -211,9 +219,9 @@ export class PresetController {
   private add(name: string, filters: PresetFilters, activate = true): Promise<boolean> {
     return this.action(() => {
       if (this.snapshot.store.presets.length >= PRESET_LIMIT)
-        throw new Error(`最多保存 ${PRESET_LIMIT} 个预设。`);
+        throw new MessageError(msg("text.youCanSaveUpToValuePresets", { p0: PRESET_LIMIT }));
       const error = activate ? this.context.validate(filters) : "";
-      if (error) throw new Error(error);
+      if (error) throw new MessageError(error);
       const preset = {
         id: crypto.randomUUID(),
         name: presetName(name),
@@ -236,33 +244,33 @@ export class PresetController {
 
   private find(id: string): FilterPreset {
     const preset = this.snapshot.store.presets.find((item) => item.id === id);
-    if (!preset) throw new Error("该预设已不可用，请重新读取预设。");
+    if (!preset) throw new MessageError(msg("text.thisPresetIsNoLongerAvailableReloadPresets"));
     return preset;
   }
 
   private async action(run: () => Promise<boolean> | boolean): Promise<boolean> {
     if (this.closed || this.snapshot.loading || this.snapshot.saving) return false;
     if (!this.snapshot.available) {
-      this.set({ error: "请先重试读取预设，确认已保存的内容后再操作。" });
+      this.set({ error: msg("text.reloadPresetsAndConfirmTheirSavedStateBefore") });
       return false;
     }
     try {
       return await run();
     } catch (error) {
-      if (!this.closed) this.set({ error: this.message(error) });
+      if (!this.closed) this.set({ error: failureOf(error) });
       return false;
     }
   }
 
   private async commit(value: PresetStore, after?: () => void): Promise<boolean> {
     const next = readPresetStore(value);
-    if (!next) throw new Error("当前筛选无法保存为预设，请检查范围、类型和名称。");
+    if (!next) throw new MessageError(msg("text.theseFiltersCannotBeSavedAsAPreset"));
     this.set({ saving: true, error: "" });
     try {
       const result = await this.port.save(next);
       if (this.closed) return false;
       if (!result || JSON.stringify(result) !== JSON.stringify(next))
-        throw new Error("思源返回的预设与本次保存不一致，请重试读取确认。");
+        throw new MessageError(msg("text.siyuanReturnedADifferentPresetFromTheOne"));
       after?.();
       this.set({
         store: result,
@@ -273,14 +281,11 @@ export class PresetController {
       });
       return true;
     } catch (error) {
-      if (!this.closed) this.set({ saving: false, available: false, error: this.message(error) });
+      if (!this.closed) this.set({ saving: false, available: false, error: failureOf(error) });
       return false;
     }
   }
 
-  private message(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
   private set(patch: Partial<PresetSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
     this.publish(this.snapshot);

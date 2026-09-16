@@ -1,3 +1,6 @@
+import { readIssueText } from "../../presentation/read-issues";
+import { useLocale } from "../../../shared/i18n/react";
+import { t, text, dateTime } from "../../../shared/i18n/runtime";
 import { useEffect, useRef } from "react";
 import { ChevronDown, Copy, ExternalLink, RefreshCw, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -20,25 +23,26 @@ import type { WorkbenchState } from "../../model/state";
 const TOAST_ID = "atlas-read-issues";
 
 export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
+  const language = useLocale();
   const { data, readIssuesOpen, setReadIssuesOpen } = state;
   const previous = useRef("");
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const signature = JSON.stringify(data?.warnings ?? []);
+    const signature = `${language}:${JSON.stringify(data?.warnings ?? [])}`;
     if (signature === previous.current) return;
     previous.current = signature;
     if (!data?.warnings.length) {
       toast.dismiss(TOAST_ID);
       return;
     }
-    toast.warning(`图谱读取有 ${data.warnings.length} 项提示`, {
+    toast.warning(t("text.graphReadNoticesValue", { p0: data.warnings.length }), {
       id: TOAST_ID,
       position: "bottom-left",
       duration: 10_000,
-      description: "部分关系可能不完整。查看具体对象、原因与来源。",
-      action: { label: "查看详情", onClick: () => setReadIssuesOpen(true) },
+      description: t("text.someRelationshipsMayBeIncompleteInspectTheAffected"),
+      action: { label: t("text.viewDetails"), onClick: () => setReadIssuesOpen(true) },
     });
-  }, [data, setReadIssuesOpen]);
+  }, [data, setReadIssuesOpen, language]);
   useEffect(
     () => () => {
       toast.dismiss(TOAST_ID);
@@ -50,9 +54,9 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
     if (!data) return;
     try {
       await navigator.clipboard.writeText(readReport(data));
-      toast.success("读取报告已复制");
+      toast.success(t("text.readReportCopied"));
     } catch {
-      toast.error("无法访问剪贴板，可以直接选择并复制弹窗中的明细。");
+      toast.error(t("text.cannotAccessTheClipboardSelectAndCopyThe"));
     }
   };
   return (
@@ -64,10 +68,10 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
             variant="secondary"
             size="xs"
             onClick={() => setReadIssuesOpen(true)}
-            aria-label={`读取提示：${data.warnings.length} 项，查看详情`}
+            aria-label={t("text.readNoticesValueViewDetails", { p0: data.warnings.length })}
           >
             <TriangleAlert data-icon="inline-start" />
-            读取提示 {data.warnings.length}
+            {t("diagnostics.noticeCount", { count: data.warnings.length })}
           </Button>
         </div>
       )}
@@ -82,31 +86,36 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
           }}
         >
           <DialogHeader>
-            <DialogTitle>图谱读取详情</DialogTitle>
+            <DialogTitle>{t("text.graphReadDetails")}</DialogTitle>
             <DialogDescription>
               {data
-                ? `读取时间 ${new Date(data.loadedAt).toLocaleString("zh-CN")} · ${data.loadMs.toFixed(0)} ms`
-                : "尚未完成读取"}
-              {state.loading && " · 正在重新读取，下面是上次完成的结果"}
+                ? t("text.readAtValueValueMs", {
+                    p0: dateTime(data.loadedAt),
+                    p1: data.loadMs.toFixed(0),
+                  })
+                : t("text.noCompletedReadYet")}
+              {state.loading && t("text.refreshingShowingTheLastCompletedRead")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto" data-scroll-panel>
             <p className="text-sm text-muted-foreground">
-              以下诊断针对本次工作空间索引读取，不受图谱显示筛选影响。每类最多保留 20
-              条明细，影响总数完整计数。
+              {t("text.theseDiagnosticsConcernTheAcquiredWorkspaceIndexIndependently")}
             </p>
-            {data?.warnings.map((issue) => (
+            {data?.warnings.map(readIssueText).map((issue) => (
               <Alert key={issue.code}>
                 <TriangleAlert />
                 <AlertTitle>{issue.title}</AlertTitle>
                 <AlertDescription className="gap-3">
                   <p>{issue.summary}</p>
-                  <p>影响：{issue.impact}</p>
-                  <p>建议：{issue.suggestion}</p>
+                  <p>{t("diagnostics.impact", { detail: issue.impact })}</p>
+                  <p>{t("diagnostics.suggestion", { detail: issue.suggestion })}</p>
                   <Collapsible defaultOpen={issue.detailCount <= 3} className="w-full min-w-0">
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm">
-                        明细 {issue.details.length} / {issue.detailCount}
+                        {t("diagnostics.detailCount", {
+                          shown: issue.details.length,
+                          total: issue.detailCount,
+                        })}
                         <ChevronDown data-icon="inline-end" />
                       </Button>
                     </CollapsibleTrigger>
@@ -116,8 +125,8 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
                           <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
                             {Object.entries(detail.fields).map(([label, value]) => (
                               <div key={label} className="contents">
-                                <dt className="text-muted-foreground">{label}</dt>
-                                <dd className="whitespace-pre-wrap break-all">{value}</dd>
+                                <dt className="text-muted-foreground">{text({ code: label })}</dt>
+                                <dd className="whitespace-pre-wrap break-all">{text(value)}</dd>
                               </div>
                             ))}
                           </dl>
@@ -130,15 +139,17 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
                               onClick={() => state.openReadIssueSource(detail.openBlockId!)}
                             >
                               <ExternalLink data-icon="inline-start" />
-                              {detail.openLabel || "打开来源"}
+                              {text(detail.openLabel) || t("text.openSource")}
                             </NativePreviewButton>
                           )}
                         </div>
                       ))}
                       {issue.detailCount > issue.details.length && (
                         <p>
-                          另有 {issue.detailCount - issue.details.length} 条明细未保留，以上为前{" "}
-                          {issue.details.length} 条。
+                          {t("diagnostics.omitted", {
+                            count: issue.detailCount - issue.details.length,
+                            shown: issue.details.length,
+                          })}
                         </p>
                       )}
                     </CollapsibleContent>
@@ -146,12 +157,12 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
                 </AlertDescription>
               </Alert>
             ))}
-            {data && !data.warnings.length && <p>本次读取未发现需要提示的问题。</p>}
+            {data && !data.warnings.length && <p>{t("text.noIssuesWereDetectedInThisRead")}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" disabled={!data} onClick={() => void copyReport()}>
               <Copy data-icon="inline-start" />
-              复制报告
+              {t("text.copyReport")}
             </Button>
             <Button disabled={!!state.loading} onClick={() => void state.load()}>
               {state.loading ? (
@@ -159,7 +170,7 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
               ) : (
                 <RefreshCw data-icon="inline-start" />
               )}
-              重新读取
+              {t("text.refreshData")}
             </Button>
           </DialogFooter>
         </DialogContent>

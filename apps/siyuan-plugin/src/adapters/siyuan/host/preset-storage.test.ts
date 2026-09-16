@@ -147,7 +147,7 @@ describe("host preset storage", () => {
     h.port.loadData.mockResolvedValue("");
     expect(await h.request()).toMatchObject({
       ok: false,
-      error: expect.stringContaining("原文件已保留"),
+      error: { code: "text.thePresetFileIsInvalidOrItsVersion" },
     });
     h.setDisk(createPresetStore());
     expect(await h.request()).toMatchObject({ ok: true });
@@ -155,7 +155,10 @@ describe("host preset storage", () => {
     expect(await h.request("preset-save", createPresetStore())).toMatchObject({ ok: false });
     expect(h.port.saveData).not.toHaveBeenCalled();
     h.fetcher.mockResolvedValueOnce(new Response("{ malformed", { status: 200 }));
-    expect(await h.request()).toMatchObject({ ok: false, error: expect.stringContaining("JSON") });
+    expect(await h.request()).toMatchObject({
+      ok: false,
+      error: { code: "text.thePresetFileIsNotValidJsonThe" },
+    });
     h.fetcher.mockRejectedValueOnce(new Error("offline"));
     expect(await h.request()).toMatchObject({ ok: false, error: "offline" });
     h.fetcher.mockResolvedValueOnce(
@@ -163,7 +166,7 @@ describe("host preset storage", () => {
     );
     expect(await h.request()).toMatchObject({
       ok: false,
-      error: expect.stringContaining("forbidden"),
+      error: { code: "text.failedToReadPresetsValue", params: { p0: "forbidden" } },
     });
     h.fetcher.mockResolvedValueOnce(new Response("missing route", { status: 404 }));
     expect(await h.request()).toMatchObject({ ok: false });
@@ -190,7 +193,7 @@ describe("host preset storage", () => {
     h.port.saveData.mockResolvedValueOnce({ code: -1, msg: "disk full" });
     expect(await h.request("preset-save", initialStore)).toMatchObject({
       ok: false,
-      error: expect.stringContaining("disk full"),
+      error: { code: "text.saveFailedValue", params: { p0: "disk full" } },
     });
     expect(await h.request("preset-save", initialStore)).toMatchObject({ ok: true });
     h.bridge.dispose();

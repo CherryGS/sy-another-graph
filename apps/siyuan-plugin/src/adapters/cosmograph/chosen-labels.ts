@@ -1,6 +1,8 @@
+import { t, locale } from "../../shared/i18n/runtime";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasNode } from "../../workbench/presentation/types";
-import { SEARCH_ORIGIN_LABELS, searchNodeOrigin } from "../../modules/search/origins";
+import { SEARCH_ORIGIN_LABELS } from "../../workbench/presentation/search-origins";
+import { searchNodeOrigin } from "../../modules/search/origins";
 import {
   pointAt,
   projectPosition,
@@ -32,6 +34,7 @@ function sameIds(left: ReadonlySet<string>, right: ReadonlySet<string>) {
 export class ChosenLabels {
   private readonly layer: HTMLDivElement;
   private readonly labels = new Map<string, HTMLButtonElement>();
+  private language = locale();
   private data: PreparedGraph | null = null;
   private ids: readonly string[] = [];
   private frame?: number;
@@ -88,11 +91,13 @@ export class ChosenLabels {
       data === this.data &&
       sameIds(chosen, this.chosen) &&
       sameIds(spotlight, this.spotlight) &&
-      dimensions === this.positionDimensions
+      dimensions === this.positionDimensions &&
+      this.language === locale()
     )
       return;
 
     this.invalidate(data !== this.data || dimensions !== this.positionDimensions);
+    this.language = locale();
     this.data = data;
     this.chosen = chosen;
     this.spotlight = spotlight;
@@ -142,7 +147,11 @@ export class ChosenLabels {
       label.textContent = data!.indexToLabel[index];
       label.setAttribute(
         "aria-label",
-        `${chosen.has(id) ? "已选" : "关系端点"}${origin ? `（${SEARCH_ORIGIN_LABELS[origin]}）` : ""}：${data!.indexToLabel[index]}`,
+        t("text.valueValueValue", {
+          p0: chosen.has(id) ? t("text.selected") : t("text.relationshipEndpoint"),
+          p1: origin ? `（${SEARCH_ORIGIN_LABELS[origin]}）` : "",
+          p2: data!.indexToLabel[index],
+        }),
       );
     }
     this.refresh();

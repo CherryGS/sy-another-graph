@@ -39,6 +39,6 @@ describe("community analysis and rendering indices", () => {
     };
     expect(() =>
       renderCommunityPartition(graph, partition, { indexToNode: [node("outside", 0)] }),
-    ).toThrow("端点");
+    ).toThrow("text.communityEndpointsDoNotMatchTheCurrentGraph");
   });
 });
