@@ -2,7 +2,10 @@ import { message as msg, MessageError } from "../diagnostics/message";
 import type { GraphDataset, GraphEdge, GraphNode, GraphProvenance } from "../graph/types";
 import type { GraphProjectionRules } from "./rules";
 import { getGraphLookups, type GraphLike } from "../graph/graph-lookups";
-import { isTypeHidden } from "./filter-types";
+import { isBlock, nodeType } from "./filter-types";
+import { displayRepresentative, rememberProjection, sourceRejection } from "./source-eligibility";
+
+export { isBlock, nodeType } from "./filter-types";
 
 export interface GraphView {
   nodes: GraphNode[];
@@ -17,14 +20,6 @@ export interface CurrentGraph extends GraphView {
   /** Visible identities; hidden source blocks cannot remain chosen. */
   eligibleIds: Set<string>;
   excludedIds: Set<string>;
-}
-
-export function nodeType(node: GraphNode): string {
-  return node.entity && node.entity !== "block" ? node.entity : (node.blockType ?? "d");
-}
-
-export function isBlock(node: GraphNode): boolean {
-  return !node.entity || node.entity === "block";
 }
 
 function sourceParents(data: GraphLike, byIndex: ReadonlyMap<number, GraphNode>) {
@@ -181,21 +176,15 @@ export function projectGraph<Rules extends GraphProjectionRules>(
     ? expandContainment(containment, filters.excludeIds, true)
     : new Set<string>();
   const candidates = new Set<string>();
+  const boundary = {
+    scopeIds,
+    searchIds,
+    excludedIds,
+    notebook: filters.notebook,
+    databases: filters.databases,
+  };
   for (const node of data.nodes) {
-    if (searchIds && !searchIds.has(node.id)) continue;
-    if (excludedIds.has(node.id) || (scopeIds && !scopeIds.has(node.id))) continue;
-    if (isBlock(node)) {
-      if (!filters.notebook || node.notebook === filters.notebook) candidates.add(node.id);
-    } else if (filters.databases) {
-      const bound = node.boundBlockId ? byId.get(node.boundBlockId) : undefined;
-      if (
-        node.boundBlockId &&
-        (excludedIds.has(node.boundBlockId) ||
-          (filters.notebook && bound?.notebook !== filters.notebook))
-      )
-        continue;
-      candidates.add(node.id);
-    }
+    if (!sourceRejection(node, boundary, byId)) candidates.add(node.id);
   }
 
   // Non-block mediators enter a notebook/content-filtered graph through actual
@@ -233,17 +222,8 @@ export function projectGraph<Rules extends GraphProjectionRules>(
   const eligibleIds = new Set<string>();
   for (const node of data.nodes) {
     if (!candidates.has(node.id)) continue;
-    if (!isTypeHidden(filters, nodeType(node))) eligibleIds.add(node.id);
-    else if (isBlock(node) && node.rootId) {
-      const document = byId.get(node.rootId);
-      if (
-        document &&
-        nodeType(document) === "d" &&
-        !excludedIds.has(document.id) &&
-        (!filters.notebook || document.notebook === filters.notebook)
-      )
-        eligibleIds.add(document.id);
-    }
+    const representative = displayRepresentative(node, filters, boundary, byId);
+    if (representative) eligibleIds.add(representative.id);
   }
   const visible = data.nodes.filter((node) => eligibleIds.has(node.id));
   const representatives = new Map(visible.map((node) => [node.id, node.id]));
@@ -347,6 +327,16 @@ export function projectGraph<Rules extends GraphProjectionRules>(
     }
   }
   const edges = [...grouped.values()];
+  rememberProjection(candidates, data, {
+    boundary,
+    rules: {
+      documentsOnly: filters.documentsOnly,
+      hiddenTypes: filters.hiddenTypes,
+      references: filters.references,
+      hierarchy: filters.hierarchy,
+      databases: filters.databases,
+    },
+  });
   return {
     nodes: visible,
     edges,

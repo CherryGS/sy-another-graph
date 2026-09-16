@@ -11,14 +11,18 @@ import {
   parseExclusionDraft,
   type MentionExclusions as ExclusionRules,
 } from "../exclusions";
+import type { MentionControlsProps } from "./types";
+import { ExclusionPreview } from "./ExclusionPreview";
 
 export function MentionExclusions({
   phrases,
   patterns,
+  source,
   onApply,
 }: {
   phrases: readonly string[];
   patterns: readonly string[];
+  source: MentionControlsProps["previewSource"];
   onApply: (rules: ExclusionRules) => void;
 }) {
   useLocale();
@@ -68,6 +72,7 @@ export function MentionExclusions({
             {t("mentions.exclusionDescription")}
           </FieldDescription>
           {error && <FieldError id={`${id}-error`}>{text(error)}</FieldError>}
+          <ExclusionPreview rules={parsed} source={source} />
           <Button
             variant="outline"
             size="sm"

@@ -12,6 +12,7 @@ export function MentionControls({
   mode,
   phrases,
   patterns,
+  previewSource,
   chosenCount,
   status,
   editorKey,
@@ -84,6 +85,7 @@ export function MentionControls({
         key={editorKey}
         phrases={phrases}
         patterns={patterns}
+        source={previewSource}
         onApply={onExclusionsChange}
       />
     </FieldGroup>

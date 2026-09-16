@@ -67,4 +67,75 @@ export async function verifyMentionWorker() {
     clearTimeout(timer);
     await worker.terminate();
   }
+  await verifyPreviewWorker(assets);
+}
+
+async function verifyPreviewWorker(assets) {
+  const bundle = readdirSync(assets).filter((name) =>
+    /^exclusion-preview\.worker-[\w-]+\.js$/.test(name),
+  );
+  assert.equal(bundle.length, 1, "The release must contain one name-only exclusion preview worker");
+  const worker = new Worker(new URL("./mentions-worker-bootstrap.mjs", import.meta.url), {
+    workerData: new URL(bundle[0], assets).href,
+  });
+  let timer;
+  try {
+    await new Promise((resolve, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("Built exclusion preview worker did not finish")),
+        10_000,
+      );
+      worker.once("error", reject);
+      worker.on("message", (message) => {
+        if (message.kind === "boot") {
+          worker.postMessage({
+            kind: "load",
+            revision: 1,
+            blocks: [
+              { id: "a", title: "０１", ial: '{: alias="Other"}' },
+              { id: "b", title: "01", ial: "" },
+              { id: "c", title: "101", ial: "" },
+            ],
+          });
+          worker.postMessage({
+            kind: "preview",
+            revision: 1,
+            request: 1,
+            rules: { phrases: [], patterns: ["^\\d{2}$"] },
+          });
+        } else if (message.kind === "error") reject(new Error(JSON.stringify(message.error)));
+        else if (message.kind === "result") {
+          try {
+            assert.equal(message.page.matchedNames, 1);
+            assert.equal(message.page.matchedNodes, 2);
+            if (message.pageRequest === 0) {
+              assert.deepEqual(
+                message.page.rows.map((row) => row.id),
+                ["a", "b"],
+              );
+              worker.postMessage({
+                kind: "page",
+                revision: 1,
+                request: 1,
+                pageRequest: 1,
+                offset: 0,
+                query: "b",
+              });
+            } else {
+              assert.deepEqual(
+                message.page.rows.map((row) => row.id),
+                ["b"],
+              );
+              resolve();
+            }
+          } catch (error) {
+            reject(error);
+          }
+        }
+      });
+    });
+  } finally {
+    clearTimeout(timer);
+    await worker.terminate();
+  }
 }

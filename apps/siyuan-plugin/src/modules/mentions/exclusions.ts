@@ -100,21 +100,43 @@ export function formatExclusionDraft(
   ].join("\n");
 }
 
+export interface MatchedExclusionRule {
+  kind: "phrase" | "pattern";
+  source: string;
+}
+
 /** Worker-only matching. One decision per normalized name, even across homonyms. */
+export function createExclusionRuleMatcher(
+  phrases: readonly string[],
+  patterns: readonly string[],
+) {
+  const literal = new Map(
+    normalizeExcludedPhrases(phrases).map((source) => [
+      source,
+      { kind: "phrase", source } as const,
+    ]),
+  );
+  const regexes = normalizeExcludedPatterns(patterns).map((source) => ({
+    regex: new RegExp(source, "iu"),
+    rule: { kind: "pattern", source } as const,
+  }));
+  const decisions = new Map<string, MatchedExclusionRule | null>();
+  return (name: string): MatchedExclusionRule | null => {
+    const phrase = literal.get(name);
+    if (phrase) return phrase;
+    if (!regexes.length || name.length > KEYWORD_LENGTH_LIMIT) return null;
+    const cached = decisions.get(name);
+    if (cached !== undefined) return cached;
+    const excluded = regexes.find(({ regex }) => regex.test(name))?.rule ?? null;
+    decisions.set(name, excluded);
+    return excluded;
+  };
+}
+
 export function createNameExclusionMatcher(
   phrases: readonly string[],
   patterns: readonly string[],
 ) {
-  const literal = new Set(normalizeExcludedPhrases(phrases));
-  const regexes = normalizeExcludedPatterns(patterns).map((source) => new RegExp(source, "iu"));
-  const decisions = new Map<string, boolean>();
-  return (name: string): boolean => {
-    if (literal.has(name)) return true;
-    if (!regexes.length || name.length > KEYWORD_LENGTH_LIMIT) return false;
-    const cached = decisions.get(name);
-    if (cached !== undefined) return cached;
-    const excluded = regexes.some((regex) => regex.test(name));
-    decisions.set(name, excluded);
-    return excluded;
-  };
+  const match = createExclusionRuleMatcher(phrases, patterns);
+  return (name: string) => match(name) !== null;
 }

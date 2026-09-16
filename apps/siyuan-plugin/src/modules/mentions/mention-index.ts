@@ -1,8 +1,9 @@
 import { message as msg, MessageError } from "../../core/diagnostics/message";
 import type { GraphEdge, GraphProvenance } from "../../core/graph/types";
 import { KeywordMatcher, type KeywordHit } from "./matcher";
-import { nativeNames, ordinaryProse } from "./prose";
-import { KEYWORD_LENGTH_LIMIT, normalizeKeyword } from "./keywords";
+import { ordinaryProse } from "./prose";
+import { nativeNames } from "./names";
+import { isMentionKeyword, normalizeKeyword } from "./keywords";
 import { createNameExclusionMatcher } from "./exclusions";
 import {
   EMPTY_MENTION_PROGRESS,
@@ -79,12 +80,7 @@ export class MentionIndex {
         blockKeywords.add(keyword);
         // Exclude before vocabulary and occurrence budgets, not after edges form.
         if (excluded(keyword)) continue;
-        if (
-          !keyword ||
-          keyword.length > KEYWORD_LENGTH_LIMIT ||
-          !/[\p{L}\p{N}]/u.test(keyword) ||
-          keyword.includes("\uFFFC")
-        ) {
+        if (!isMentionKeyword(keyword)) {
           this.progress.skippedKeywords++;
           continue;
         }

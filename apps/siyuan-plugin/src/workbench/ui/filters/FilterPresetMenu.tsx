@@ -175,6 +175,12 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       <PopoverContent
         align="start"
         className="filter-popover gap-0 p-0"
+        onInteractOutside={(event) => {
+          // Keep the editor and its unsaved draft mounted while its detail
+          // dialog is portalled outside this non-modal popover.
+          if (document.querySelector('[data-filter-dialog][data-state="open"]'))
+            event.preventDefault();
+        }}
         aria-label={
           details ? t("text.editFilterValue", { p0: presets.activeName }) : t("text.filterPresets")
         }

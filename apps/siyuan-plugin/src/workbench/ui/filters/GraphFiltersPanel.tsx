@@ -33,6 +33,7 @@ import { isTypeHidden } from "../../../core/scope/filter-types";
 import { NODE_TYPE_LABELS } from "../../presentation/graph-labels";
 import { SettingSwitch } from "../appearance/SettingsPanel";
 import { MentionControls } from "../../../modules/mentions/ui/MentionControls";
+import { FilterExplanation } from "./FilterExplanation";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
@@ -211,6 +212,11 @@ export function GraphFiltersPanel({
                   mode={filters.mentions}
                   phrases={filters.excludedMentionPhrases}
                   patterns={filters.excludedMentionPatterns}
+                  previewSource={{
+                    blocks: data?.mentionBlocks,
+                    nodes: state.sourceLookups?.byId,
+                    open: state.openReadIssueSource,
+                  }}
                   chosenCount={state.chosenIds.length}
                   status={state.mentionState}
                   editorKey={
@@ -309,6 +315,7 @@ export function GraphFiltersPanel({
       </ScrollArea>
       <Separator />
       <div className="flex flex-col gap-2 p-3">
+        <FilterExplanation state={state} />
         {footer}
         <Button variant="outline" className="w-full" onClick={state.resetFilters}>
           {t("text.resetFilters")}

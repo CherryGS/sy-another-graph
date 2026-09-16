@@ -422,6 +422,7 @@ export function useWorkbenchState() {
     data,
     currentGraph,
     sourceLookups,
+    backgroundIds,
     currentLookups,
     loading,
     error: error || engineError,

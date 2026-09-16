@@ -1,4 +1,5 @@
-import type { MentionMode, MentionProgress } from "../types";
+import type { MentionBlock, MentionMode, MentionProgress } from "../types";
+import type { GraphNode } from "../../../core/graph/types";
 import type { MentionExclusions } from "../exclusions";
 
 export interface MentionStatusView {
@@ -14,6 +15,11 @@ export interface MentionControlsProps {
   mode: MentionMode;
   phrases: readonly string[];
   patterns: readonly string[];
+  previewSource: {
+    blocks?: readonly MentionBlock[];
+    nodes?: ReadonlyMap<string, GraphNode>;
+    open: (id: string) => void;
+  };
   chosenCount: number;
   status: MentionStatusView;
   editorKey: string;

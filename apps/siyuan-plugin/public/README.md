@@ -67,6 +67,15 @@ Up to 2,000 phrases and 128 patterns are supported, each up to 256 characters
 Vocabulary preparation with regex stops after 10 seconds; simplify the rules and
 apply again if it times out.
 
+After typing pauses, preview how many names and original nodes match. **View details**
+opens a searchable, paginated dialog with names, source documents, node IDs and
+matching rules. Preview includes acquired workspace names outside the current scope;
+it neither changes the graph nor estimates how many edges would be removed.
+
+Use **Check a node or relationship** in the filter panel to explain an ID's exclusion,
+document representation or display-only hiding. An optional second ID compares direct
+relationships between the original endpoints with those between their display representatives.
+
 ## Data and limits
 
 - Reads the local index without editing notes or relation fields. Appearance

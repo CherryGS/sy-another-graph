@@ -1,6 +1,15 @@
 export const KEYWORD_LENGTH_LIMIT = 256;
 export const EXCLUDED_PHRASE_LIMIT = 2_000;
 
+export function isMentionKeyword(keyword: string): boolean {
+  return (
+    !!keyword &&
+    keyword.length <= KEYWORD_LENGTH_LIMIT &&
+    /[\p{L}\p{N}]/u.test(keyword) &&
+    !keyword.includes("\uFFFC")
+  );
+}
+
 export function normalizeKeyword(value: string): string {
   return value
     .normalize("NFKC")
