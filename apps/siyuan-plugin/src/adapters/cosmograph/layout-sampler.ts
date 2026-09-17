@@ -66,13 +66,3 @@ export function sampleLayoutBuffer(positions: Float32Array, dimensions: Dimensio
     aggregate.addPoint(positions, offset);
   return aggregate.snapshot();
 }
-
-/** Reuse the same aggregation for coordinates already captured during a data rebuild. */
-export function sampleLayoutPoints(positions: Iterable<readonly number[]>): LayoutMetrics {
-  let aggregate: LayoutAccumulator | undefined;
-  for (const position of positions) {
-    aggregate ??= new LayoutAccumulator(position.length);
-    aggregate.addPoint(position);
-  }
-  return (aggregate ?? new LayoutAccumulator(0)).snapshot();
-}

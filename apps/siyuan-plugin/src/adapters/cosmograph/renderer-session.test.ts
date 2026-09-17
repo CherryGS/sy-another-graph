@@ -351,7 +351,13 @@ describe("renderer lifetime", () => {
       expect(h.session.getDiagnostics()).toMatchObject({
         dataRevisions: 1,
         layoutSample: previousSample + 1,
-        layoutSnapshot: { count: 2, dimensions },
+        layoutSnapshot: {
+          count: 2,
+          dimensions,
+          min: dimensions === 2 ? [100, 110] : [100, 110, 120],
+          max: dimensions === 2 ? [120, 130] : [130, 140, 150],
+          centroid: dimensions === 2 ? [110, 120] : [115, 125, 135],
+        },
         layoutSimulationRunning: false,
         layoutSpaceInfo: { requestedSize: 8192, effectiveSize: 8192, deviceLimit: 16384 },
         chosenIds: ["a"],
@@ -537,21 +543,6 @@ describe("renderer lifetime", () => {
       chosenIds: ["c", "a"],
       pinnedCount: 2,
       restoredPointCount: 2,
-      positionWorldError: 0,
-      layoutBefore: {
-        count: 3,
-        dimensions: 3,
-        min: [10, 20, 30],
-        max: [70, 80, 90],
-        centroid: [40, 50, 60],
-      },
-      layoutAfter: {
-        count: 3,
-        dimensions: 3,
-        min: [10, 20, 30],
-        max: [130, 140, 150],
-        centroid: [70, 80, 90],
-      },
     });
     await h.session.dispose();
   });
@@ -794,7 +785,10 @@ describe("renderer lifetime", () => {
     const beforeB = h.graph.spaceToScreenPosition([500.75, 60.125]);
     h.fits.mockClear();
     h.graph.unpause.mockClear();
+    h.graph.getPointPositions.mockClear();
     await h.session.update(dataWithIds(["new", "b", "a"]), {});
+    // Capture the old layout and merge the new one; diagnostics must not add a third read.
+    expect(h.graph.getPointPositions).toHaveBeenCalledTimes(2);
     expect([...h.graph.getPointPositions()]).toEqual([100, 110, 500.75, 60.125, 100.25, -40.5]);
     expect(h.graph.spaceToScreenPosition([100.25, -40.5])).toEqual(beforeA);
     expect(h.graph.spaceToScreenPosition([500.75, 60.125])).toEqual(beforeB);
@@ -805,17 +799,11 @@ describe("renderer lifetime", () => {
     expect(h.session.getDiagnostics()).toMatchObject({
       dataRevisions: 2,
       restoredPointCount: 2,
-      positionWorldError: 0,
-      positionScreenError: 0,
       zoomBefore: 4,
       zoomAfter: 4,
       chosenIds: ["b", "a"],
       pinnedCount: 2,
     });
-    expect(h.session.getDiagnostics().positionSamples.map((sample) => sample.id)).toEqual([
-      "a",
-      "b",
-    ]);
     await h.session.dispose();
   });
 
@@ -840,7 +828,6 @@ describe("renderer lifetime", () => {
     await latest;
     expect([...h.graph.getPointPositions()]).toEqual([11, 22, 33, 44, 140, 150]);
     expect(h.session.getDiagnostics().chosenIds).toEqual(["a", "b"]);
-    expect(h.session.getDiagnostics().positionWorldError).toBe(0);
     expect(h.graph.getZoomLevel()).toBe(2.5);
     await h.session.dispose();
   });

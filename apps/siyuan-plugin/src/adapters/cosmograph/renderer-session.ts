@@ -9,13 +9,9 @@ import { sampleLayoutBuffer, type LayoutMetrics } from "./layout-sampler";
 import {
   captureNodePositions,
   captureViewport,
-  measurePositionRestore,
-  positionProbes,
   restoreNodePositions,
   restoreViewport,
   type NodePositions,
-  type PositionProbe,
-  type PositionRestore,
   type ViewportSnapshot,
   type ViewportApi,
 } from "./position-adapter";
@@ -64,11 +60,6 @@ export interface RendererDiagnostics {
   active: boolean;
   positionRestorations: number;
   restoredPointCount: number;
-  positionWorldError: number | null;
-  positionScreenError: number | null;
-  positionSamples: PositionRestore["samples"];
-  layoutBefore: PositionRestore["layoutBefore"] | null;
-  layoutAfter: PositionRestore["layoutAfter"] | null;
   layoutSnapshot: LayoutMetrics | null;
   layoutSample: number;
   layoutSampledAt: number | null;
@@ -145,11 +136,6 @@ export class RendererSession {
     active: true,
     positionRestorations: 0,
     restoredPointCount: 0,
-    positionWorldError: null,
-    positionScreenError: null,
-    positionSamples: [],
-    layoutBefore: null,
-    layoutAfter: null,
     layoutSnapshot: null,
     layoutSample: 0,
     layoutSampledAt: null,
@@ -234,8 +220,7 @@ export class RendererSession {
       let appliedConfig: CosmographConfig | null = null;
       let outlinedIndices: number[] = [];
       let positionsBefore: NodePositions | null = null;
-      let probes: PositionProbe[] = [];
-      let continuity: PositionRestore | null = null;
+      let restoredPointCount: number | null = null;
       let viewportBefore: ViewportSnapshot | null = null;
       try {
         // Label/crossfilter reads have their own queues inside Cosmograph.
@@ -251,12 +236,6 @@ export class RendererSession {
             this.graph,
             previousData.indexToId,
             this.coordinateStride,
-          );
-          const chosenProbes = this.chosenIds.filter((id) => positionsBefore!.has(id));
-          probes = positionProbes(
-            this.graph,
-            positionsBefore,
-            chosenProbes.length ? chosenProbes : previousData.indexToId,
           );
           viewportBefore = captureViewport(this.graph);
           if (viewportBefore) this.lastViewport = viewportBefore;
@@ -376,20 +355,16 @@ export class RendererSession {
             this.graph.pause();
             this.graph.setPinnedPoints(this.chosenIndices(data));
             if (positionsBefore)
-              restoreNodePositions(
+              restoredPointCount = restoreNodePositions(
                 this.graph,
                 data.indexToId,
                 positionsBefore,
                 this.coordinateStride,
               );
             if (viewportToRestore) restoreViewport(this.graph, viewportToRestore);
-            // Programmatic zoom may enable simulation; applyControls later restores
-            // the current user/visibility state after the readback is complete.
+            // Programmatic zoom may enable simulation; keep it paused until the
+            // current update applies the user/visibility controls.
             this.graph.pause();
-            if (positionsBefore) {
-              const after = captureNodePositions(this.graph, data.indexToId, this.coordinateStride);
-              continuity = measurePositionRestore(this.graph, positionsBefore, after, probes);
-            }
           }
           this.publishDiagnostics({
             configurations: this.diagnosticState.configurations + 1,
@@ -434,14 +409,9 @@ export class RendererSession {
           outlinedCount: outlinedIndices.length,
           dimensions: this.graph.is3D ? 3 : 2,
           camera: this.graph.is3D ? (this.graph.getCameraState?.() ?? null) : null,
-          positionRestorations: this.diagnosticState.positionRestorations + (continuity ? 1 : 0),
-          restoredPointCount: continuity?.restored ?? 0,
-          positionWorldError: continuity?.maximumWorldError ?? null,
-          positionScreenError: continuity?.maximumScreenError ?? null,
-          positionSamples: continuity?.samples ?? [],
-          ...(continuity
-            ? { layoutBefore: continuity.layoutBefore, layoutAfter: continuity.layoutAfter }
-            : {}),
+          positionRestorations:
+            this.diagnosticState.positionRestorations + (restoredPointCount === null ? 0 : 1),
+          restoredPointCount: restoredPointCount ?? 0,
           zoomBefore:
             viewportBefore?.dimensions === 2
               ? viewportBefore.zoom

@@ -61,7 +61,7 @@ function explain(
 ) {
   const graph = projectGraph(data, rules(patch), search);
   const background = new Set(graph.nodes.map((member) => member.id));
-  const view = createViewProjector(graph).project(background, new Set(chosen), null, hideIsolated);
+  const view = createViewProjector(graph).project(background, new Set(chosen), hideIsolated);
   return explainNode(data, graph, view, background, id);
 }
 const last = (result: ReturnType<typeof explain>) => result.steps.at(-1)!.message.code;
@@ -106,7 +106,7 @@ describe("on-demand filtering explanations", () => {
     expect(last(explain("orphan", {}, undefined, true, ["orphan"]))).toBe("graph.traceVisible");
     const graph = projectGraph(data, rules());
     const background = new Set(["target"]);
-    const view = createViewProjector(graph).project(background, new Set(), null, false);
+    const view = createViewProjector(graph).project(background, new Set(), false);
     expect(last(explainNode(data, graph, view, background, "a"))).toBe("graph.traceOutsideDisplay");
   });
 

@@ -23,7 +23,6 @@ import { DEFAULT_FILTERS } from "../../modules/presets/filters";
 import {
   projectGraph,
   resolveOpenBlock,
-  scopeBackground,
   createViewProjector,
   type CurrentGraph,
 } from "../../core/scope/graph-model";
@@ -44,6 +43,7 @@ import { buildSearchOrigins } from "../../modules/search/origins";
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
 const emptyView = { nodes: [], edges: [] };
+const emptyIds: ReadonlySet<string> = new Set();
 
 type ExplorationResult = ExplorationSummary & {
   graph: CurrentGraph;
@@ -220,13 +220,8 @@ export function useWorkbenchState() {
     setSelection(availableSelection);
   }, [availableSelection]);
 
-  const backgroundIds = useMemo(
-    () =>
-      data && currentGraph
-        ? scopeBackground(data, currentGraph, filters.scopeId, filters.includeChildDocuments)
-        : new Set<string>(),
-    [data, currentGraph, filters.scopeId, filters.includeChildDocuments],
-  );
+  // Source scope and type projection have already produced the complete background.
+  const backgroundIds = currentGraph?.eligibleIds ?? emptyIds;
 
   useEffect(() => {
     const ownership = requests.current;
@@ -300,9 +295,9 @@ export function useWorkbenchState() {
   const view = useMemo(
     () =>
       viewProjector
-        ? viewProjector.project(backgroundIds, chosenSet, focus, filters.hideIsolated)
+        ? viewProjector.project(backgroundIds, chosenSet, filters.hideIsolated)
         : emptyView,
-    [viewProjector, backgroundIds, chosenSet, focus, filters.hideIsolated],
+    [viewProjector, backgroundIds, chosenSet, filters.hideIsolated],
   );
   const sourceLookups = useMemo(() => (data ? getGraphLookups(data) : null), [data]);
   const currentLookups = useMemo(

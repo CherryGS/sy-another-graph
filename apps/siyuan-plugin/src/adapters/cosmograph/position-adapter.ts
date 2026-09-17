@@ -3,14 +3,12 @@ import type { Cosmograph } from "@cosmograph/cosmograph";
 import {
   cameraDepthOffset,
   pointAt,
-  projectPosition,
   type CameraState,
   type Dimensions,
   type Point2D,
   type PointPosition,
   type ProjectionApi,
 } from "./geometry";
-import { sampleLayoutPoints, type LayoutMetrics } from "./layout-sampler";
 
 /** The supported Cosmos position API is not yet forwarded by Cosmograph 2.5.1. */
 interface PositionApi {
@@ -63,27 +61,6 @@ export type ViewportSnapshot =
       center: [number, number];
     }
   | { dimensions: 3; camera: CameraState };
-
-export interface PositionProbe {
-  id: string;
-  world: number[];
-  screen: [number, number] | null;
-}
-
-export interface PositionRestore {
-  restored: number;
-  maximumWorldError: number | null;
-  maximumScreenError: number | null;
-  layoutBefore: LayoutMetrics;
-  layoutAfter: LayoutMetrics;
-  samples: {
-    id: string;
-    worldBefore: number[];
-    worldAfter: number[];
-    screenBefore: [number, number] | null;
-    screenAfter: [number, number] | null;
-  }[];
-}
 
 /** Capture only IDs in the graph that is actually backed by the current GPU tables. */
 export function captureNodePositions(
@@ -170,72 +147,6 @@ export function restoreViewport(renderer: ViewportApi, saved: ViewportSnapshot) 
   }
   // Supplying an explicit scale makes this a center/zoom restoration, not an automatic fit.
   renderer.setZoomTransformByPointPositions(new Float32Array(saved.center), 0, saved.zoom, 0);
-}
-
-/** Small public-coordinate probes distinguish a camera reset from movement of the actual points. */
-export function positionProbes(
-  renderer: ViewportApi,
-  positions: NodePositions,
-  ids: readonly string[],
-): PositionProbe[] {
-  const probes: PositionProbe[] = [];
-  for (const id of new Set(ids)) {
-    const position = positions.get(id);
-    if (!position) continue;
-    const world = [...position];
-    const screen = projectPosition(renderer, world);
-    probes.push({ id, world, screen: screen?.every(Number.isFinite) ? [...screen] : null });
-    if (probes.length === 8) break;
-  }
-  return probes;
-}
-
-export function measurePositionRestore(
-  renderer: ViewportApi,
-  before: NodePositions,
-  after: NodePositions,
-  probes: readonly PositionProbe[],
-): PositionRestore {
-  let restored = 0;
-  let maximumWorldError: number | null = null;
-  for (const [id, position] of after) {
-    const original = before.get(id);
-    if (!original) continue;
-    restored++;
-    const error = Math.hypot(...original.map((value, axis) => position[axis] - value));
-    maximumWorldError = Math.max(maximumWorldError ?? 0, error);
-  }
-  let maximumScreenError: number | null = null;
-  const samples: PositionRestore["samples"] = [];
-  for (const probe of probes) {
-    const position = after.get(probe.id);
-    if (!position) continue;
-    const world = [...position];
-    const projected = projectPosition(renderer, world);
-    const screen: [number, number] | null = projected?.every(Number.isFinite)
-      ? [...projected]
-      : null;
-    if (probe.screen && screen)
-      maximumScreenError = Math.max(
-        maximumScreenError ?? 0,
-        Math.hypot(screen[0] - probe.screen[0], screen[1] - probe.screen[1]),
-      );
-    samples.push({
-      id: probe.id,
-      worldBefore: probe.world,
-      worldAfter: world,
-      screenBefore: probe.screen,
-      screenAfter: screen,
-    });
-  }
-  return {
-    restored,
-    maximumWorldError,
-    maximumScreenError,
-    samples,
-    layoutBefore: sampleLayoutPoints(before.values()),
-    layoutAfter: sampleLayoutPoints(after.values()),
-  };
 }
 
 export interface GroupMotion {

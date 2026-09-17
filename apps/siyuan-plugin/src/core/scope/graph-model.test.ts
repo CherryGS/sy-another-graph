@@ -171,9 +171,7 @@ describe("search ancestor context", () => {
     expect(resolveOpenBlock("item", data, graph)).toBe("item");
     expect(resolveOpenBlock("sibling", data, graph)).toBeNull();
     const background = scopeBackground(data, graph, "", true);
-    expect(ids(scopeGraph(graph, background, new Set(["hitA"]), new Set([5]), false))).toEqual(
-      ids(graph),
-    );
+    expect(ids(scopeGraph(graph, background, new Set(["hitA"]), false))).toEqual(ids(graph));
   });
 
   it("keeps expanded context subject to ordinary scope, exclusions and type filters", () => {
@@ -308,7 +306,7 @@ describe("source containment index reuse", () => {
 });
 
 describe("stable views within one current graph revision", () => {
-  it("reuses the entire view for equivalent neighborhood membership and avoids rescanning edges", () => {
+  it("reuses the entire view for equivalent background membership and avoids rescanning edges", () => {
     const data = dataset(
       [node("A", 0), node("B", 1), node("outside", 2)],
       [
@@ -328,17 +326,17 @@ describe("stable views within one current graph revision", () => {
       });
     }
     const projector = createViewProjector(graph);
-    const first = projector.project(new Set(["A"]), new Set(["A"]), new Set([0, 1]), false);
+    const first = projector.project(new Set(["A"]), new Set(["A"]), false);
     const reads = edgeReads;
     expect(reads).toBeGreaterThan(0);
-    const repeated = projector.project(new Set(["A"]), new Set(["A", "B"]), new Set([1, 0]), false);
+    const repeated = projector.project(new Set(["A"]), new Set(["A", "B"]), false);
     expect(repeated).toBe(first);
     expect(repeated.nodes).toBe(first.nodes);
     expect(repeated.edges).toBe(first.edges);
     expect(edgeReads).toBe(reads);
   });
 
-  it("keeps all of B and never admits outside choices or changing neighborhood results", () => {
+  it("keeps all of B and never admits outside choices", () => {
     const graph = projectGraph(
       dataset(
         [node("B", 0), node("S", 1), node("near", 2), node("far", 3)],
@@ -352,14 +350,10 @@ describe("stable views within one current graph revision", () => {
     const projector = createViewProjector(graph);
     const background = new Set(["B", "S", "near"]);
     const chosen = new Set(["S"]);
-    const one = projector.project(background, chosen, new Set([1, 2]), false);
-    const two = projector.project(background, chosen, new Set([1, 2, 3]), false);
-    const zero = projector.project(background, chosen, new Set([1]), false);
+    const one = projector.project(background, chosen, false);
     expect(ids(one)).toEqual(["B", "S", "near"]);
-    expect(two).toBe(one);
-    expect(zero).toBe(one);
-    expect(projector.project(background, new Set(["S", "far"]), new Set([3]), false)).toBe(one);
-    expect(pairs(zero, "reference")).toEqual(["S>near"]);
+    expect(projector.project(background, new Set(["S", "far"]), false)).toBe(one);
+    expect(pairs(one, "reference")).toEqual(["S>near"]);
   });
 
   it("changes the display boundary while retaining node objects and an unchanged edge set", () => {
@@ -369,14 +363,13 @@ describe("stable views within one current graph revision", () => {
     );
     const projector = createViewProjector(graph);
     const chosen = new Set(["A"]);
-    const reached = new Set([0, 1]);
-    const subset = projector.project(new Set(["A", "B"]), chosen, reached, false);
-    const full = projector.project(new Set(["A", "B", "unused"]), chosen, reached, false);
+    const subset = projector.project(new Set(["A", "B"]), chosen, false);
+    const full = projector.project(new Set(["A", "B", "unused"]), chosen, false);
     expect(full).not.toBe(subset);
     expect(full.nodes[0]).toBe(subset.nodes[0]);
     expect(full.nodes[1]).toBe(subset.nodes[1]);
     expect(full.edges).toBe(subset.edges);
-    const narrowed = projector.project(new Set(["A"]), chosen, reached, false);
+    const narrowed = projector.project(new Set(["A"]), chosen, false);
     expect(ids(narrowed)).toEqual(["A"]);
     expect(narrowed.nodes[0]).toBe(subset.nodes[0]);
     expect(narrowed.edges).toEqual([]);
@@ -390,13 +383,13 @@ describe("stable views within one current graph revision", () => {
     const projector = createViewProjector(graph);
     const background = new Set(["a", "b", "isolate"]);
     const chosen = new Set(["a"]);
-    const hidden = projector.project(background, chosen, new Set([0, 1]), true);
+    const hidden = projector.project(background, chosen, true);
     expect(ids(hidden)).toEqual(["a", "b"]);
-    expect(projector.project(background, chosen, new Set([1, 0]), true)).toBe(hidden);
-    const kept = projector.project(background, new Set(["a", "isolate"]), new Set([0, 1, 2]), true);
+    expect(projector.project(background, chosen, true)).toBe(hidden);
+    const kept = projector.project(background, new Set(["a", "isolate"]), true);
     expect(ids(kept)).toEqual(["a", "b", "isolate"]);
     expect(kept.edges).toBe(hidden.edges);
-    expect(projector.project(background, new Set(["a", "isolate"]), null, false)).toBe(kept);
+    expect(projector.project(background, new Set(["a", "isolate"]), false)).toBe(kept);
   });
 
   it("does not reuse previous-revision labels, edge weights or provenance just because IDs match", () => {
@@ -410,9 +403,8 @@ describe("stable views within one current graph revision", () => {
     );
     const background = new Set(["a", "b"]);
     const chosen = new Set(["a"]);
-    const focus = new Set([0, 1]);
-    const oldView = createViewProjector(before).project(background, chosen, focus, false);
-    const newView = createViewProjector(after).project(background, chosen, focus, false);
+    const oldView = createViewProjector(before).project(background, chosen, false);
+    const newView = createViewProjector(after).project(background, chosen, false);
     expect(newView).not.toBe(oldView);
     expect(newView.nodes[0].label).toBe("After");
     expect(newView.edges[0].weight).toBe(9);
@@ -876,21 +868,17 @@ describe("contained background and chosen exploration roots", () => {
       ],
     );
     const graph = projectGraph(data, filters({ scopeId: "D" }));
-    const background = scopeBackground(data, graph, "D", true);
+    const background = graph.eligibleIds;
     const chosen = new Set(["seed"]);
     expect(background).toEqual(new Set(["D", "seed", "background"]));
-    const two = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 2), false);
-    expect(ids(two)).toEqual(["D", "background", "seed"]);
-    const one = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 1), false);
-    expect(ids(one)).toEqual(["D", "background", "seed"]);
-    const zero = scopeGraph(graph, background, chosen, reached(graph, [...chosen], 0), false);
-    expect(ids(zero)).toEqual(["D", "background", "seed"]);
+    const view = scopeGraph(graph, background, chosen, false);
+    expect(ids(view)).toEqual(["D", "background", "seed"]);
     expect(chosen).toEqual(new Set(["seed"]));
     expect(reached(graph, ["seed"], 0)).toEqual(new Set([1]));
     expect(reached(graph, ["seed"], 1)).toEqual(new Set([1, 2]));
     expect(reached(graph, ["seed"], 100)).toEqual(new Set([1, 2]));
-    expect(ids(two)).not.toContain("decoy");
-    expect(pairs(zero, "reference")).toEqual(["seed>background"]);
+    expect(ids(view)).not.toContain("decoy");
+    expect(pairs(view, "reference")).toEqual(["seed>background"]);
   });
 
   it("hides current isolates while retaining eligible chosen members", () => {
@@ -901,13 +889,13 @@ describe("contained background and chosen exploration roots", () => {
     const graph = projectGraph(data, filters());
     const background = new Set(["background-isolate", "chosen-isolate", "u", "v"]);
     const chosen = new Set(["chosen-isolate"]);
-    expect(ids(scopeGraph(graph, background, chosen, null, false))).toEqual([
+    expect(ids(scopeGraph(graph, background, chosen, false))).toEqual([
       "background-isolate",
       "chosen-isolate",
       "u",
       "v",
     ]);
-    const view = scopeGraph(graph, background, chosen, null, true);
+    const view = scopeGraph(graph, background, chosen, true);
     expect(ids(view)).toEqual(["chosen-isolate", "u", "v"]);
     expect(pairs(view, "reference")).toEqual(["u>v"]);
   });
@@ -950,7 +938,7 @@ describe("contained background and chosen exploration roots", () => {
     const graph = projectGraph(data, filters({ scopeId: "scope", hiddenTypes: ["p"] }));
     const background = scopeBackground(data, graph, "scope", true);
     expect(background).toEqual(new Set(["scope", "D"]));
-    expect(ids(scopeGraph(graph, background, new Set(), null, false))).toEqual(["D", "scope"]);
+    expect(ids(scopeGraph(graph, background, new Set(), false))).toEqual(["D", "scope"]);
   });
 });
 

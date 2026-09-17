@@ -146,9 +146,6 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     () => ({
       camera: JSON.stringify(diagnostics?.camera ?? null),
       chosenIds: JSON.stringify(diagnostics?.chosenIds ?? []),
-      positionSamples: JSON.stringify(diagnostics?.positionSamples ?? []),
-      layoutBefore: JSON.stringify(diagnostics?.layoutBefore ?? null),
-      layoutAfter: JSON.stringify(diagnostics?.layoutAfter ?? null),
       layoutSnapshot: JSON.stringify(diagnostics?.layoutSnapshot ?? null),
       layoutSpaceInfo: JSON.stringify(diagnostics?.layoutSpaceInfo ?? null),
     }),
@@ -597,11 +594,6 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       data-pinned-count={diagnostics?.pinnedCount ?? 0}
       data-position-restores={diagnostics?.positionRestorations ?? 0}
       data-restored-points={diagnostics?.restoredPointCount ?? 0}
-      data-position-world-error={diagnostics?.positionWorldError ?? ""}
-      data-position-screen-error={diagnostics?.positionScreenError ?? ""}
-      data-position-samples={serializedDiagnostics.positionSamples}
-      data-layout-before={serializedDiagnostics.layoutBefore}
-      data-layout-after={serializedDiagnostics.layoutAfter}
       data-layout-snapshot={serializedDiagnostics.layoutSnapshot}
       data-layout-sample={diagnostics?.layoutSample ?? 0}
       data-layout-sampled-at={diagnostics?.layoutSampledAt ?? ""}

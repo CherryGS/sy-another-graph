@@ -3,7 +3,6 @@ import {
   beginGroupMotion,
   beginCanvasGroupMotion,
   captureNodePositions,
-  measurePositionRestore,
   positionApi,
   restoreNodePositions,
   type ViewportApi,
@@ -11,62 +10,6 @@ import {
 import type { CameraState, Point2D, PointPosition } from "./geometry";
 
 describe("chosen position movement", () => {
-  it("quantifies the entire captured layouts, including removed IDs before and new IDs after", () => {
-    const renderer = {
-      getCanvas: () => null,
-      getZoomLevel: () => 1,
-      screenToSpacePosition: ((point: Point2D) => point) as ViewportApi["screenToSpacePosition"],
-      spaceToScreenPosition: (point: PointPosition): Point2D => [point[0], point[1]],
-      setZoomTransformByPointPositions: vi.fn(),
-    };
-    const before = new Map([
-      ["a", [0, 0, 0]],
-      ["b", [4096, 4096, 4096]],
-      ["removed", [2048, 2048, 2048]],
-    ]);
-    const after = new Map([
-      ["a", [0, 0, 0]],
-      ["b", [4096, 4096, 4096]],
-      ["new", [8192, -4096, 2048]],
-    ]);
-    const result = measurePositionRestore(renderer, before, after, []);
-    expect(result.restored).toBe(2);
-    expect(result.maximumWorldError).toBe(0);
-    expect(result.layoutBefore).toEqual({
-      count: 3,
-      dimensions: 3,
-      min: [0, 0, 0],
-      max: [4096, 4096, 4096],
-      minCount: [1, 1, 1],
-      maxCount: [1, 1, 1],
-      centroid: [2048, 2048, 2048],
-    });
-    expect(result.layoutAfter).toEqual({
-      count: 3,
-      dimensions: 3,
-      min: [0, -4096, 0],
-      max: [8192, 4096, 4096],
-      minCount: [1, 1, 1],
-      maxCount: [1, 1, 1],
-      centroid: [4096, 0, 2048],
-    });
-    const repeated = new Map([
-      ["a", [0, 10]],
-      ["b", [0, 40]],
-      ["c", [20, 40]],
-      ["d", [40, 20]],
-    ]);
-    expect(measurePositionRestore(renderer, repeated, repeated, []).layoutAfter).toEqual({
-      count: 4,
-      dimensions: 2,
-      min: [0, 10],
-      max: [40, 40],
-      minCount: [2, 1],
-      maxCount: [1, 2],
-      centroid: [15, 27.5],
-    });
-  });
-
   it("moves a 3D set in the grabbed node's depth plane while its shape and other points stay unchanged", () => {
     // Camera at +X looking toward the origin. Its screen axes are -Z and +Y.
     // Projection is independent of the implementation's orbit depth calculation.

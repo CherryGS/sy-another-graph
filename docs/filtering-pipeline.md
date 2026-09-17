@@ -72,8 +72,8 @@ flowchart TD
 路径描述的是当前表示层级的连通关系，不保证等同于原始块层级的逐条引用链。
 社区分析从同一当前图另建无向、去重、单位权连接，不改变原图的方向或权重。
 
-[scopeBackground / createViewProjector](../apps/siyuan-plugin/src/core/scope/graph-model.ts) 最后生成显示范围并隐藏未选中的孤立节点。
-邻域/路径高亮不参与这个删减。图内定位、画布和 JSON 导出使用可见图；邻域、路径和社区使用当前计算图。
+工作台直接复用当前计算图的只读 `eligibleIds` 作为显示背景，由 [createViewProjector](../apps/siyuan-plugin/src/core/scope/graph-model.ts) 隐藏未选中的孤立节点，不再次遍历源范围。
+邻域/路径高亮不参与这个删减，也不是显示投影器的输入。图内定位、画布和 JSON 导出使用可见图；邻域、路径和社区使用当前计算图。
 标签避让是更晚的画布行为，不影响这两张图。
 
 ## 按需检查与排除预览

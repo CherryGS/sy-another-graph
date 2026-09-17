@@ -18,7 +18,7 @@ export interface CurrentGraph extends GraphView {
   /** Source-to-display mapping, plus selectable document representatives. */
   representatives: Map<string, string>;
   /** Visible identities; hidden source blocks cannot remain chosen. */
-  eligibleIds: Set<string>;
+  eligibleIds: ReadonlySet<string>;
   excludedIds: Set<string>;
 }
 
@@ -429,17 +429,15 @@ export function scopeGraph(
   graph: CurrentGraph,
   backgroundIds: ReadonlySet<string>,
   chosenIds: ReadonlySet<string>,
-  reachedIndices: ReadonlySet<number> | null,
   hideIsolated: boolean,
 ): GraphView {
-  return createViewProjector(graph).project(backgroundIds, chosenIds, reachedIndices, hideIsolated);
+  return createViewProjector(graph).project(backgroundIds, chosenIds, hideIsolated);
 }
 
 export interface GraphViewProjector {
   project(
     backgroundIds: ReadonlySet<string>,
     chosenIds: ReadonlySet<string>,
-    reachedIndices: ReadonlySet<number> | null,
     hideIsolated: boolean,
   ): GraphView;
 }
@@ -458,8 +456,8 @@ export function createViewProjector(graph: CurrentGraph): GraphViewProjector {
   let connected: Set<number> | undefined;
   let previous: GraphView | undefined;
   return {
-    project(backgroundIds, chosenIds, _reachedIndices, hideIsolated) {
-      // scopeBackground always returns B as a subset of this Q revision.
+    project(backgroundIds, chosenIds, hideIsolated) {
+      // B is a subset of this Q revision; the workbench shares Q's eligible IDs.
       const fullBackground = backgroundIds.size === graph.nodes.length;
       const nextCandidates = fullBackground
         ? graph.nodes
