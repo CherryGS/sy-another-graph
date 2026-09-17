@@ -2,7 +2,7 @@ import { graphDegrees } from "../../../core/graph/metrics";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDatabaseGraph } from "./database-source";
 import type { BlockRow } from "./source";
-import type { GraphNode } from "../../../core/graph/types";
+import type { GraphEdge, GraphNode } from "../../../core/graph/types";
 
 const id = (index: number) => `20260909120000-${String(index).padStart(7, "0")}`;
 const AV_A = id(1);
@@ -133,6 +133,58 @@ async function acquire(blocks: BlockRow[]) {
 }
 
 describe("complete logical database acquisition", () => {
+  it.each(["success", "failure", "cancelled"])(
+    "preserves frozen native facts and shared evidence during %s",
+    async (outcome) => {
+      const blocks = [embedding(), block(BOUND_BLOCK)];
+      const native: GraphEdge = {
+        source: 1,
+        target: 0,
+        kind: "reference",
+        weight: 2,
+        provenance: [
+          { sourceId: BOUND_BLOCK, targetId: EMBEDDING_A, kind: "reference", weight: 2 },
+        ],
+      };
+      const base = { ...baseGraph(blocks), edges: [native] };
+      base.nodes.forEach(Object.freeze);
+      native.provenance!.forEach(Object.freeze);
+      Object.freeze(native.provenance);
+      Object.freeze(native);
+      Object.freeze(base.nodes);
+      Object.freeze(base.edges);
+      const before = JSON.stringify(base);
+      const controller = new AbortController();
+      if (outcome === "success") mockDatabases({ [AV_A]: database(AV_A, FIELD_A, []) });
+      else
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async () => {
+            if (outcome === "cancelled") {
+              controller.abort();
+              throw controller.signal.reason;
+            }
+            throw new Error("Database unavailable");
+          }),
+        );
+      const pending = addDatabaseGraph(base, blocks, controller.signal, () => {});
+      if (outcome === "cancelled")
+        await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      else {
+        const result = await pending;
+        expect(result.nodes[0]).not.toBe(base.nodes[0]);
+        expect(result.nodes[0].databaseId).toBe(AV_A);
+        expect(result.edges).not.toBe(base.edges);
+        expect(result.edges[0]).toBe(native);
+        expect(result.edges[0].provenance).toBe(native.provenance);
+        expect(result.edges).toHaveLength(outcome === "success" ? 2 : 1);
+        expect(result.warnings).toHaveLength(outcome === "success" ? 0 : 1);
+      }
+      expect(JSON.stringify(base)).toBe(before);
+      expect(base.nodes[0].databaseId).toBeUndefined();
+    },
+  );
+
   it("leaves a graph without database blocks independent of AV APIs", async () => {
     const fetchMock = mockDatabases({});
     const blocks = [block(BOUND_BLOCK)];

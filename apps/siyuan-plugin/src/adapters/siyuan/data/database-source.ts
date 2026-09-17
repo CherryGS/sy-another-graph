@@ -262,10 +262,8 @@ export async function addDatabaseGraph(
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[]; warnings: ReadIssue[] }> {
   signal.throwIfAborted();
   const nodes = base.nodes.map((node) => ({ ...node }));
-  const edges = base.edges.map((edge) => ({
-    ...edge,
-    provenance: edge.provenance?.map((source) => ({ ...source })),
-  }));
+  // Existing facts/evidence are immutable; own only the array we append AV edges to.
+  const edges = [...base.edges];
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const embeddings = new Map<string, GraphNode[]>();
   const issues = new ReadIssueCollector();
