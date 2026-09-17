@@ -7,5 +7,6 @@ export default defineConfig({
   },
   test: {
     reporters: ["dot"],
+    fsModuleCache: true,
   },
 });
