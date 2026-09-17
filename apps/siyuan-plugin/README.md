@@ -48,6 +48,10 @@ The host retains one iframe across tab switches and close/reopen. Plugin unload
 releases its resources. Runtime assets are bundled locally; requests stay on the
 current SiYuan origin. Generated `wasm/` and `dist/` output is untracked.
 
+The local DuckDB runtime bundles only its EH WASM and browser worker. Feature
+detection rejects engines without WebAssembly exception handling before creating
+the worker; no MVP or remote fallback is shipped. Artifact checks enforce this.
+
 Scope and exclusions apply before type projection and traversal. Displayed
 relationships retain source evidence; temporary search identities stay outside
 saved presets. The worker uses revision-scoped numeric topology with persistent

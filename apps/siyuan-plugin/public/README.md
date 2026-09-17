@@ -10,6 +10,9 @@ Requires desktop SiYuan **3.8.3+**. Enable the plugin, then click its toolbar ic
 or press **Alt+Shift+G**. Use **View in graph** from a document title, document tree,
 or block context menu to start from specific content.
 
+The graph requires WebAssembly exception handling (EH). If the runtime check fails,
+update SiYuan or the browser; older engines without EH are unsupported.
+
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 

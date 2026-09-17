@@ -23,6 +23,9 @@ Explore SiYuan notes, blocks, and search results in a local 2D or 3D graph.
 Requires desktop SiYuan **3.8.3+**. Enable the plugin, then click its toolbar icon
 or press **Alt+Shift+G**. Document and block context menus also provide a graph entry.
 
+The graph requires WebAssembly exception handling (EH). If the runtime check fails,
+update SiYuan or the browser; older engines without EH are unsupported.
+
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations. In the search page or dialog, click
 **Graph all results** to create a temporary graph while preserving

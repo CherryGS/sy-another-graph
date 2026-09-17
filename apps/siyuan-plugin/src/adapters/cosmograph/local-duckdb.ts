@@ -3,12 +3,10 @@ import { t } from "../../shared/i18n/runtime";
 import {
   AsyncDuckDB,
   VoidLogger,
-  selectBundle,
+  getPlatformFeatures,
   type AsyncDuckDBConnection,
 } from "@duckdb/duckdb-wasm";
 
-import mvpWasmUrl from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
-import mvpWorkerUrl from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
 import ehWasmUrl from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import ehWorkerUrl from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
 
@@ -46,15 +44,13 @@ class TrackedDuckDB extends AsyncDuckDB {
 /** Own the bundled worker explicitly; never fall back to DuckDB's default CDN bundles. */
 export async function createLocalDuckDB(signal: AbortSignal): Promise<LocalDuckDB> {
   signal.throwIfAborted();
-  const bundle = await selectBundle({
-    mvp: { mainModule: mvpWasmUrl, mainWorker: mvpWorkerUrl },
-    eh: { mainModule: ehWasmUrl, mainWorker: ehWorkerUrl },
-  });
+  const { wasmExceptions } = await getPlatformFeatures();
   signal.throwIfAborted();
-  if (!bundle.mainWorker)
+  // Ship only EH, and reject unsupported engines before allocating a worker.
+  if (!wasmExceptions)
     throw new MessageError(msg("text.thisBrowserCannotRunTheLocalGraphDatabase"));
-  const mainWorkerUrl = new URL(bundle.mainWorker, window.location.href).href;
-  const mainModuleUrl = new URL(bundle.mainModule, window.location.href).href;
+  const mainWorkerUrl = new URL(ehWorkerUrl, window.location.href).href;
+  const mainModuleUrl = new URL(ehWasmUrl, window.location.href).href;
   // A blob worker inherits the iframe's CSP; a direct URL worker does not.
   const bootstrapUrl = URL.createObjectURL(
     new Blob([`importScripts(${JSON.stringify(mainWorkerUrl)});`], {

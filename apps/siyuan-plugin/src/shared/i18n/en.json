@@ -89,7 +89,7 @@
   "text.drawingKnowledgeConnections": "Drawing knowledge connections",
   "text.noNodesInThisScope": "No nodes in this scope",
   "text.adjustTheFiltersToExploreMoreNotes": "Adjust the filters to explore more notes.",
-  "text.thisBrowserCannotRunTheLocalGraphDatabase": "This browser cannot run the local graph database.",
+  "text.thisBrowserCannotRunTheLocalGraphDatabase": "This environment does not support WebAssembly exception handling (EH), which the graph requires. Update SiYuan or the browser, then try again.",
   "text.graphInitializationWasCancelled": "Graph initialization was cancelled.",
   "text.theLocalGraphDatabaseTimedOutRetryThe": "The local graph database timed out. Retry the graph.",
   "text.cannotConnectToTheLocalGraphDatabase": "Cannot connect to the local graph database.",

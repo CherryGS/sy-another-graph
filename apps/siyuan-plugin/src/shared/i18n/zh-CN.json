@@ -89,7 +89,7 @@
   "text.drawingKnowledgeConnections": "正在绘制知识连接",
   "text.noNodesInThisScope": "当前范围中没有节点",
   "text.adjustTheFiltersToExploreMoreNotes": "调整筛选条件，探索更多笔记。",
-  "text.thisBrowserCannotRunTheLocalGraphDatabase": "当前浏览器没有可用的本地图数据库运行环境。",
+  "text.thisBrowserCannotRunTheLocalGraphDatabase": "当前运行环境不支持图谱所需的 WebAssembly 异常处理（EH）。请更新思源或浏览器后重试。",
   "text.graphInitializationWasCancelled": "图谱初始化已取消。",
   "text.theLocalGraphDatabaseTimedOutRetryThe": "本地图数据库启动超时，请重试图谱。",
   "text.cannotConnectToTheLocalGraphDatabase": "无法建立本地图数据库连接。",

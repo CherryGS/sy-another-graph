@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { verifyMentionWorker } from "./check-mentions-worker.mjs";
 
@@ -27,6 +27,16 @@ for (const file of [
     `Missing build asset: ${file}`,
   );
 }
+
+// Prevent a fallback import from silently doubling the packaged database runtime.
+const assets = readdirSync(new URL("../dist/ui/assets/", import.meta.url));
+for (const pattern of [/^duckdb-eh-.*\.wasm$/, /^duckdb-browser-eh\.worker-.*\.js$/])
+  assert.equal(
+    assets.filter((file) => pattern.test(file)).length,
+    1,
+    `Missing EH asset: ${pattern}`,
+  );
+assert.ok(!assets.some((file) => /^duckdb-.*mvp/.test(file)), "Do not bundle DuckDB MVP assets");
 
 // Check the generated loader contract without attaching to a live SiYuan workspace.
 class HostPlugin {}
