@@ -1,4 +1,6 @@
 {
+  "graph.preparationFailed": "Graph data preparation failed. Retry the graph.",
+  "graph.preparationTimeout": "Graph data preparation exceeded {{seconds}} seconds. Try a smaller graph and retry.",
   "mentions.previewSummary": "Matches {{names, value}} names across {{nodes, value}} nodes",
   "mentions.previewPending": "Previewing exclusions…",
   "mentions.previewRetry": "Retry preview",

@@ -52,6 +52,12 @@ The local DuckDB runtime bundles only its EH WASM and browser worker. Feature
 detection rejects engines without WebAssembly exception handling before creating
 the worker; no MVP or remote fallback is shipped. Artifact checks enforce this.
 
+Renderer preparation keeps original node/edge lookups on the main thread and
+encodes Arrow/IPC in a separate reusable Worker. Only rendering columns cross
+that boundary; numeric buffers and returned IPC are transferred. Interrupted
+jobs terminate the encoder, and stale results cannot replace a newer graph.
+DuckDB uploads copy retained IPC bytes because its API detaches input buffers.
+
 Scope and exclusions apply before type projection and traversal. Displayed
 relationships retain source evidence; temporary search identities stay outside
 saved presets. The worker uses revision-scoped numeric topology with persistent

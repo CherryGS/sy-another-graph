@@ -51,6 +51,7 @@ function prepared(
   }));
   return {
     config: {},
+    ipc: { points: new Uint8Array(), links: new Uint8Array(), encodingMs: 0 },
     indexToNode,
     indexToEdge: [],
     indexToId: indexToNode.map((node) => node.id),

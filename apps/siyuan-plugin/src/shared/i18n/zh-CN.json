@@ -1,4 +1,6 @@
 {
+  "graph.preparationFailed": "图谱数据准备失败，请重试图谱。",
+  "graph.preparationTimeout": "图谱数据准备超过 {{seconds}} 秒，请缩小图谱范围后重试。",
   "mentions.previewSummary": "匹配 {{names, value}} 个名称，涉及 {{nodes, value}} 个节点",
   "mentions.previewPending": "正在预览排除结果…",
   "mentions.previewRetry": "重试预览",

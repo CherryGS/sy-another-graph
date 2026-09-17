@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { Table } from "apache-arrow";
-import { prepareGraph } from "./prepare-graph";
-import type { CanvasNode } from "../../workbench/presentation/types";
+import { tableFromIPC } from "apache-arrow";
+import { prepareGraph as prepareWithEncoder } from "./prepare-graph";
+import { encodeGraph } from "./encode-graph";
+import type { SearchOrigins } from "../../modules/search/origins";
+import type { CanvasEdge, CanvasNode } from "../../workbench/presentation/types";
 import { nodeColor } from "../../workbench/presentation/node-colors";
+
+const prepareGraph = (
+  nodes: readonly CanvasNode[],
+  edges: readonly CanvasEdge[],
+  signal: AbortSignal,
+  origins?: SearchOrigins,
+) => prepareWithEncoder(nodes, edges, signal, async (columns) => encodeGraph(columns), origins);
 
 function node(id: string, index: number): CanvasNode {
   return {
@@ -35,8 +44,8 @@ describe("prepareGraph", () => {
     const origins = { matches: new Set(["hit"]), projected: new Map([["projection", 2]]) };
     const marked = await prepareGraph(nodes, edges, new AbortController().signal, origins);
     const ordinary = await prepareGraph(nodes, edges, new AbortController().signal);
-    const markedPoints = marked.config.points as Table;
-    const ordinaryPoints = ordinary.config.points as Table;
+    const markedPoints = tableFromIPC(marked.ipc.points);
+    const ordinaryPoints = tableFromIPC(ordinary.ipc.points);
     expect(marked.config.pointShapeBy).toBeUndefined();
     expect(marked.config.accentedPointIndices).toEqual([1, 2]);
     expect(ordinary.config.accentedPointIndices).toEqual([]);
@@ -75,8 +84,8 @@ describe("prepareGraph", () => {
     expect(result.indexToId).toEqual(["gamma", "alpha"]);
     expect(result.idToIndex.get("alpha")).toBe(1);
     expect(result.linksCount).toBe(2);
-    const points = result.config.points as Table;
-    const links = result.config.links as Table;
+    const points = tableFromIPC(result.ipc.points);
+    const links = tableFromIPC(result.ipc.links);
     expect(Array.from(points.getChild("index")!)).toEqual([0, 1]);
     expect(Array.from(links.getChild("sourceIndex")!)).toEqual([1, 0]);
     expect(Array.from(links.getChild("targetIndex")!)).toEqual([0, 1]);
@@ -96,7 +105,7 @@ describe("prepareGraph", () => {
     const result = await prepareGraph([node("alpha", 3)], [], new AbortController().signal);
     expect(result.pointsCount).toBe(1);
     expect(result.linksCount).toBe(0);
-    const links = result.config.links as Table;
+    const links = tableFromIPC(result.ipc.links);
     expect(links.numRows).toBe(0);
     expect(links.getChild("source")?.type.toString()).toBe("Utf8");
     expect(links.getChild("sourceIndex")?.type.toString()).toBe("Uint32");
@@ -119,7 +128,7 @@ describe("prepareGraph", () => {
       [mention],
       new AbortController().signal,
     );
-    const links = result.config.links as Table;
+    const links = tableFromIPC(result.ipc.links);
     expect(Array.from(links.getChild("style")!)).toEqual([2]);
     expect(Array.from(links.getChild("color")!)).toEqual(["#d6b670"]);
     expect(result.indexToEdge[0]).toBe(mention);
@@ -147,7 +156,7 @@ describe("prepareGraph", () => {
       label: '<img src="https://example.invalid/pixel"> A & B',
     };
     const result = await prepareGraph([input], [], new AbortController().signal);
-    const points = result.config.points as Table;
+    const points = tableFromIPC(result.ipc.points);
     expect(points.getChild("label")!.get(0)).toBe(
       "&lt;img src=&quot;https://example.invalid/pixel&quot;&gt; A &amp; B",
     );
@@ -157,7 +166,7 @@ describe("prepareGraph", () => {
   it("prepares all color modes once so display controls can reuse the uploaded topology", async () => {
     const input = { ...node("alpha", 3), path: "/root/branch.sy", degree: 20 };
     const result = await prepareGraph([input], [], new AbortController().signal);
-    const points = result.config.points as Table;
+    const points = tableFromIPC(result.ipc.points);
     expect(points.getChild("color")!.get(0)).toBe(input.color);
     expect(points.getChild("branchColor")!.get(0)).toBe(nodeColor(input, "branch"));
     expect(points.getChild("degreeColor")!.get(0)).toBe(nodeColor(input, "degree"));
@@ -195,8 +204,8 @@ describe("prepareGraph", () => {
     expect(result.indexToEdge[0]).toBe(selfLoop);
     expect(result.indexToEdge[1]).toBe(database);
     expect(result.indexToNode[1].id).toBe("item");
-    expect(Array.from((result.config.links as Table).getChild("sourceIndex")!)).toEqual([0, 0]);
-    expect(Array.from((result.config.links as Table).getChild("targetIndex")!)).toEqual([0, 1]);
+    expect(Array.from(tableFromIPC(result.ipc.links).getChild("sourceIndex")!)).toEqual([0, 0]);
+    expect(Array.from(tableFromIPC(result.ipc.links).getChild("targetIndex")!)).toEqual([0, 1]);
     expect(result.linksCount).toBe(2);
   });
 });

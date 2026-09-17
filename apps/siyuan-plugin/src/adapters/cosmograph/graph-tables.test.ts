@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import {
   createDuckDB,
   NODE_RUNTIME,
@@ -9,6 +9,31 @@ import {
 
 import { GraphTableStore } from "./graph-tables";
 import { prepareGraph } from "./prepare-graph";
+import { encodeGraph } from "./encode-graph";
+import type { GraphEncoder } from "./preparation-protocol";
+
+const encode: GraphEncoder = async (columns) => encodeGraph(columns);
+
+it("preserves IPC bytes when DuckDB detaches an upload that fails and is retried", async () => {
+  const prepared = await prepareGraph([], [], new AbortController().signal, encode);
+  const points = prepared.ipc.points.slice(),
+    links = prepared.ipc.links.slice();
+  let fail = true;
+  const insert = vi.fn(async (buffer: Uint8Array) => {
+    structuredClone(buffer, { transfer: [buffer.buffer as ArrayBuffer] });
+    if (fail) {
+      fail = false;
+      throw new Error("Upload failed");
+    }
+  });
+  const tables = new GraphTableStore({ insertArrowFromIPCStream: insert, query: vi.fn() });
+  await expect(tables.stage(prepared)).rejects.toThrow("Upload failed");
+  expect(prepared.ipc.points).toEqual(points);
+  await tables.stage(prepared);
+  expect(prepared.ipc.points).toEqual(points);
+  expect(prepared.ipc.links).toEqual(links);
+  expect(insert).toHaveBeenCalledTimes(3);
+});
 
 const require = createRequire(import.meta.url);
 let database: Awaited<ReturnType<typeof createDuckDB>>;
@@ -72,6 +97,7 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     ],
     [{ source: 4, target: 9, kind: "reference", weight: 2 }],
     new AbortController().signal,
+    encode,
     { matches: new Set(["alpha"]), projected: new Map() },
   );
   const first = await store.stage(prepared);
@@ -138,6 +164,7 @@ it("exposes real indexed DuckDB tables and retires only replaced graph data", as
     ],
     [],
     new AbortController().signal,
+    encode,
   );
   const zero = await store.stage(withoutLinks);
   expect(connection.query(`SELECT * FROM "${zero.links}"`).numRows).toBe(0);

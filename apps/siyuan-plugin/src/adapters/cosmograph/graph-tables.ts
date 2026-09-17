@@ -1,5 +1,4 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { tableToIPC, type Table } from "apache-arrow";
 
 import type { PreparedGraph } from "./prepare-graph";
 
@@ -30,16 +29,16 @@ export class GraphTableStore {
       links: `atlas_links_${generation}`,
     };
     try {
-      // IPC bytes avoid Arrow Table class-identity differences across library/module boundaries.
-      await this.connection.insertArrowFromIPCStream(
-        tableToIPC(prepared.config.points as Table, "stream"),
-        { name: uploaded.points, create: true },
-      );
+      // DuckDB transfers/detaches these buffers. Keep the prepared bytes intact for retries.
+      await this.connection.insertArrowFromIPCStream(prepared.ipc.points.slice(), {
+        name: uploaded.points,
+        create: true,
+      });
       if (uploaded.links) {
-        await this.connection.insertArrowFromIPCStream(
-          tableToIPC(prepared.config.links as Table, "stream"),
-          { name: uploaded.links, create: true },
-        );
+        await this.connection.insertArrowFromIPCStream(prepared.ipc.links.slice(), {
+          name: uploaded.links,
+          create: true,
+        });
       }
       return uploaded;
     } catch (error) {

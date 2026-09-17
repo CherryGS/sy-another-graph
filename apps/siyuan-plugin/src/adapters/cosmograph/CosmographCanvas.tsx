@@ -14,6 +14,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { createLocalDuckDB, type LocalDuckDB } from "./local-duckdb";
 
 import { prepareGraph, type PreparedGraph } from "./prepare-graph";
+import { GraphPreparationClient } from "./preparation-client";
 
 import { GraphTableStore } from "./graph-tables";
 import { RendererSession } from "./renderer-session";
@@ -129,6 +130,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
   const pointer = useRef({ x: 12, y: 12 });
   const latestProps = useRef(props);
   const owner = useRef<RendererSession | null>(null);
+  const preparation = useRef<GraphPreparationClient | null>(null);
   const dragLabels = useRef<DragLabelGuard | null>(null);
   const chosenLabels = useRef<ChosenLabels | null>(null);
   const gestures = useRef<CanvasGestures | null>(null);
@@ -197,6 +199,15 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     element.style.top = `${Math.max(8, Math.min(pointer.current.y + 12, host.clientHeight - element.offsetHeight - 8))}px`;
   };
   useLayoutEffect(positionTooltip, [hovered]);
+
+  useEffect(() => {
+    const client = new GraphPreparationClient();
+    preparation.current = client;
+    return () => {
+      client.dispose();
+      if (preparation.current === client) preparation.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -441,7 +452,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     setPrepared(null);
     setError(null);
     setHovered(null);
-    void prepareGraph(nodes, edges, controller.signal, searchOrigins)
+    void prepareGraph(nodes, edges, controller.signal, preparation.current!.encode, searchOrigins)
       .then((result) => {
         if (!controller.signal.aborted) {
           setPrepared(result);

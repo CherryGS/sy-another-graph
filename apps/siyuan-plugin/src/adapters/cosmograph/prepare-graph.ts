@@ -1,28 +1,12 @@
 import { message as msg, MessageError } from "../../core/diagnostics/message";
-import { Table, tableFromArrays, vectorFromArray, Utf8 } from "apache-arrow";
 import type { CosmographConfig } from "@cosmograph/cosmograph";
 import type { CanvasEdge, CanvasNode } from "../../workbench/presentation/types";
 import { nodeColor } from "../../workbench/presentation/node-colors";
 import { SEARCH_MATCH_RING_COLOR } from "../../workbench/presentation/search-origins";
 import { searchNodeOrigin, type SearchOrigins } from "../../modules/search/origins";
+import { EDGE_KINDS, type GraphEncoder, type GraphIPC } from "./preparation-protocol";
 
 const CHUNK_SIZE = 8192;
-const EDGE_COLORS: Record<CanvasEdge["kind"], string> = {
-  reference: "#91b7df",
-  "text-mention": "#d6b670",
-  hierarchy: "#60728d",
-  "database-embedding": "#8a82ba",
-  "database-membership": "#6cbaae",
-  "database-binding": "#c3a476",
-  "database-relation": "#c797d9",
-};
-const HTML_ENTITIES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
 
 async function yieldToBrowser(signal: AbortSignal) {
   signal.throwIfAborted();
@@ -32,6 +16,7 @@ async function yieldToBrowser(signal: AbortSignal) {
 
 export interface PreparedGraph {
   config: CosmographConfig;
+  ipc: GraphIPC;
   indexToId: string[];
   indexToLabel: string[];
   indexToNode: readonly CanvasNode[];
@@ -48,23 +33,20 @@ export async function prepareGraph(
   nodes: readonly CanvasNode[],
   edges: readonly CanvasEdge[],
   signal: AbortSignal,
+  encode: GraphEncoder,
   searchOrigins?: SearchOrigins,
 ): Promise<PreparedGraph> {
   const started = performance.now();
   signal.throwIfAborted();
   const id = new Array<string>(nodes.length);
-  const label = new Array<string>(nodes.length);
   const indexToLabel = new Array<string>(nodes.length);
   const notebook = new Array<string>(nodes.length);
   const color = new Array<string>(nodes.length);
   const branchColor = new Array<string>(nodes.length);
   const degreeColor = new Array<string>(nodes.length);
   const typeColor = new Array<string>(nodes.length);
-  const index = new Uint32Array(nodes.length);
   const degree = new Float32Array(nodes.length);
   const accentedPointIndices: number[] = [];
-  const labelWeight = new Float32Array(nodes.length);
-  let maximumDegree = 0;
   const originalToDense = new Map<number, number>();
   const idToIndex = new Map<string, number>();
 
@@ -83,33 +65,23 @@ export async function prepareGraph(
         throw new MessageError(msg("text.theGraphContainsInvalidNodeIndices"));
       }
       id[position] = node.id;
-      // Cosmograph renders sanitized HTML for both regular and hovered labels.
-      // Preserve note titles as literal text; even a sanitized <img> can make a network request.
       indexToLabel[position] = node.label || node.id;
       const origin = searchNodeOrigin(node.id, searchOrigins);
       if (origin === "match" || origin === "projected-match") accentedPointIndices.push(position);
-      label[position] = indexToLabel[position].replace(
-        /[&<>"']/g,
-        (character) => HTML_ENTITIES[character],
-      );
       notebook[position] = node.notebook;
       color[position] = nodeColor(node, "notebook");
       branchColor[position] = nodeColor(node, "branch");
       degreeColor[position] = nodeColor(node, "degree");
       typeColor[position] = nodeColor(node, "type");
-      index[position] = position;
       degree[position] = Number.isFinite(node.degree) ? Math.max(0, node.degree) : 0;
-      maximumDegree = Math.max(maximumDegree, degree[position]);
       originalToDense.set(node.index, position);
       idToIndex.set(node.id, position);
     }
   }
 
-  const source: string[] = [];
-  const target: string[] = [];
   const sourceIndex = new Uint32Array(edges.length);
   const targetIndex = new Uint32Array(edges.length);
-  const linkColor: string[] = [];
+  const colorIndex = new Uint8Array(edges.length);
   const weight = new Float32Array(edges.length);
   const width = new Float32Array(edges.length);
   const style = new Uint8Array(edges.length);
@@ -127,13 +99,11 @@ export async function prepareGraph(
       const to = originalToDense.get(edge.target);
       // The caller may filter nodes without rebuilding the original graph's edge list.
       if (from === undefined || to === undefined) continue;
-      source.push(id[from]);
-      target.push(id[to]);
       sourceIndex[linkCount] = from;
       targetIndex[linkCount] = to;
       const reference = edge.kind === "reference";
       const hierarchy = edge.kind === "hierarchy";
-      linkColor.push(EDGE_COLORS[edge.kind]);
+      colorIndex[linkCount] = EDGE_KINDS.indexOf(edge.kind);
       weight[linkCount] = Number.isFinite(edge.weight) ? Math.max(1, edge.weight) : 1;
       const emphasis = Math.min(1, Math.log2(weight[linkCount]) / 4);
       width[linkCount] = reference ? 1.55 + emphasis * 0.8 : 0.95 + emphasis * 0.35;
@@ -145,37 +115,34 @@ export async function prepareGraph(
   }
 
   signal.throwIfAborted();
-  // Prefer matched labels when nearby labels compete for space. Chosen labels
-  // remain separately owned; degree/size/color semantics are unchanged.
-  labelWeight.set(degree);
-  for (const position of accentedPointIndices) labelWeight[position] += maximumDegree + 1;
-  const points = tableFromArrays({
-    id,
-    label,
-    notebook,
-    color,
-    branchColor,
-    degreeColor,
-    typeColor,
-    index,
-    degree,
-    labelWeight,
-  });
-  // Keep a typed source even with no edges: Cosmograph's zero-link transition still queries it.
-  const links = new Table({
-    source: vectorFromArray(source, new Utf8()),
-    target: vectorFromArray(target, new Utf8()),
-    sourceIndex: vectorFromArray(sourceIndex.subarray(0, linkCount)),
-    targetIndex: vectorFromArray(targetIndex.subarray(0, linkCount)),
-    color: vectorFromArray(linkColor, new Utf8()),
-    weight: vectorFromArray(weight.subarray(0, linkCount)),
-    width: vectorFromArray(width.subarray(0, linkCount)),
-    style: vectorFromArray(style.subarray(0, linkCount)),
-  });
+  const ipc = await encode(
+    {
+      points: {
+        id,
+        label: indexToLabel,
+        notebook,
+        color,
+        branchColor,
+        degreeColor,
+        typeColor,
+        degree,
+        accentedIndices: Uint32Array.from(accentedPointIndices),
+      },
+      links: {
+        sourceIndex: sourceIndex.subarray(0, linkCount),
+        targetIndex: targetIndex.subarray(0, linkCount),
+        colorIndex: colorIndex.subarray(0, linkCount),
+        weight: weight.subarray(0, linkCount),
+        width: width.subarray(0, linkCount),
+        style: style.subarray(0, linkCount),
+      },
+    },
+    signal,
+  );
+  signal.throwIfAborted();
   return {
+    ipc,
     config: {
-      points,
-      links,
       pointIdBy: "id",
       pointIndexBy: "index",
       pointLabelBy: "label",

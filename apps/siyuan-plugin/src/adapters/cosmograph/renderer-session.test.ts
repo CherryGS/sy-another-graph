@@ -17,6 +17,7 @@ function deferred() {
 function data(id = "a", linksCount = 1): PreparedGraph {
   return {
     config: {},
+    ipc: { points: new Uint8Array(), links: new Uint8Array(), encodingMs: 0 },
     indexToId: [id, "b"],
     indexToLabel: [id, "b"],
     indexToNode: [id, "b"].map((nodeId, index) => ({
@@ -735,6 +736,7 @@ describe("renderer lifetime", () => {
   it("keeps initial fitting pending through an empty view without fitting later empty-to-populated changes", async () => {
     const h = harness();
     const empty: PreparedGraph = {
+      ipc: { points: new Uint8Array(), links: new Uint8Array(), encodingMs: 0 },
       config: {},
       indexToId: [],
       indexToLabel: [],

@@ -26,6 +26,17 @@
 | [社区背景](../apps/siyuan-plugin/src/adapters/cosmograph/community-territory.ts)                                                                        | 一次栅格重建 `O(V显示 + G)`，`G` 为栅格数；每个种子扩张固定半径                                                                                              | `O(V显示 + G)`，含位置采样                            | 网格每轴最多 384 格、影响半径 5 格；采样/栅格更新节流，相机变化可先变换缓存图像                                |
 | [JSON 导出](../apps/siyuan-plugin/src/modules/export/export.ts)                                                                                         | `O(C导出)`，包括节点、关系及全部已保留证据                                                                                                                   | `O(C导出)` 字符串/传输缓冲                            | 用户触发；导出当前可见图，并非整个工作区或仅高亮节点                                                           |
 
+## 读取复制与渲染准备
+
+数据库补充阶段保留独立节点和边数组，但共享已有的不可变边及其证据；只给复制后的数据库载体节点补充信息，并新建数据库关系。这减少了 `O(M + P)` 次对象/数组分配，节点复制和边数组构建仍是线性的；收益发生在读取和刷新时。
+
+[渲染输入整理](../apps/siyuan-plugin/src/adapters/cosmograph/prepare-graph.ts)仍在主线程分批建立稠密索引、样式列和原始节点/边映射。
+[专用 Worker](../apps/siyuan-plugin/src/adapters/cosmograph/graph-preparation.worker.ts)负责标签转义、Arrow 建表和 IPC 编码，只接收渲染列，不复制正文、原始图或关系证据。
+字符串列仍有结构化克隆成本，准备阶段独有的数值缓冲区和返回的 IPC 字节使用转移。上传 DuckDB 时还需复制 IPC 字节，因为其接口会转移输入缓冲区；保留原始 IPC 才能安全重试。
+
+Worker 按画布复用；替换正在执行的编码、取消、失败或 60 秒超时都会终止它，后续请求重新创建。它改变计算位置，不降低复杂度，也不保证总准备耗时或峰值内存减少。
+源范围和语义投影仍同步执行；即使只显示少量文档，投影仍可能遍历整个原始图。
+
 ## 文本提及的成本拆分
 
 **排除预览** 使用独立的 [名称目录](../apps/siyuan-plugin/src/modules/mentions/exclusion-preview.ts) 和 [Worker 客户端](../apps/siyuan-plugin/src/modules/mentions/exclusion-preview-client.ts)。首次扫描已有块的标题/属性，分批提取轻量字段，不复制 Markdown 正文；目录构建按名称字符量与名称—节点对应数计。草稿停顿 400 ms 后匹配；简单正则仍约 `O(R × S)`，另加被匹配的名称—节点对应数。规则变化可复用目录；正在运行的旧请求直接终止。预览的 10 秒超时不会终止正式提及索引。
