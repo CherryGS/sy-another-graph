@@ -1,5 +1,5 @@
 diff --git a/cosmograph/config/index.js b/cosmograph/config/index.js
-index 7a6aaf1f719658c0f46623695561045019afaf00..ee66bde0c241b28d3013225931ffda2028a6af16 100644
+index 7a6aaf1f719658c0f46623695561045019afaf00..9778205d1ed9f88783801e83577988f28d775144 100644
 --- a/cosmograph/config/index.js
 +++ b/cosmograph/config/index.js
 @@ -444,6 +444,9 @@ class CosmographConfigManager {
@@ -30,6 +30,19 @@ index 7a6aaf1f719658c0f46623695561045019afaf00..ee66bde0c241b28d3013225931ffda20
      }
      if (config.preservePointPositionsOnDataUpdate && this._preservedPointPositions.size > 0) {
        preservePointPositions(positions, this._preservedPointPositions, dimensions);
+@@ -962,7 +965,11 @@ class CosmographConfigManager {
+       backgroundColor: [0, 0, 0, 0],
+       hoveredPointCursor: this._checkPointEvents() ? ((_a = this.config) == null ? void 0 : _a.hoveredPointCursor) ?? "pointer" : "auto"
+     };
+-    delete cosmosConfig.enableSimulation;
++    // Keep live Cosmos updates and Cosmograph's public simulation controls in
++    // agreement without rebuilding point tables. Initialization still resolves
++    // the automatic default from links / authored point coordinates.
++    cosmosConfig.enableSimulation = this.config.enableSimulation ?? this._.public.isSimulationAvailable;
++    this._.public._enableSimulation = cosmosConfig.enableSimulation;
+     delete cosmosConfig.attribution;
+     delete cosmosConfig.initialZoomLevel;
+     delete cosmosConfig.randomSeed;
 diff --git a/cosmograph/graph-utils/points.js b/cosmograph/graph-utils/points.js
 index 8a71d6274168714b8a4c002fe20f2e7ca2d62911..2b531306b87210f2991e7ffc052970274d960318 100644
 --- a/cosmograph/graph-utils/points.js

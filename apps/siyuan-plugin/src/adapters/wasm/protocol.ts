@@ -26,6 +26,11 @@ export type EngineRequest = RequestIdentity &
         limit: number;
       }
     | {
+        kind: "distances";
+        seeds: Uint32Array;
+        direction: GraphDirection;
+      }
+    | {
         kind: "path";
         source: number;
         target: number;
@@ -38,6 +43,7 @@ export type EngineResponse = RequestIdentity &
     | { kind: "stats"; value: EngineStats }
     | { kind: "neighborhood"; value: Neighborhood }
     | { kind: "path"; value: Uint32Array }
+    | { kind: "distances"; value: Uint32Array }
     | { kind: "error"; message: string }
   );
 

@@ -99,6 +99,12 @@ async function handle(request: EngineRequest): Promise<void> {
         },
         transferableBuffers(indices),
       );
+    } else if (request.kind === "distances") {
+      const distances = output(graph.distances(request.seeds, directionCode(request.direction)));
+      scope.postMessage(
+        { ...identity, kind: "distances", value: distances },
+        transferableBuffers(distances),
+      );
     } else {
       const indices = output(
         graph.shortest_path(request.source, request.target, directionCode(request.direction)),

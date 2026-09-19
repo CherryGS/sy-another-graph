@@ -11,10 +11,12 @@ import {
   captureViewport,
   restoreNodePositions,
   restoreViewport,
+  positionApi,
   type NodePositions,
   type ViewportSnapshot,
   type ViewportApi,
 } from "./position-adapter";
+import { LAYER_SPACE, type LayerCoordinates } from "../../modules/layout/layers";
 
 type Renderer = Pick<
   Cosmograph,
@@ -96,6 +98,7 @@ export class RendererSession {
   private ready = false;
   private currentData: PreparedGraph | null = null;
   private currentConfig: CosmographConfig | null = null;
+  private currentLayout: LayerCoordinates | undefined;
   private desiredOutlines: readonly number[] = [];
   private outlineRevision = 0;
   private selectedId: string | null = null;
@@ -187,6 +190,9 @@ export class RendererSession {
   private get hasData() {
     return !this.closed && this.ready && (this.currentData?.pointsCount ?? 0) > 0;
   }
+  private get simulationPaused() {
+    return this.paused || !this.active || this.currentConfig?.enableSimulation === false;
+  }
 
   initialize(config: CosmographConfig) {
     return this.enqueue(async () => {
@@ -208,7 +214,11 @@ export class RendererSession {
     this.outlineRevision++;
   }
 
-  update(data: PreparedGraph, config: CosmographConfig): Promise<CanvasStats | null> {
+  update(
+    data: PreparedGraph,
+    config: CosmographConfig,
+    layout?: LayerCoordinates,
+  ): Promise<CanvasStats | null> {
     this.suspend();
     const revision = this.revision;
     return this.enqueue(async () => {
@@ -331,7 +341,7 @@ export class RendererSession {
                 dragMoved = false;
                 // Cosmos reheats even paused layouts at drag start and does not restore pause.
                 // Its remaining drag-end handlers only redraw, so this is the final simulation state.
-                if (this.paused || !this.active) this.runControl(() => this.graph.pause());
+                if (this.simulationPaused) this.runControl(() => this.graph.pause());
               }
             },
             onPointsFiltered: (...args) => {
@@ -344,7 +354,8 @@ export class RendererSession {
           };
           await this.graph.setConfig(appliedConfig);
           if (appliedConfig.spaceDimensions === 3) this.coordinateStride = 3;
-          if (this.paused || !this.active) this.graph.pause();
+          if (this.paused || !this.active || appliedConfig.enableSimulation === false)
+            this.graph.pause();
           await this.drain();
           // The completed config references these tables, even when superseded meanwhile.
           await this.tables.commit(uploaded);
@@ -371,6 +382,41 @@ export class RendererSession {
           });
         }
         if (!this.isCurrent(revision)) return null;
+        if (layout && data.pointsCount > 0 && (layout !== this.currentLayout || dataChanged)) {
+          if (
+            config.enableSimulation !== false ||
+            layout.dimensions !== (this.graph.is3D ? 3 : 2) ||
+            layout.positions.length !== data.pointsCount * layout.dimensions ||
+            !layout.positions.every(Number.isFinite)
+          )
+            throw new Error("Layer coordinates do not match the displayed graph");
+          this.graph.pause();
+          const api = positionApi(this.graph);
+          // A prior 3D session retains XYZ buffers even when currently displayed in 2D.
+          const scale =
+            (this.graph.getSimulationSpaceInfo()?.effectiveSize ?? LAYER_SPACE) / LAYER_SPACE;
+          const positions = Float32Array.from(
+            { length: data.pointsCount * this.coordinateStride },
+            (_, offset) => {
+              const axis = offset % this.coordinateStride;
+              return axis < layout.dimensions
+                ? layout.positions[
+                    Math.floor(offset / this.coordinateStride) * layout.dimensions + axis
+                  ] * scale
+                : 0;
+            },
+          );
+          api.setPointPositions(positions, {
+            dimensions: this.coordinateStride,
+            dontRescale: true,
+          });
+          api.render(undefined, 0);
+          if (!this.currentLayout) this.needsFit = true;
+        }
+        // Keep the last applied identity while awaiting new seeds/data. Appearance
+        // changes must not erase drags or reapply a previously completed layout.
+        this.currentLayout =
+          config.enableSimulation === false ? (layout ?? this.currentLayout) : undefined;
         const stats = this.graph.stats;
         if (stats.pointsCount !== data.pointsCount || stats.linksCount !== data.linksCount) {
           throw new MessageError(
@@ -384,6 +430,7 @@ export class RendererSession {
         }
         this.currentData = data;
         const forceKeys = [
+          "enableSimulation",
           "simulationRepulsion",
           "simulationGravity",
           "simulationLinkDistance",
@@ -482,7 +529,7 @@ export class RendererSession {
       this.publishDiagnostics({
         dragCount: this.diagnosticState.dragCount + 1,
       });
-    if (this.paused || !this.active) this.runControl(() => this.graph.pause());
+    if (this.simulationPaused) this.runControl(() => this.graph.pause());
   }
 
   /** Visibility never invalidates data, rebuilds the graph, or resets the camera. */
@@ -515,7 +562,7 @@ export class RendererSession {
             if (zoom !== undefined && Number.isFinite(zoom) && zoom > 0)
               this.graph.setZoomLevel(zoom, 0);
           }
-          if (this.paused || !this.active) this.graph.pause();
+          if (this.simulationPaused) this.graph.pause();
         });
         this.scheduleFit(0);
       });
@@ -557,6 +604,7 @@ export class RendererSession {
       }
       this.currentData = null;
       this.currentConfig = null;
+      this.currentLayout = undefined;
       this.lastViewport = null;
       this.diagnosticListeners.clear();
       if (failures.length)
@@ -608,7 +656,7 @@ export class RendererSession {
       });
       this.pinsDirty = false;
     }
-    if (this.paused || !this.active) this.graph.pause();
+    if (this.simulationPaused) this.graph.pause();
     else if (this.needsSimulationRestart) {
       this.needsSimulationRestart = false;
       this.graph.start(0.3);

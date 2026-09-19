@@ -2,7 +2,7 @@ import { useLocale } from "../../shared/i18n/react";
 import { t } from "../../shared/i18n/runtime";
 import { presentNodes } from "../presentation/present-nodes";
 import { useMemo, useRef } from "react";
-import { ChevronDown, Focus, Pause, Play, X } from "lucide-react";
+import { ChevronDown, Focus, Pause, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
@@ -27,6 +27,7 @@ import { ReadDiagnostics } from "./diagnostics/ReadDiagnostics";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { MentionNotice } from "../../modules/mentions/ui/MentionNotice";
+import { LayeredLayoutNotice } from "./appearance/LayeredLayoutNotice";
 
 export function ExplorePage({ active }: { active: boolean }) {
   useLocale();
@@ -163,6 +164,19 @@ export function ExplorePage({ active }: { active: boolean }) {
             <ToggleGroup
               type="single"
               variant="outline"
+              aria-label={t("layout.mode")}
+              value={state.graphSettings.layoutMode}
+              onValueChange={(layoutMode) => {
+                if (layoutMode === "force" || layoutMode === "layered")
+                  state.setGraphSettings({ layoutMode });
+              }}
+            >
+              <ToggleGroupItem value="force">{t("layout.force")}</ToggleGroupItem>
+              <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
+            </ToggleGroup>
+            <ToggleGroup
+              type="single"
+              variant="outline"
               aria-label={t("text.graphDimension")}
               value={String(state.graphSettings.dimensions)}
               onValueChange={(value) => {
@@ -184,6 +198,7 @@ export function ExplorePage({ active }: { active: boolean }) {
       </Popover>
       <GraphNotices state={state} />
       <MentionNotice mode={filters.mentions} status={state.mentionState} />
+      <LayeredLayoutNotice state={state} />
       {state.showFocusNotice && (
         <Alert className="rounded-none py-2">
           <AlertDescription>{state.focusLabel}</AlertDescription>
@@ -195,6 +210,8 @@ export function ExplorePage({ active }: { active: boolean }) {
           {data && (
             <Renderer
               analysisGraph={state.currentGraph ?? view}
+              layers={state.layeredLayout.layers}
+              relayoutRequest={state.relayoutRequest}
               nodes={canvasNodes}
               edges={view.edges}
               notebookNames={notebookNames}
@@ -259,15 +276,28 @@ export function ExplorePage({ active }: { active: boolean }) {
             >
               <Focus />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
-              title={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
-              onClick={() => state.setPaused(!state.paused)}
-            >
-              {state.paused ? <Play /> : <Pause />}
-            </Button>
+            {state.graphSettings.layoutMode === "layered" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={!state.layeredLayout.layers}
+                aria-label={t("layout.rearrange")}
+                title={t("layout.rearrange")}
+                onClick={state.relayout}
+              >
+                <RotateCcw />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
+                title={state.paused ? t("text.resumeLayout") : t("text.pauseLayout")}
+                onClick={() => state.setPaused(!state.paused)}
+              >
+                {state.paused ? <Play /> : <Pause />}
+              </Button>
+            )}
           </div>
         </section>
         {state.inspectedEdge ? (

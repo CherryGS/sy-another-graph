@@ -82,6 +82,34 @@ async function load(engine: GraphEngineClient, workers: FakeWorker[]) {
 }
 
 describe("GraphEngineClient ownership and lifecycle", () => {
+  it("returns complete distances and rejects obsolete queries after graph replacement", async () => {
+    const { engine, workers } = setup();
+    const worker = await load(engine, workers);
+    const seeds = [0, 2];
+    const result = engine.distances(seeds, "in");
+    const request = worker.messages.at(-1)!;
+    expect(request).toMatchObject({
+      kind: "distances",
+      seeds: new Uint32Array([0, 2]),
+      direction: "in",
+    });
+    expect(seeds).toEqual([0, 2]);
+    const expected = new Uint32Array([0, 0xffff_ffff, 0]);
+    worker.reply({
+      ...request,
+      revision: request.revision - 1,
+      kind: "distances",
+      value: new Uint32Array([99]),
+    });
+    worker.reply({ ...request, kind: "distances", value: expected });
+    await expect(result).resolves.toEqual(expected);
+    await expect(engine.distances([-1], "out")).rejects.toThrow(RangeError);
+    const old = engine.distances([0], "both");
+    const rejected = expect(old).rejects.toThrow("replaced");
+    await load(engine, workers);
+    await rejected;
+    engine.dispose();
+  });
   it("keeps the renderer input buffer owned by its caller", async () => {
     const { engine, workers } = setup();
     const edges = new Uint32Array([0, 1]);

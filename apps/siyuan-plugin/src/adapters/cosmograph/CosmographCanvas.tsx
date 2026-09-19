@@ -29,6 +29,7 @@ import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { beginCanvasGroupMotion } from "./position-adapter";
 import { DEFAULT_GRAPH_SETTINGS } from "../../workbench/presentation/settings";
 import { displayConfig } from "./display-config";
+import { layerCoordinates } from "../../modules/layout/layers";
 import { GraphCanvasState } from "./GraphCanvasState";
 import { nodeContext } from "../../workbench/presentation/node-context";
 import { canvasClick } from "./canvas-click";
@@ -152,6 +153,21 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     [diagnostics],
   );
   const [prepared, setPrepared] = useState<PreparedGraph | null>(null);
+  const layered = useMemo(
+    () =>
+      settings.layoutMode === "layered" && props.layers?.graph === props.analysisGraph
+        ? layerCoordinates(nodes, props.layers, settings.dimensions)
+        : undefined,
+    // An explicit rearrange restores deterministic rows after manual point dragging.
+    [
+      nodes,
+      props.layers,
+      props.analysisGraph,
+      settings.layoutMode,
+      settings.dimensions,
+      props.relayoutRequest,
+    ],
+  );
   const communityAnalysis = useCommunities(
     props.analysisGraph,
     settings.communityEnabled,
@@ -484,18 +500,22 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       latestProps.current.spotlightIds,
     );
     void session
-      .update(prepared, {
-        ...interactiveConfig.current,
-        ...displayConfig({
-          settings,
-          colorBy,
-          showLabels,
-          showLinks,
-          pointSize,
-          pointsCount: prepared.pointsCount,
-        }),
-        ...communities.config,
-      })
+      .update(
+        prepared,
+        {
+          ...interactiveConfig.current,
+          ...displayConfig({
+            settings,
+            colorBy,
+            showLabels,
+            showLinks,
+            pointSize,
+            pointsCount: prepared.pointsCount,
+          }),
+          ...communities.config,
+        },
+        layered,
+      )
       .then((stats) => {
         if (!active || !stats) return;
         setCounts({ nodes: stats.pointsCount, links: stats.linksCount });
@@ -536,6 +556,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     settings,
     communities.config,
     communities.partition,
+    layered,
   ]);
 
   useLayoutEffect(() => {
@@ -572,6 +593,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       aria-busy={loading && !visibleError}
       data-rendered-nodes={counts.nodes}
       data-rendered-links={counts.links}
+      data-layout-mode={settings.layoutMode}
       data-community-enabled={settings.communityEnabled}
       data-community-pending={communities.pending}
       data-community-count={communities.partition?.count ?? 0}

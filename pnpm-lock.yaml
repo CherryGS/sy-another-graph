@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@cosmograph/cosmograph@2.5.1': 811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a
+  '@cosmograph/cosmograph@2.5.1': 1b2c1c5b8dba3fffb4107b913a74c88fc8eb20e8a422d4b852ed83eb3f2f279d
   '@cosmograph/cosmos@2.5.1': 537ff56930363f9c09c8bb3233b6de3809fbbc3f24cc408c8c68e96e2f3dc2c6
   apache-arrow@17.0.0: 1576d6779012a426cba8fd258a62ba00afc18c5c474fd616d10f14ab59163ad5
 
@@ -24,7 +24,7 @@ importers:
     dependencies:
       '@cosmograph/cosmograph':
         specifier: 2.5.1
-        version: 2.5.1(patch_hash=811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a)(csstype@3.2.3)
+        version: 2.5.1(patch_hash=1b2c1c5b8dba3fffb4107b913a74c88fc8eb20e8a422d4b852ed83eb3f2f279d)(csstype@3.2.3)
       '@duckdb/duckdb-wasm':
         specifier: 1.32.0
         version: 1.32.0
@@ -3670,7 +3670,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@cosmograph/cosmograph@2.5.1(patch_hash=811f570edbb222e66b71dee885cdc56c611bf8f4270656576b3183ab659f7d0a)(csstype@3.2.3)':
+  '@cosmograph/cosmograph@2.5.1(patch_hash=1b2c1c5b8dba3fffb4107b913a74c88fc8eb20e8a422d4b852ed83eb3f2f279d)(csstype@3.2.3)':
     dependencies:
       '@cosmograph/cosmos': 2.5.1(patch_hash=537ff56930363f9c09c8bb3233b6de3809fbbc3f24cc408c8c68e96e2f3dc2c6)
       '@cosmograph/ui': 2.5.1(csstype@3.2.3)

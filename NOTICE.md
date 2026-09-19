@@ -17,7 +17,7 @@ https://cosmograph.app/
 
 This project modifies the installed libraries through the tracked `patches/`
 files. Changes include asynchronous coordinate reads, label scheduling,
-simulation-space initialization, cluster texture sampling, and independent
+simulation-space initialization, live simulation enable/disable, cluster texture sampling, and independent
 search-match rings. The upstream code retains its original license.
 
 ## shadcn/ui components

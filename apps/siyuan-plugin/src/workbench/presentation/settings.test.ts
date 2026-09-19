@@ -65,7 +65,15 @@ describe("graph settings", () => {
     });
     expect(config).not.toHaveProperty("points");
     expect(config).not.toHaveProperty("links");
-    expect(config).not.toHaveProperty("enableSimulation");
+    expect(config.enableSimulation).toBe(true);
     expect(config).not.toHaveProperty("spaceSize");
+  });
+
+  it("restores layered mode and disables forces without changing dimension or appearance", () => {
+    expect(normalizeGraphSettings({ layoutMode: "layered" }).layoutMode).toBe("layered");
+    expect(normalizeGraphSettings({ layoutMode: "bad" as "force" }).layoutMode).toBe("force");
+    expect(
+      graphSettingsConfig({ layoutMode: "layered", dimensions: 3, showArrows: true }),
+    ).toMatchObject({ enableSimulation: false, spaceDimensions: 3, linkDefaultArrows: true });
   });
 });

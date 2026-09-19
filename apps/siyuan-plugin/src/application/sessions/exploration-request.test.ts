@@ -22,6 +22,7 @@ function engineHarness() {
     load: vi.fn(),
     neighborhood: vi.fn(),
     shortestPath: vi.fn(),
+    distances: vi.fn(),
     dispose: vi.fn(),
   };
   return {

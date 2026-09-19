@@ -201,6 +201,35 @@ impl Graph {
         Neighborhood { indices, truncated }
     }
 
+    /// Complete minimum hop distances from equal-weight seeds. Unreachable nodes
+    /// use u32::MAX; this query has no neighborhood depth or output budget.
+    pub fn distances(&mut self, seeds: &[u32], direction: Direction) -> Vec<u32> {
+        self.queue.clear();
+        let mut distances = vec![u32::MAX; self.stats.nodes as usize];
+        for &seed in seeds {
+            if seed < self.stats.nodes && distances[seed as usize] == u32::MAX {
+                distances[seed as usize] = 0;
+                self.queue.push_back((seed, 0));
+            }
+        }
+        while let Some((node, level)) = self.queue.pop_front() {
+            visit_neighbors(
+                &self.outgoing,
+                &self.incoming,
+                node,
+                direction,
+                |neighbor| {
+                    if distances[neighbor as usize] == u32::MAX {
+                        distances[neighbor as usize] = level + 1;
+                        self.queue.push_back((neighbor, level + 1));
+                    }
+                    true
+                },
+            );
+        }
+        distances
+    }
+
     pub fn shortest_path(&mut self, source: u32, target: u32, direction: Direction) -> Vec<u32> {
         if source >= self.stats.nodes || target >= self.stats.nodes {
             return Vec::new();

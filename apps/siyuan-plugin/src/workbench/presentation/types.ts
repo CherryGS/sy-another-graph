@@ -3,6 +3,7 @@ import type { GraphEdge } from "../../core/graph/types";
 import type { GraphSettings } from "./settings";
 import type { SearchOrigins } from "../../modules/search/origins";
 import type { GraphLike } from "../../core/graph/graph-lookups";
+import type { GraphLayers } from "../../modules/layout/layers";
 
 import type { CanvasNode } from "./present-nodes";
 export type { CanvasNode } from "./present-nodes";
@@ -23,6 +24,8 @@ export interface CanvasStats {
 export interface GraphCanvasProps {
   /** Semantic topology is independent of color, prepared rows and hidden isolates. */
   analysisGraph: GraphLike;
+  layers?: GraphLayers;
+  relayoutRequest?: number;
   nodes: readonly CanvasNode[];
   edges: readonly CanvasEdge[];
   /** The node being inspected. It has no implicit chosen membership. */

@@ -9,6 +9,66 @@ fn sample() -> Graph {
 }
 
 #[test]
+fn full_distances_use_nearest_equal_seed_and_preserve_direction() {
+    let mut graph = sample();
+    let unreachable = u32::MAX;
+    assert_eq!(
+        graph.distances(&[0], Direction::Outgoing),
+        vec![0, 1, 1, unreachable, 2, 3, unreachable]
+    );
+    assert_eq!(
+        graph.distances(&[0], Direction::Incoming),
+        vec![
+            0,
+            unreachable,
+            unreachable,
+            1,
+            unreachable,
+            unreachable,
+            unreachable
+        ]
+    );
+    assert_eq!(
+        graph.distances(&[0, 5, 0, 99], Direction::Both),
+        vec![0, 1, 1, 1, 1, 0, unreachable]
+    );
+    assert_eq!(
+        graph.distances(&[5, 0], Direction::Both),
+        vec![0, 1, 1, 1, 1, 0, unreachable]
+    );
+    assert_eq!(graph.distances(&[], Direction::Both), vec![unreachable; 7]);
+    assert_eq!(
+        graph.shortest_path(0, 5, Direction::Outgoing),
+        vec![0, 1, 4, 5]
+    );
+    graph.load(3, &[0, 1, 1, 2, 2, 0]).unwrap();
+    assert_eq!(graph.distances(&[0], Direction::Outgoing), vec![0, 1, 2]);
+    graph.load(0, &[]).unwrap();
+    assert!(graph.distances(&[0], Direction::Both).is_empty());
+}
+
+#[test]
+fn full_distances_do_not_inherit_neighborhood_limits_or_old_queries() {
+    let mut graph = Graph::new();
+    let edges: Vec<u32> = (1..100_000).flat_map(|node| [node - 1, node]).collect();
+    graph.load(100_000, &edges).unwrap();
+    assert!(
+        graph
+            .neighborhood(&[0], Direction::Both, 100_000, 10)
+            .truncated
+    );
+    let distances = graph.distances(&[0], Direction::Outgoing);
+    assert_eq!(distances.len(), 100_000);
+    assert_eq!(distances[99_999], 99_999);
+    assert_eq!(
+        graph
+            .neighborhood(&[99_999], Direction::Incoming, 1, 5)
+            .indices,
+        vec![99_999, 99_998]
+    );
+}
+
+#[test]
 fn deduplicates_and_reports_weak_components_and_total_degrees() {
     let graph = sample();
     assert_eq!(

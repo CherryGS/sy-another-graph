@@ -110,6 +110,19 @@ export class GraphEngineClient implements GraphEngine {
     return response.value;
   }
 
+  async distances(seeds: number[], direction: GraphDirection): Promise<Uint32Array> {
+    this.assertLoaded();
+    directionCode(direction);
+    for (const seed of seeds) validateUint32(seed, "Seed");
+    const indices = Uint32Array.from(seeds);
+    const response = await this.request(
+      { kind: "distances", seeds: indices, direction },
+      transferableBuffers(indices),
+    );
+    if (response.kind !== "distances") throw new Error("Unexpected distance response");
+    return response.value;
+  }
+
   async shortestPath(
     source: number,
     target: number,

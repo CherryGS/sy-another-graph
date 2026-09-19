@@ -14,6 +14,7 @@ const LABEL_DENSITY_CONFIG = {
 } satisfies Record<LabelDensity, CosmographConfig>;
 
 export interface GraphSettings {
+  layoutMode: "force" | "layered";
   dimensions: 2 | 3;
   labelDensity: LabelDensity;
   communityEnabled: boolean;
@@ -38,6 +39,7 @@ export interface GraphSettings {
 }
 
 export const DEFAULT_GRAPH_SETTINGS: Readonly<GraphSettings> = {
+  layoutMode: "force",
   dimensions: 2,
   labelDensity: "dense",
   communityEnabled: false,
@@ -81,6 +83,7 @@ export const GRAPH_SETTING_RANGES = {
 export function normalizeGraphSettings(settings?: Partial<GraphSettings>): GraphSettings {
   const result = { ...DEFAULT_GRAPH_SETTINGS };
   if (!settings) return result;
+  result.layoutMode = settings.layoutMode === "layered" ? "layered" : "force";
   result.dimensions = settings.dimensions === 3 ? 3 : 2;
   if (
     settings.labelDensity === "standard" ||
@@ -109,6 +112,7 @@ export function normalizeGraphSettings(settings?: Partial<GraphSettings>): Graph
 export function graphSettingsConfig(settings?: Partial<GraphSettings>): CosmographConfig {
   const value = normalizeGraphSettings(settings);
   return {
+    enableSimulation: value.layoutMode === "force",
     spaceDimensions: value.dimensions,
     simulationCluster: value.communityEnabled ? value.communityStrength : 0,
     backgroundColor:

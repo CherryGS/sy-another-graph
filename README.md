@@ -15,7 +15,7 @@ Explore SiYuan notes, blocks, and search results in a local 2D or 3D graph.
 - **Search graphs:** all results from native search or
   [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search),
   with ancestor context and visible match rings.
-- **Flexible views:** 2D/3D layouts, community clustering, optional 2D territories,
+- **Flexible views:** 2D/3D force and hop-layer layouts, community clustering, optional 2D territories,
   appearance controls, and JSON export.
 
 ## Quick start

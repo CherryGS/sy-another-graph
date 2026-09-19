@@ -80,6 +80,10 @@ impl WasmGraph {
         Ok(packed)
     }
 
+    pub fn distances(&mut self, seeds: &[u32], mode: u8) -> Result<Vec<u32>, JsValue> {
+        Ok(self.graph.distances(seeds, direction(mode)?))
+    }
+
     pub fn shortest_path(
         &mut self,
         source: u32,

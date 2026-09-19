@@ -27,6 +27,7 @@ import { NodeRelations } from "./NodeRelations";
 import { NativePreviewButton } from "./NativePreviewButton";
 import { SearchOriginBadge } from "./SearchOriginBadge";
 import { searchOriginDescription } from "../../presentation/search-origins";
+import { UNREACHABLE } from "../../../modules/layout/layers";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
   useLocale();
@@ -34,6 +35,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
   const targetId = useId();
   const node = state.selected;
   if (!node) return null;
+  const layer = state.layeredLayout.layers?.distanceById.get(node.id);
   const nativeId = state.nativeBlockId(node.id);
   const notebook = state.data?.notebooks.find((book) => book.id === node.notebook);
 
@@ -88,6 +90,13 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
           <CardDescription className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node)}</Badge>
             <SearchOriginBadge id={node.id} origins={state.searchOrigins} />
+            {layer !== undefined && (
+              <Badge variant="outline">
+                {layer === UNREACHABLE
+                  ? t("layout.unreachable")
+                  : t("layout.hop", { count: layer })}
+              </Badge>
+            )}
             {node.notebook && (
               <span className="break-words">{notebook?.name ?? node.notebook}</span>
             )}

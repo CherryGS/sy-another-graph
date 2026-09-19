@@ -30,6 +30,7 @@ import type { GraphColorMode } from "../presentation/node-colors";
 import type { GraphDirection } from "../../application/sessions/graph-engine";
 import { EMPTY_SELECTION, retainSelection, selectNode } from "../../application/sessions/selection";
 import { useGraphEngine } from "./use-graph-engine";
+import { useLayeredLayout } from "./use-layered-layout";
 import { ExplorationRequest } from "../../application/sessions/exploration-request";
 import { normalizeVisualPreferences, useVisualPreferences } from "./visual-preferences";
 import { normalizeGraphSettings, type GraphSettings } from "../presentation/settings";
@@ -95,6 +96,7 @@ export function useWorkbenchState() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fitRequest, setFitRequest] = useState(0);
+  const [relayoutRequest, setRelayoutRequest] = useState(0);
   const [readIssuesOpen, setReadIssuesOpen] = useState(false);
   const fitted = useRef(false);
   useEffect(() => {
@@ -214,6 +216,14 @@ export function useWorkbenchState() {
     loading: engineLoading,
     error: engineError,
   } = useGraphEngine(currentGraph, setToast);
+  const layeredLayout = useLayeredLayout(
+    currentGraph,
+    loaded,
+    graphSettings.layoutMode === "layered",
+    chosenIds,
+    direction,
+    mentionsPending || source.refreshing,
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Scope/source/type changes invalidate selections and pins against the same graph used for traversal.
@@ -416,6 +426,12 @@ export function useWorkbenchState() {
   return {
     data,
     currentGraph,
+    layeredLayout,
+    relayoutRequest,
+    relayout: () => {
+      setRelayoutRequest((value) => value + 1);
+      setFitRequest((value) => value + 1);
+    },
     sourceLookups,
     backgroundIds,
     currentLookups,

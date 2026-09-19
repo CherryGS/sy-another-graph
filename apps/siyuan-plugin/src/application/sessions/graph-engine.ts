@@ -26,5 +26,7 @@ export interface GraphEngine {
     limit: number,
   ): Promise<Neighborhood>;
   shortestPath(source: number, target: number, direction: GraphDirection): Promise<Uint32Array>;
+  /** Complete dense-indexed hop distances; 0xffffffff means unreachable. */
+  distances(seeds: number[], direction: GraphDirection): Promise<Uint32Array>;
   dispose(): void;
 }

@@ -246,71 +246,78 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
               </FieldGroup>
             </TabsContent>
             <TabsContent value="simulation" className="m-0 p-4 pt-0">
-              <FieldGroup>
-                <FieldDescription>
-                  {t("text.changesApplyWhenYouReleaseTheSliderIf")}
-                </FieldDescription>
-                <FieldSet>
-                  <FieldLegend>{t("text.communityGrouping")}</FieldLegend>
-                  <FieldGroup>
-                    <SettingSwitch
-                      id="community-enabled"
-                      name={t("text.enableCommunityGrouping")}
-                      checked={settings.communityEnabled}
-                      onChange={(communityEnabled) => state.setGraphSettings({ communityEnabled })}
-                    />
-                    <FieldDescription>
-                      {t("text.groupNodesByTheirCurrentConnectionsAndBring")}
-                    </FieldDescription>
-                    {settings.communityEnabled && (
-                      <>
-                        {parameter(
-                          "communityStrength",
-                          t("text.communityAttraction"),
-                          t("text.higherValuesBringGroupsCloserSetTo0"),
-                        )}
-                        {parameter(
-                          "communityResolution",
-                          t("text.communityResolution"),
-                          t("text.higherValuesUsuallyProduceFinerGroupsChangesRecalculate"),
-                        )}
-                        <SettingSwitch
-                          id="community-background"
-                          name={t("text.showCommunityRegions2d")}
-                          checked={settings.communityBackground}
-                          disabled={settings.dimensions === 3}
-                          onChange={(communityBackground) =>
-                            state.setGraphSettings({ communityBackground })
-                          }
-                        />
-                        <FieldDescription>
-                          {t("text.regionsFollowNodeMovementAndAreShownOnly")}
-                        </FieldDescription>
-                      </>
-                    )}
-                  </FieldGroup>
-                </FieldSet>
-                {parameter(
-                  "repulsion",
-                  t("text.nodeRepulsion"),
-                  t("text.higherValuesSpreadNodesFurtherApart"),
-                )}
-                {parameter("gravity", t("text.centerGravity"))}
-                {parameter("linkDistance", t("text.targetLinkDistance"))}
-                {parameter("linkSpring", t("text.linkStrength"))}
-                {parameter(
-                  "friction",
-                  t("text.motionInertia"),
-                  t("text.higherValuesKeepNodesMovingLonger"),
-                )}
-                {parameter("collision", t("text.collisionStrength"))}
-                {parameter("collisionPadding", t("text.collisionSpacing"))}
-                {parameter(
-                  "decay",
-                  t("text.layoutCoolingSteps"),
-                  t("text.measuredInSimulationStepsNotMillisecondsHigherValues"),
-                )}
-              </FieldGroup>
+              {settings.layoutMode === "layered" && (
+                <FieldDescription>{t("layout.forceSettings")}</FieldDescription>
+              )}
+              <FieldSet disabled={settings.layoutMode === "layered"}>
+                <FieldGroup>
+                  <FieldDescription>
+                    {t("text.changesApplyWhenYouReleaseTheSliderIf")}
+                  </FieldDescription>
+                  <FieldSet>
+                    <FieldLegend>{t("text.communityGrouping")}</FieldLegend>
+                    <FieldGroup>
+                      <SettingSwitch
+                        id="community-enabled"
+                        name={t("text.enableCommunityGrouping")}
+                        checked={settings.communityEnabled}
+                        onChange={(communityEnabled) =>
+                          state.setGraphSettings({ communityEnabled })
+                        }
+                      />
+                      <FieldDescription>
+                        {t("text.groupNodesByTheirCurrentConnectionsAndBring")}
+                      </FieldDescription>
+                      {settings.communityEnabled && (
+                        <>
+                          {parameter(
+                            "communityStrength",
+                            t("text.communityAttraction"),
+                            t("text.higherValuesBringGroupsCloserSetTo0"),
+                          )}
+                          {parameter(
+                            "communityResolution",
+                            t("text.communityResolution"),
+                            t("text.higherValuesUsuallyProduceFinerGroupsChangesRecalculate"),
+                          )}
+                          <SettingSwitch
+                            id="community-background"
+                            name={t("text.showCommunityRegions2d")}
+                            checked={settings.communityBackground}
+                            disabled={settings.dimensions === 3}
+                            onChange={(communityBackground) =>
+                              state.setGraphSettings({ communityBackground })
+                            }
+                          />
+                          <FieldDescription>
+                            {t("text.regionsFollowNodeMovementAndAreShownOnly")}
+                          </FieldDescription>
+                        </>
+                      )}
+                    </FieldGroup>
+                  </FieldSet>
+                  {parameter(
+                    "repulsion",
+                    t("text.nodeRepulsion"),
+                    t("text.higherValuesSpreadNodesFurtherApart"),
+                  )}
+                  {parameter("gravity", t("text.centerGravity"))}
+                  {parameter("linkDistance", t("text.targetLinkDistance"))}
+                  {parameter("linkSpring", t("text.linkStrength"))}
+                  {parameter(
+                    "friction",
+                    t("text.motionInertia"),
+                    t("text.higherValuesKeepNodesMovingLonger"),
+                  )}
+                  {parameter("collision", t("text.collisionStrength"))}
+                  {parameter("collisionPadding", t("text.collisionSpacing"))}
+                  {parameter(
+                    "decay",
+                    t("text.layoutCoolingSteps"),
+                    t("text.measuredInSimulationStepsNotMillisecondsHigherValues"),
+                  )}
+                </FieldGroup>
+              </FieldSet>
             </TabsContent>
             <TabsContent value="spatial" className="m-0 p-4 pt-0">
               <FieldGroup>

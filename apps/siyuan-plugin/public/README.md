@@ -48,6 +48,18 @@ matched IDs. The search button shows reading progress; click again to cancel.
   or show optional community territories in 2D.
 - **Export:** download the visible graph as JSON.
 
+Select **Layered** in the toolbar to arrange nodes from left to right by minimum
+hop distance from the nearest selected node. All selected nodes are equal seeds.
+Layers follow the current scope, projection, enabled relations and traversal
+direction; each enabled edge costs one hop. Neighborhood depth only affects
+highlighting. Unreachable nodes occupy a compact separate area on the right, and node
+details show distances. Each layer is a column in 2D or a plane in 3D.
+Without selected seeds, existing positions are retained with a prompt to select.
+Changing seeds, direction, scope or dimension rearranges nodes. You can drag
+nodes between rearrangements; **Rearrange layers and fit** restores their layout.
+Layered mode disables force motion. Returning to **Force** restores your force
+parameters and pause setting without changing colors, relations or selection.
+
 For text mentions, enter one complete phrase or `/regex/` per line under
 **Exclusion rules**, then click **Apply exclusions**. Save the filter preset to keep
 these rules; temporary search graphs keep independent exclusions. For example:

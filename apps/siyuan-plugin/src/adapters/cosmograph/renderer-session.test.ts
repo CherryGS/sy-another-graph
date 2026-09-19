@@ -301,6 +301,112 @@ function flushScheduledFrames(h: ReturnType<typeof harness>) {
   }
 }
 
+describe("fixed layered coordinates", () => {
+  it("scales layers into the actual GPU-limited world extent", async () => {
+    const h = harness();
+    const layout = {
+      dimensions: 2 as const,
+      positions: new Float32Array([1024, 4096, 7168, 4096]),
+    };
+    await h.session.update(data(), { enableSimulation: false, spaceSize: 4096 }, layout);
+    expect(h.graph.getPointPositions()).toEqual(new Float32Array([512, 2048, 3584, 2048]));
+    expect(layout.positions).toEqual(new Float32Array([1024, 4096, 7168, 4096]));
+    await h.session.dispose();
+  });
+  it("keeps manual drags through appearance changes and resumes only when returning to force layout", async () => {
+    const h = harness();
+    const prepared = data();
+    const layout = { dimensions: 2 as const, positions: new Float32Array([100, 200, 300, 400]) };
+    h.session.controls("a", false, ["a", "b"], ["a"]);
+    await h.session.update(prepared, { enableSimulation: false, spaceSize: 8192 }, layout);
+    expect(h.graph.getPointPositions()).toEqual(layout.positions);
+    expect(h.graph.isSimulationRunning).toBe(false);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
+    h.graph.setPointPositions(new Float32Array([150, 200, 300, 400]), { dimensions: 2 });
+    h.session.groupDragFinished(true);
+    await h.session.update(
+      prepared,
+      { enableSimulation: false, spaceSize: 8192, pointColorBy: "degreeColor" },
+      layout,
+    );
+    expect(h.graph.getPointPositions()?.[0]).toBe(150);
+    h.session.setActive(false);
+    h.session.setActive(true);
+    flushScheduledFrames(h);
+    expect(h.graph.isSimulationRunning).toBe(false);
+    await h.session.update(prepared, { enableSimulation: true });
+    expect(h.graph.isSimulationRunning).toBe(true);
+    expect(h.graph.getPointPositions()?.[0]).toBe(150);
+    await h.session.dispose();
+  });
+
+  it("rearranges for a new request, preserves latent XYZ stride and accepts new data", async () => {
+    const h = harness();
+    const prepared = data();
+    await h.session.update(
+      prepared,
+      { enableSimulation: false, spaceSize: 8192, spaceDimensions: 3 },
+      {
+        dimensions: 3,
+        positions: new Float32Array([100, 200, 300, 400, 500, 600]),
+      },
+    );
+    const next = { dimensions: 2 as const, positions: new Float32Array([1, 2, 3, 4]) };
+    await h.session.update(
+      prepared,
+      { enableSimulation: false, spaceSize: 8192, spaceDimensions: 2 },
+      next,
+    );
+    expect(h.graph.getPointPositions({ dimensions: 3 })).toEqual(
+      new Float32Array([1, 2, 0, 3, 4, 0]),
+    );
+    const replacement = dataWithIds(["c", "a", "b"]);
+    const layout = {
+      dimensions: 2 as const,
+      positions: new Float32Array([10, 20, 30, 40, 50, 60]),
+    };
+    await h.session.update(replacement, { enableSimulation: false, spaceSize: 8192 }, layout);
+    expect(h.graph.getPointPositions()).toEqual(layout.positions);
+    expect(h.session.counts.nodes).toBe(3);
+    expect(h.graph.isSimulationRunning).toBe(false);
+    await h.session.dispose();
+  });
+
+  it("does not install a superseded layout or coordinates with stale row counts", async () => {
+    const h = harness();
+    const prepared = data();
+    await h.session.update(prepared, { enableSimulation: false, spaceSize: 8192 });
+    const old = h.session.update(
+      prepared,
+      { enableSimulation: false, spaceSize: 8192 },
+      {
+        dimensions: 2,
+        positions: new Float32Array([1, 2, 3, 4]),
+      },
+    );
+    const latest = { dimensions: 2 as const, positions: new Float32Array([5, 6, 7, 8]) };
+    const replacement = h.session.update(
+      prepared,
+      { enableSimulation: false, spaceSize: 8192 },
+      latest,
+    );
+    await expect(old).resolves.toBeNull();
+    await replacement;
+    expect(h.graph.getPointPositions()).toEqual(latest.positions);
+    await expect(
+      h.session.update(
+        prepared,
+        { enableSimulation: false, spaceSize: 8192 },
+        {
+          dimensions: 2,
+          positions: new Float32Array([0, 0]),
+        },
+      ),
+    ).rejects.toThrow(/coordinates/);
+    await h.session.dispose();
+  });
+});
+
 describe("renderer lifetime", () => {
   it.each([2, 3] as const)(
     "samples each explicit %sD fit once without rebuilding, reheating or changing pause",
