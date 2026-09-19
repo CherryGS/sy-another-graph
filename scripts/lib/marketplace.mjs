@@ -84,7 +84,7 @@ export function validateMarketplaceManifest(manifest, expectedPackage, tag) {
   return manifest;
 }
 
-/** Package only the built runtime, using forward-slash paths on every platform. */
+/** Package allowed plugin and documentation assets with portable archive paths. */
 export function packagePlugin({
   distribution,
   expectedManifest,
@@ -113,6 +113,7 @@ export function packagePlugin({
     ...requiredFiles.filter((file) => !file.includes("/")),
     ...Object.values(manifest.readme).map((file) => file.split("/")[0]),
     "ui",
+    "screenshots",
     ...[manifest.icon, manifest.preview].filter(Boolean),
   ]);
   const files = new Map();

@@ -91,6 +91,16 @@ test("repeated packaging is deterministic and never includes the previous archiv
   assert.equal(unzipSync(readFileSync(second.path))["package.zip"], undefined);
 });
 
+test("README screenshots are included with their original relative paths and bytes", (t) => {
+  const f = fixture(t);
+  const image = Uint8Array.of(255, 216, 255, 224, 1, 2, 3, 255, 217);
+  f.write("README.md", "![Layered graph](screenshots/layered.jpg)");
+  f.write("screenshots/layered.jpg", image);
+  const files = unzipSync(readFileSync(packagePlugin(f.args).path));
+  assert.deepEqual(files["screenshots/layered.jpg"], image);
+  assert.match(Buffer.from(files["README.md"]).toString(), /screenshots\/layered\.jpg/);
+});
+
 test("stale build metadata and mismatched release tags fail before replacing an archive", (t) => {
   const f = fixture(t);
   const first = packagePlugin(f.args);

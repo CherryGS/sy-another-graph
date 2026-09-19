@@ -5,20 +5,43 @@ Explore SiYuan notes, blocks, and search results in an interactive 2D / 3D graph
 [简体中文](README_zh_CN.md) ·
 [User guide](https://github.com/CherryGS/sy-another-graph/blob/master/docs/user-guide.md)
 
-![Graph overview with a selected node, highlighted neighbors, and relationship details](preview.jpg)
+_Screenshots below use demonstration notes from the test workspace._
 
-_Demonstration notes from the test workspace: select a node, follow its connections, and inspect their sources._
+## Explore notes and their connections
 
-## What you can do
+Explore in **2D or 3D**, Shift-click to select starting nodes, and follow directional neighborhoods or shortest paths.
+Inspect references, containment, database relations, and optional text mentions, with native previews and source evidence.
 
-| Feature                      | Use it to…                                                                                                                                                                   |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Explore the graph**        | Switch between 2D / 3D and force / hop-layer layouts. Shift-click multiple starting nodes and follow directional neighborhoods or shortest paths.                            |
-| **Find related documents**   | Discover notes that cite the same material or are cited together. Compare ranked candidates, inspect supporting references, and explicitly add candidates to your selection. |
-| **Choose your scope**        | Filter by notebook, document or block, node type, and excluded subtrees. Save frequently used configurations as named presets.                                               |
-| **Turn search into a graph** | Include every page of native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search), with ancestor context and visible match rings.           |
-| **Inspect connections**      | Explore references, containment, database relations, and optional text mentions. Preview original notes and trace relationship evidence.                                     |
-| **Adjust and export**        | Color nodes by type, branch, notebook, or degree; tune labels and community clustering, show 2D community territories, and export the visible graph as JSON.                 |
+![A selected node, its highlighted neighborhood, and relationship details](preview.jpg)
+
+_Select Graph Theory to highlight its neighbors and inspect the relationships on the right._
+
+## Follow the graph in layers
+
+Switch to **Layered** to arrange nodes from left to right by hop distance from the nearest selected node.
+It follows the chosen traversal direction and works in 2D / 3D; neighborhood depth controls highlighting.
+
+![Nodes arranged from left to right in hop layers](screenshots/layered.jpg)
+
+_Graph Theory is the starting node; the remaining documents occupy layers one to three._
+
+## Discover related documents
+
+**Discover relationships** finds documents that **cite the same material** or are **cited together**.
+Browse ranked candidates and their supporting references, then use **+** to add a candidate to your selection.
+
+![Related-document candidates and their actual supporting references](screenshots/discovery.jpg)
+
+_SolidJS cites both Graph Theory and Rust WASM, providing the evidence for this co-citation result._
+
+## Filter your scope or start from search
+
+Filter by notebook, document or block, node type, and excluded subtrees; keep frequently used configurations as **named presets**.
+Turn all results from native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search) into a graph, with ancestor context and rings identifying matches.
+
+## Adjust the view and export
+
+Color nodes by type, branch, notebook, or degree. Tune labels and community clustering, display 2D community territories, and export the visible graph as JSON.
 
 ## Get started
 
