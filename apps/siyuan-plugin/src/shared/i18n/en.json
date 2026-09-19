@@ -1,4 +1,12 @@
 {
+  "read.duplicateBlocksTitle": "Duplicate block index entries",
+  "read.duplicateBlocksSummary": "Merged {{count, value}} extra index entries by block ID.",
+  "read.duplicateBlocksImpact": "For each block ID, the complete row with the greatest index row number is retained. This does not guarantee the newest content. When copies differ, the graph reflects only one of them.",
+  "read.duplicateBlocksSuggestion": "Open the source to check its content and location, then reread after the index updates. This issue is independent of the neighborhood hop limit.",
+  "read.duplicateBlockRows": "Index entries for this block",
+  "read.chosenBlockRow": "Selected index row number",
+  "read.documentId": "Document ID",
+  "read.blockIndexRowsStartEnd": "Block index rows (start → end)",
   "layout.mode": "Graph layout",
   "layout.force": "Force",
   "layout.layered": "Layered",

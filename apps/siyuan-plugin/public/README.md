@@ -97,6 +97,9 @@ relationships between the original endpoints with those between their display re
   preferences are browser-local; JSON export creates a temporary workspace file.
 - Read issues appear in a lower-left toast. **View details** opens a copyable
   diagnostic report; **Refresh** rereads the workspace.
+- Duplicate block IDs retain one complete index row and report affected blocks.
+  Copies may differ; open their sources from diagnostics to verify. Hop changes
+  do not repair the source index; reread after the index updates.
 - Supports keyword, query-syntax, regex, and compatible read-only SQL searches.
   Semantic search, encrypted-notebook search, and SQL that cannot be paginated
   reliably are unsupported. A search is limited to 500,000 matches, 10,000 pages,

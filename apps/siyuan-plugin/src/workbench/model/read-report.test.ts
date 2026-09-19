@@ -7,6 +7,42 @@ import type { GraphDataset } from "../../core/graph/types";
 import { readReport } from "./read-report";
 
 describe("copyable read report", () => {
+  it("explains duplicate index rows in both languages without presenting the chosen row as authoritative", () => {
+    const issues = new ReadIssueCollector();
+    issues.add(
+      "duplicate-blocks",
+      {
+        openBlockId: "block",
+        fields: {
+          "text.sourceBlockId": "block",
+          "read.documentId": "document",
+          "read.duplicateBlockRows": "3",
+          "read.chosenBlockRow": "9007199254740993",
+        },
+      },
+      2,
+    );
+    const data: GraphDataset = {
+      source: "siyuan",
+      nodes: [],
+      edges: [],
+      notebooks: [],
+      skippedReferences: 0,
+      referenceCount: 0,
+      loadMs: 1,
+      loadedAt: "2026-09-19T00:00:00Z",
+      warnings: issues.finish(),
+    };
+    const chinese = readReport(data);
+    expect(chinese).toContain("已按块 ID 合并 2 条多余索引记录");
+    expect(chinese).toContain("采用的索引行号: 9007199254740993");
+    expect(chinese).toContain("不保证它就是最新正文");
+    setLocale("en");
+    const english = readReport(data);
+    expect(english).toContain("Merged 2 extra index entries");
+    expect(english).toContain("This does not guarantee the newest content");
+    expect(english).not.toContain("read.chosenBlockRow");
+  });
   it("includes the snapshot, exact failure location and bounded-detail disclosure without raw note content", () => {
     const issues = new ReadIssueCollector();
     issues.add("database-read", {

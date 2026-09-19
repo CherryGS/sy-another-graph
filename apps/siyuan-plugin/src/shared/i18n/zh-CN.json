@@ -1,4 +1,12 @@
 {
+  "read.duplicateBlocksTitle": "重复块索引",
+  "read.duplicateBlocksSummary": "已按块 ID 合并 {{count, value}} 条多余索引记录。",
+  "read.duplicateBlocksImpact": "同一块 ID 只保留索引行号最大的完整记录；这不保证它就是最新正文。若重复记录内容不同，图谱只能反映其中一份。",
+  "read.duplicateBlocksSuggestion": "打开来源核对正文和所在位置；等待索引更新后重新读取。此提示与邻域跳数上限无关。",
+  "read.duplicateBlockRows": "该块的索引记录数",
+  "read.chosenBlockRow": "采用的索引行号",
+  "read.documentId": "所属文档 ID",
+  "read.blockIndexRowsStartEnd": "块索引记录数（开始 → 结束）",
   "layout.mode": "图谱布局",
   "layout.force": "力导向",
   "layout.layered": "层级",

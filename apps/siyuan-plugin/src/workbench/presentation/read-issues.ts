@@ -9,6 +9,18 @@ const definitions: Record<
     suggestion: string;
   }
 > = {
+  "duplicate-blocks": {
+    get title() {
+      return t("read.duplicateBlocksTitle");
+    },
+    summary: (count) => t("read.duplicateBlocksSummary", { count }),
+    get impact() {
+      return t("read.duplicateBlocksImpact");
+    },
+    get suggestion() {
+      return t("read.duplicateBlocksSuggestion");
+    },
+  },
   "snapshot-changed": {
     get title() {
       return t("text.dataChangedWhileReading");

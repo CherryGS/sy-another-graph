@@ -26,7 +26,12 @@ interface ReferenceRow {
 }
 interface BlockState {
   total: number;
+  rows: number;
   last: string | null;
+}
+interface IndexedBlockRow extends BlockRow {
+  indexRows: number;
+  indexRowid: string;
 }
 interface ReferenceState {
   total: number;
@@ -44,7 +49,8 @@ async function sql<T>(stmt: string, signal?: AbortSignal): Promise<T[]> {
 }
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const BLOCK_STATE_SQL = "SELECT count(*) AS total, max(id) AS last FROM blocks";
+const BLOCK_STATE_SQL =
+  "SELECT count(DISTINCT id) AS total, count(*) AS rows, max(id) AS last FROM blocks";
 const REFERENCE_STATE_SQL = "SELECT count(*) AS total, CAST(max(rowid) AS TEXT) AS high FROM refs";
 const REFERENCE_BATCH_SIZE = 4096;
 
@@ -59,9 +65,25 @@ async function blockState(signal: AbortSignal): Promise<BlockState> {
   const [state] = await sql<BlockState>(BLOCK_STATE_SQL, signal);
   if (!state) throw new MessageError(msg("text.cannotValidateTheBlockCount"));
   const total = checkedCount(state.total);
+  const rows = checkedCount(state.rows);
+  if (rows < total) throw new MessageError(msg("text.siyuanReturnedAnInvalidGraphCount"));
   if (total > 0 && (typeof state.last !== "string" || !state.last))
     throw new MessageError(msg("text.cannotDetermineTheBlockPaginationBoundary"));
-  return { total, last: total === 0 ? null : state.last };
+  return { total, rows, last: total === 0 ? null : state.last };
+}
+
+function blockPageSql(cursor: string, high: string, pageSize: number): string {
+  // Native block IDs can repeat in an inconsistent index. Page unique IDs, then
+  // select one complete row deterministically; do not merge fields from copies.
+  // Aggregate before LIMIT so even copies straddling a host page cap are counted.
+  return `SELECT id, box, path, hpath, content, type, root_id, parent_id, ial,
+    CASE WHEN type IN ('av','p','h','t') THEN markdown ELSE '' END AS markdown,
+    picked.copies AS indexRows, CAST(blocks.rowid AS TEXT) AS indexRowid
+    FROM blocks JOIN (
+      SELECT max(rowid) AS chosenRowid, count(*) AS copies FROM blocks
+      WHERE id > ${quote(cursor)} AND id <= ${quote(high)}
+      GROUP BY id ORDER BY id LIMIT ${pageSize}
+    ) AS picked ON blocks.rowid = picked.chosenRowid ORDER BY id`;
 }
 
 async function referenceState(signal: AbortSignal): Promise<ReferenceState> {
@@ -331,11 +353,13 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
       name: book.name,
     }));
   const blocks: BlockRow[] = [];
+  const issues = new ReadIssueCollector();
   const pageSize = 1000;
   let cursor = "";
+  let blockRows = 0;
   while (initialBlocks.last !== null && cursor < initialBlocks.last) {
-    const page = await sql<BlockRow>(
-      `SELECT id, box, path, hpath, content, type, root_id, parent_id, ial, CASE WHEN type IN ('av','p','h','t') THEN markdown ELSE '' END AS markdown FROM blocks WHERE id > ${quote(cursor)} AND id <= ${quote(initialBlocks.last)} ORDER BY id LIMIT ${pageSize}`,
+    const page = await sql<IndexedBlockRow>(
+      blockPageSql(cursor, initialBlocks.last, pageSize),
       signal,
     );
     if (page.length === 0) break;
@@ -344,10 +368,28 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     for (const row of page) {
       if (typeof row.id !== "string" || row.id <= cursor || row.id > initialBlocks.last)
         throw new MessageError(msg("text.blockPaginationStalledOrCrossedTheReadBoundary"));
+      const copies = checkedCount(row.indexRows);
+      if (copies === 0) throw new MessageError(msg("text.siyuanReturnedAnInvalidGraphCount"));
+      blockRows = checkedCount(blockRows + copies);
+      if (copies > 1)
+        issues.add(
+          "duplicate-blocks",
+          {
+            fields: {
+              "text.sourceBlockId": row.id,
+              "read.documentId": row.root_id || row.id,
+              "text.sourceLocation": row.hpath || row.path,
+              "read.duplicateBlockRows": String(copies),
+              "read.chosenBlockRow": row.indexRowid,
+            },
+            openBlockId: row.id,
+          },
+          copies - 1,
+        );
       cursor = row.id;
     }
     blocks.push(...page);
-    if (blocks.length > initialBlocks.total)
+    if (blocks.length > initialBlocks.total || blockRows > initialBlocks.rows)
       throw new MessageError(msg("text.blocksMovedOutsideTheInitialPaginationRangeDuring"));
     progress({ phase: "blocks", completed: blocks.length, total: initialBlocks.total });
   }
@@ -395,15 +437,16 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     referenceState(signal),
   ]);
   signal.throwIfAborted();
-  const issues = new ReadIssueCollector();
   const blocksChanged =
-    initialBlocks.total !== finalBlocks.total || initialBlocks.last !== finalBlocks.last;
+    initialBlocks.total !== finalBlocks.total ||
+    initialBlocks.rows !== finalBlocks.rows ||
+    initialBlocks.last !== finalBlocks.last;
   // These separate statements detect count/high-watermark changes, but cannot
   // promise an atomic snapshot under same-count edits or rowid reuse/VACUUM.
   const referencesChanged =
     initialReferences.total !== finalReferences.total ||
     initialReferences.high !== finalReferences.high;
-  if (!blocksChanged && blocks.length !== initialBlocks.total)
+  if (!blocksChanged && (blocks.length !== initialBlocks.total || blockRows !== initialBlocks.rows))
     throw new MessageError(msg("text.blockPaginationIsIncompleteRefreshAndRetry"));
   if (!referencesChanged && rawReferences !== initialReferences.total)
     throw new MessageError(msg("text.referencePaginationIsIncompleteRefreshAndRetry"));
@@ -411,6 +454,7 @@ async function loadSnapshot(signal: AbortSignal, progress: Progress): Promise<Gr
     issues.add("snapshot-changed", {
       fields: {
         "text.blockCountStartEnd": `${initialBlocks.total} → ${finalBlocks.total}`,
+        "read.blockIndexRowsStartEnd": `${initialBlocks.rows} → ${finalBlocks.rows}`,
         "text.blockPaginationBoundaryStartEnd": `${initialBlocks.last} → ${finalBlocks.last}`,
         "text.actualBlocksRead": String(blocks.length),
         "text.referenceCountStartEnd": `${initialReferences.total} → ${finalReferences.total}`,

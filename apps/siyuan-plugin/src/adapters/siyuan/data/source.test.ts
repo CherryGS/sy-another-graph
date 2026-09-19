@@ -15,7 +15,7 @@ function databaseFixture(count: number, includeReferences = true) {
   const database = new DatabaseSync(":memory:");
   databases.push(database);
   database.exec(
-    "CREATE TABLE blocks(id TEXT PRIMARY KEY, box TEXT, path TEXT, hpath TEXT, content TEXT, type TEXT, root_id TEXT, parent_id TEXT, ial TEXT, markdown TEXT); CREATE TABLE refs(block_id TEXT, def_block_id TEXT, root_id TEXT, def_block_root_id TEXT)",
+    "CREATE TABLE blocks(id TEXT, box TEXT, path TEXT, hpath TEXT, content TEXT, type TEXT, root_id TEXT, parent_id TEXT, ial TEXT, markdown TEXT); CREATE INDEX blocks_id ON blocks(id); CREATE TABLE refs(block_id TEXT, def_block_id TEXT, root_id TEXT, def_block_root_id TEXT)",
   );
   const addDocument = database.prepare(
     "INSERT INTO blocks(id, box, path, content, type) VALUES (?, ?, ?, ?, ?)",
@@ -312,6 +312,119 @@ describe("SiYuan source block graph", () => {
 });
 
 describe("SiYuan keyset pagination through the API", () => {
+  it("selects one complete index row per repeated ID, retaining references and reporting the ambiguity", async () => {
+    const database = databaseFixture(5);
+    const id = documentId(2);
+    database
+      .prepare(
+        "INSERT INTO blocks(rowid, id, box, path, hpath, content, type, root_id, parent_id, ial, markdown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        9007199254740993n,
+        id,
+        "book",
+        `/${documentId(0)}.sy`,
+        "/Chosen source",
+        "New passage",
+        "p",
+        documentId(0),
+        documentId(1),
+        '{: name="Chosen name"}',
+        "Chosen markdown",
+      );
+    mockSiYuan(database, { pageSize: 1 });
+    const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
+    expect(graph.nodes).toHaveLength(5);
+    expect(new Set(graph.nodes.map((node) => node.id)).size).toBe(5);
+    expect(graph.nodes.find((node) => node.id === id)).toMatchObject({
+      content: "New passage",
+      blockType: "p",
+      rootId: documentId(0),
+      parentId: documentId(1),
+      path: `/${documentId(0)}.sy`,
+      humanPath: "/Chosen source",
+    });
+    expect(graph.mentionBlocks?.find((block) => block.id === id)).toMatchObject({
+      markdown: "Chosen markdown",
+      ial: '{: name="Chosen name"}',
+      rootId: documentId(0),
+    });
+    expect(graph.referenceCount).toBe(15);
+    expect(graph.skippedReferences).toBe(0);
+    const issue = graph.warnings.find((issue) => issue.code === "duplicate-blocks");
+    expect(issue).toMatchObject({
+      count: 1,
+      detailCount: 1,
+      details: [
+        {
+          openBlockId: id,
+          fields: { "read.duplicateBlockRows": "2", "read.chosenBlockRow": "9007199254740993" },
+        },
+      ],
+    });
+    expect(JSON.stringify(issue)).not.toContain("Chosen markdown");
+  });
+
+  it("counts all copies even when one ID exceeds a page, without skipping IDs at host page caps", async () => {
+    const database = databaseFixture(1057, false);
+    const id = documentId(126);
+    database.exec("BEGIN");
+    const addCopy = database.prepare(
+      "INSERT INTO blocks(id, box, path, content, type) VALUES (?, 'book', '/copy.sy', 'Copy', 'd')",
+    );
+    for (let index = 0; index < 2005; index++) addCopy.run(id);
+    addCopy.run(documentId(254));
+    database.exec("COMMIT");
+    const { statements } = mockSiYuan(database, { pageSize: 127 });
+    const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
+    expect(graph.nodes).toHaveLength(1057);
+    expect(new Set(graph.nodes.map((node) => node.id)).size).toBe(1057);
+    expect(graph.warnings).toEqual([
+      expect.objectContaining({ code: "duplicate-blocks", count: 2006, detailCount: 2 }),
+    ]);
+    expect(statements.filter((stmt) => stmt.startsWith("SELECT id, box"))).toHaveLength(9);
+  });
+
+  it("reports concurrent duplicate-index cleanup even when distinct identities stay unchanged", async () => {
+    const database = databaseFixture(5, false);
+    database
+      .prepare(
+        "INSERT INTO blocks(id, box, path, content, type) VALUES (?, 'book', '/copy.sy', 'Copy', 'd')",
+      )
+      .run(documentId(0));
+    let pages = 0;
+    mockSiYuan(database, {
+      pageSize: 2,
+      beforeQuery: (stmt) => {
+        if (stmt.startsWith("SELECT id, box") && ++pages === 2)
+          database.prepare("DELETE FROM blocks WHERE rowid = 1").run();
+      },
+    });
+    const graph = await loadSiYuanGraph(new AbortController().signal, () => {});
+    expect(graph.nodes).toHaveLength(5);
+    expect(graph.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "duplicate-blocks", count: 1 }),
+        expect.objectContaining({ code: "snapshot-changed" }),
+      ]),
+    );
+    const refreshed = await loadSiYuanGraph(new AbortController().signal, () => {});
+    expect(refreshed.nodes).toHaveLength(5);
+    expect(refreshed.warnings).toEqual([]);
+  });
+
+  it("does not silently discard null identities when comparing distinct counts", async () => {
+    const database = databaseFixture(1, false);
+    database
+      .prepare(
+        "INSERT INTO blocks(id, box, path, content, type) VALUES (NULL, 'book', '/invalid.sy', 'Invalid', 'd')",
+      )
+      .run();
+    mockSiYuan(database);
+    await expect(loadSiYuanGraph(new AbortController().signal, () => {})).rejects.toThrow(
+      "text.blockPaginationIsIncompleteRefreshAndRetry",
+    );
+  });
   it("reads every block type and uses block reference endpoints even inside one document", async () => {
     const database = databaseFixture(1, false);
     const doc = documentId(0);
@@ -657,9 +770,15 @@ describe("SiYuan keyset pagination through the API", () => {
         .all()
         .map((row) => String(row.detail));
       expect(
-        plan.some((detail) => detail.includes("SEARCH blocks USING INDEX idx_blocks_id")),
+        plan.some((detail) => detail.includes("SEARCH blocks USING COVERING INDEX idx_blocks_id")),
       ).toBe(true);
-      expect(plan.some((detail) => detail.includes("TEMP B-TREE"))).toBe(false);
+      expect(
+        plan.some((detail) => detail.includes("SEARCH blocks USING INTEGER PRIMARY KEY")),
+      ).toBe(true);
+      expect(plan.some((detail) => detail.startsWith("SCAN blocks"))).toBe(false);
+      // Grouping uses the ID index; only the at-most-1000 selected rows are
+      // sorted by the outer query, rather than sorting the remaining table.
+      expect(plan.some((detail) => detail.includes("TEMP B-TREE FOR GROUP BY"))).toBe(false);
     }
   });
 });

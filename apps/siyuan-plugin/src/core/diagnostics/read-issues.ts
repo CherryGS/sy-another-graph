@@ -2,6 +2,7 @@ import { message as msg, MessageError, type Failure } from "./message";
 
 export type ReadIssueCode =
   | "snapshot-changed"
+  | "duplicate-blocks"
   | "reference-endpoints"
   | "database-identifier"
   | "database-read"

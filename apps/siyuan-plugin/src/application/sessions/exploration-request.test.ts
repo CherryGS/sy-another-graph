@@ -33,6 +33,19 @@ function engineHarness() {
 }
 
 describe("exploration requests within one topology revision", () => {
+  it("replaces a capped 3-hop result with an uncapped 1-hop result without reloading", async () => {
+    const { engine, neighbors } = engineHarness();
+    const capped = { indices: Uint32Array.from({ length: 10_000 }, (_, i) => i), truncated: true };
+    const small = neighborhood(0, 1);
+    neighbors.mockResolvedValueOnce(capped).mockResolvedValueOnce(small);
+    const queries = new ExplorationRequest();
+    await expect(queries.neighborhood(engine, [0], "both", 3)).resolves.toBe(capped);
+    await expect(queries.neighborhood(engine, [0], "both", 1)).resolves.toEqual({
+      indices: new Uint32Array([0, 1]),
+      truncated: false,
+    });
+    expect(engine.load).not.toHaveBeenCalled();
+  });
   it("discards an old depth response after the latest neighborhood has completed", async () => {
     const { engine, neighbors } = engineHarness();
     const old = deferred<Neighborhood>();

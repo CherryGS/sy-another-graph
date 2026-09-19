@@ -153,6 +153,25 @@ fn paths_are_shortest_deterministic_and_directional() {
 }
 
 #[test]
+fn shrinking_hops_recovers_after_a_three_hop_budget_hit() {
+    let mut graph = Graph::new();
+    let mut endpoints = vec![0, 1, 1, 2];
+    for node in 3..15_000 {
+        endpoints.extend([2, node]);
+    }
+    graph.load(15_000, &endpoints).unwrap();
+    for _ in 0..3 {
+        let capped = graph.neighborhood(&[0], Direction::Both, 3, 10_000);
+        assert_eq!(capped.indices.len(), 10_000);
+        assert!(capped.truncated);
+        let small = graph.neighborhood(&[0], Direction::Both, 1, 10_000);
+        assert_eq!(small.indices, vec![0, 1]);
+        assert!(!small.truncated);
+        assert_eq!(graph.distances(&[0], Direction::Both)[14_999], 3);
+    }
+}
+
+#[test]
 fn empty_snapshot_replaces_all_previous_indices() {
     let mut graph = sample();
     graph.load(0, &[]).unwrap();
