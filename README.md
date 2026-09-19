@@ -1,60 +1,48 @@
 # 一个思源图谱
 
-Explore SiYuan notes, blocks, and search results in a local 2D or 3D graph.
+Explore SiYuan notes, blocks, and search results in an interactive 2D / 3D graph.
 
 [简体中文](apps/siyuan-plugin/public/README_zh_CN.md) ·
-[User guide](apps/siyuan-plugin/public/README.md) ·
+[User guide](docs/user-guide.md) ·
 [Development](apps/siyuan-plugin/README.md)
 
-## Features
+![Graph overview with a selected node, highlighted neighbors, and relationship details](apps/siyuan-plugin/public/preview.jpg)
 
-- **Connected context:** references, containment, database relations, and optional
-  text mentions, with source evidence and native previews.
-- **Focused exploration:** document and block scopes, saved filter presets,
-  directional neighborhoods, and shortest paths.
-- **Relationship discovery:** find documents that cite the same material or are
-  cited together, with ranked candidates and inspectable reference evidence.
-- **Search graphs:** all results from native search or
-  [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search),
-  with ancestor context and visible match rings.
-- **Flexible views:** 2D/3D force and hop-layer layouts, community clustering, optional 2D territories,
-  appearance controls, and JSON export.
+_Demonstration notes from the test workspace: select a node, follow its connections, and inspect their sources._
 
-## Quick start
+## What you can do
 
-Requires desktop SiYuan **3.8.3+**. Enable the plugin, then click its toolbar icon
-or press **Alt+Shift+G**. Document and block context menus also provide a graph entry.
+| Feature                      | Use it to…                                                                                                                                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Explore the graph**        | Switch between 2D / 3D and force / hop-layer layouts. Shift-click multiple starting nodes and follow directional neighborhoods or shortest paths.                            |
+| **Find related documents**   | Discover notes that cite the same material or are cited together. Compare ranked candidates, inspect supporting references, and explicitly add candidates to your selection. |
+| **Choose your scope**        | Filter by notebook, document or block, node type, and excluded subtrees. Save frequently used configurations as named presets.                                               |
+| **Turn search into a graph** | Include every page of native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search), with ancestor context and visible match rings.           |
+| **Inspect connections**      | Explore references, containment, database relations, and optional text mentions. Preview original notes and trace relationship evidence.                                     |
+| **Adjust and export**        | Color nodes by type, branch, notebook, or degree; tune labels and community clustering, show 2D community territories, and export the visible graph as JSON.                 |
 
-The graph requires WebAssembly exception handling (EH). If the runtime check fails,
-update SiYuan or the browser; older engines without EH are unsupported.
+## Get started
 
-The default view shows documents and references. Open **Filter** to adjust the
-scope, block types, and relations. In the search page or dialog, click
-**Graph all results** to create a temporary graph while preserving
-your original preset. See the [user guide](apps/siyuan-plugin/public/README.md)
-for search behavior and limits.
+1. In desktop SiYuan **3.8.3+**, enable the plugin and click its toolbar icon or press **Alt+Shift+G**.
+2. Start with the default document-reference graph, or use **View in graph** from a document or block context menu.
+3. Open **Filter** to narrow the scope. Select starting nodes, then try **Layered** or **Discover relationships**.
 
-The interface follows SiYuan's language: Simplified Chinese or English, with
-English as the fallback. Note content and saved preset names retain their original text.
+The interface follows SiYuan's language, with Simplified Chinese and English support.
+Graph acquisition reads the local index without editing notes. Large-graph responsiveness depends on the data, hardware, and layout settings.
 
-The plugin reads local indexed data without editing notes. Read issues appear
-in a toast with expandable diagnostics. Large-graph performance depends on
-hardware, graph structure, and layout settings.
+See the [user guide](docs/user-guide.md) for search behavior, mention exclusions, source diagnostics, runtime requirements, and limits.
 
 ## Development
 
-See [setup, commands, and architecture](apps/siyuan-plugin/README.md),
-[feature complexity](docs/feature-complexity.md),
-[filtering and projection](docs/filtering-pipeline.md),
-[the workspace pressure fixture](scripts/stress-fixture.md), and
-[Rust benchmarks](crates/graph-core/README.md).
+[Setup and commands](apps/siyuan-plugin/README.md) ·
+[Feature costs](docs/feature-complexity.md) ·
+[Filtering and projection](docs/filtering-pipeline.md) ·
+[Pressure fixture](scripts/stress-fixture.md) ·
+[Rust core](crates/graph-core/README.md)
 
-## Attribution
+## License and attribution
 
-Project code is [MIT licensed](LICENSE). See [third-party terms and modifications](NOTICE.md).
-
-Visualization by [Cosmograph](https://cosmograph.app/), under
-[CC BY-NC 4.0 / separate commercial terms](https://cosmograph.app/docs-general/citing-and-licensing/).
-Its attribution remains visible. Other dependencies retain their licenses;
-see [text-mention notices](apps/siyuan-plugin/public/third-party-mentions.txt)
-and [community notices](apps/siyuan-plugin/public/third-party-communities.txt).
+Original project code is [MIT licensed](LICENSE). Visualization is provided by
+[Cosmograph](https://cosmograph.app/) under
+[CC BY-NC 4.0 / separate commercial terms](https://cosmograph.app/docs-general/citing-and-licensing/),
+with its attribution preserved. See [NOTICE.md](NOTICE.md) for bundled terms and modifications.

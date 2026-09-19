@@ -117,7 +117,7 @@ flowchart TD
 
 普通筛选规则和显示孤立开关跟随预设；图内搜索词、选择、相机不属于预设。
 提及词组与正则分别保存在 `excludedMentionPhrases` 和 `excludedMentionPatterns`，旧预设缺少正则字段时取空列表，旧斜杠词组保留字面含义。
-编辑器中一行一个普通词组或 `/正则/`，点击应用才重算，详见 [使用说明](../apps/siyuan-plugin/public/README_zh_CN.md)。
+编辑器中一行一个普通词组或 `/正则/`，点击应用才重算，详见 [使用说明](user-guide_zh_CN.md)。
 
 搜索图由 [FilterSessions](../apps/siyuan-plugin/src/application/workflows/filter-sessions.ts) 持有独立临时规则，默认显示所有类型并启用包含；切回时恢复普通预设及未保存修改。
 搜索命中 ID 保持最初收集的集合；源快照更新会重新求它们的祖先，不会自动执行新的搜索。

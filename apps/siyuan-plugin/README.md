@@ -1,6 +1,6 @@
 # Plugin development
 
-[Project overview](../../README.md) · [User guide](public/README.md)
+[Project overview](../../README.md) · [User guide](../../docs/user-guide.md)
 
 ## Setup and commands
 
