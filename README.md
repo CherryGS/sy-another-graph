@@ -12,6 +12,8 @@ Explore SiYuan notes, blocks, and search results in a local 2D or 3D graph.
   text mentions, with source evidence and native previews.
 - **Focused exploration:** document and block scopes, saved filter presets,
   directional neighborhoods, and shortest paths.
+- **Relationship discovery:** find documents that cite the same material or are
+  cited together, with ranked candidates and inspectable reference evidence.
 - **Search graphs:** all results from native search or
   [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search),
   with ancestor context and visible match rings.

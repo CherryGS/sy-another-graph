@@ -4,12 +4,14 @@ import { Download, RefreshCw } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import { SettingsPanel } from "./appearance/SettingsPanel";
+import { DiscoveryPanel } from "./discovery/DiscoveryPanel";
 import type { WorkbenchState } from "../model/state";
 
 export function GraphActions({ state }: { state: WorkbenchState }) {
   useLocale();
   return (
     <div className="graph-actions">
+      <DiscoveryPanel state={state} />
       <Button
         variant="ghost"
         size="icon"

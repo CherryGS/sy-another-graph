@@ -31,6 +31,7 @@ import type { GraphDirection } from "../../application/sessions/graph-engine";
 import { EMPTY_SELECTION, retainSelection, selectNode } from "../../application/sessions/selection";
 import { useGraphEngine } from "./use-graph-engine";
 import { useLayeredLayout } from "./use-layered-layout";
+import { useDiscovery } from "./use-discovery";
 import { ExplorationRequest } from "../../application/sessions/exploration-request";
 import { normalizeVisualPreferences, useVisualPreferences } from "./visual-preferences";
 import { normalizeGraphSettings, type GraphSettings } from "../presentation/settings";
@@ -223,6 +224,11 @@ export function useWorkbenchState() {
     chosenIds,
     direction,
     mentionsPending || source.refreshing,
+  );
+  const discovery = useDiscovery(
+    filters.references ? baseGraph : null,
+    chosenIds,
+    source.refreshing,
   );
 
   useEffect(() => {
@@ -427,6 +433,19 @@ export function useWorkbenchState() {
     data,
     currentGraph,
     layeredLayout,
+    discovery,
+    addChosen: (id: string) => {
+      if (!currentGraph?.eligibleIds.has(id)) return;
+      setSelection((previous) =>
+        previous.chosenIds.includes(id)
+          ? previous
+          : {
+              ...previous,
+              chosenIds: [...previous.chosenIds, id],
+              multiple: true,
+            },
+      );
+    },
     relayoutRequest,
     relayout: () => {
       setRelayoutRequest((value) => value + 1);

@@ -54,6 +54,12 @@ export function ExplorePage({ active }: { active: boolean }) {
   const scopeMissing =
     !!data && !!filters.scopeId && !state.sourceLookups?.byId.has(filters.scopeId);
   const hasInspector = !!selected || !!state.inspectedEdge;
+  const discoveryLabels = useMemo(() => {
+    const candidate = state.discovery.candidate;
+    return candidate !== undefined && state.discovery.index
+      ? [...state.spotlightIds, state.discovery.index.documents[candidate].id]
+      : state.spotlightIds;
+  }, [state.spotlightIds, state.discovery.candidate, state.discovery.index]);
   return (
     <div className="explore-page">
       <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
@@ -217,8 +223,9 @@ export function ExplorePage({ active }: { active: boolean }) {
               notebookNames={notebookNames}
               selectedId={state.selectedId}
               chosenIds={state.chosenIds}
-              highlightedIds={highlightedIds}
-              spotlightIds={state.spotlightIds}
+              highlightedIds={state.discovery.spotlight?.ids ?? highlightedIds}
+              spotlightIds={discoveryLabels}
+              evidenceEdges={state.discovery.spotlight?.edges}
               searchOrigins={state.searchOrigins}
               active={active}
               colorBy={state.colorBy}

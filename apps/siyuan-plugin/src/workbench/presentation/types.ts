@@ -34,6 +34,8 @@ export interface GraphCanvasProps {
   chosenIds: readonly string[];
   highlightedIds?: readonly string[];
   spotlightIds?: readonly string[];
+  /** Exact real reference edges temporarily emphasized by relationship discovery. */
+  evidenceEdges?: readonly GraphEdge[];
   /** Search origin markings are independent of selection, focus, and pinning. */
   searchOrigins?: SearchOrigins;
   active?: boolean;

@@ -4,6 +4,7 @@ import type { Cosmograph, CosmographConfig } from "@cosmograph/cosmograph";
 import type { GraphTableStore, UploadedGraph } from "./graph-tables";
 import type { PreparedGraph } from "./prepare-graph";
 import type { CanvasStats } from "../../workbench/presentation/types";
+import type { GraphEdge } from "../../core/graph/types";
 import type { CameraState, Dimensions } from "./geometry";
 import { sampleLayoutBuffer, type LayoutMetrics } from "./layout-sampler";
 import {
@@ -28,6 +29,7 @@ type Renderer = Pick<
   | "unpause"
   | "start"
   | "selectPoints"
+  | "selectLinks"
   | "setFocusedPoint"
   | "setPinnedPoints"
   | "fitViewByCoordinates"
@@ -105,6 +107,8 @@ export class RendererSession {
   private chosenIds: readonly string[] = [];
   private spotlightIds: readonly string[] = [];
   private highlightedIds: readonly string[] = [];
+  private evidenceEdges: readonly GraphEdge[] | undefined;
+  private edgeIndices: { data: PreparedGraph; indices: Map<GraphEdge, number> } | undefined;
   private selectionDirty = true;
   private pinsDirty = true;
   private active = true;
@@ -428,6 +432,7 @@ export class RendererSession {
             }),
           );
         }
+        if (this.currentData !== data) this.edgeIndices = undefined;
         this.currentData = data;
         const forceKeys = [
           "enableSimulation",
@@ -503,6 +508,7 @@ export class RendererSession {
     highlightedIds: readonly string[] = [],
     chosenIds: readonly string[] = [],
     spotlightIds: readonly string[] = [],
+    evidenceEdges?: readonly GraphEdge[],
   ) {
     if (this.closed) return;
     const chosenChanged = !sameIds(this.chosenIds, chosenIds);
@@ -510,6 +516,7 @@ export class RendererSession {
       this.selectedId !== selectedId ||
       !sameIds(this.highlightedIds, highlightedIds) ||
       !sameIds(this.spotlightIds, spotlightIds) ||
+      this.evidenceEdges !== evidenceEdges ||
       chosenChanged;
     const changed = selectionChanged || this.paused !== paused;
     this.selectionDirty ||= selectionChanged;
@@ -518,6 +525,7 @@ export class RendererSession {
     this.highlightedIds = [...highlightedIds];
     this.chosenIds = [...new Set(chosenIds)];
     this.spotlightIds = [...spotlightIds];
+    this.evidenceEdges = evidenceEdges;
     this.paused = paused;
     if (changed && this.hasData) this.runControl(() => this.applyControls());
   }
@@ -603,6 +611,8 @@ export class RendererSession {
         failures.push(error);
       }
       this.currentData = null;
+      this.edgeIndices = undefined;
+      this.evidenceEdges = undefined;
       this.currentConfig = null;
       this.currentLayout = undefined;
       this.lastViewport = null;
@@ -638,7 +648,21 @@ export class RendererSession {
         if (highlighted !== undefined) selected.add(highlighted);
       }
       // Cosmograph selection is only a visual mask. It never defines our chosen/fixed set.
-      this.graph.selectPoints(selected.size ? [...selected] : null, false, true);
+      if (this.evidenceEdges?.length) {
+        if (this.edgeIndices?.data !== this.currentData)
+          this.edgeIndices = {
+            data: this.currentData,
+            indices: new Map(this.currentData.indexToEdge.map((edge, index) => [edge, index])),
+          };
+        const links = this.evidenceEdges.flatMap((edge) => {
+          const index = this.edgeIndices!.indices.get(edge);
+          return index === undefined ? [] : [index];
+        });
+        // Set real edge evidence first, then add the point mask without adding
+        // unrelated incident links. This never changes our chosen/pinned set.
+        this.graph.selectLinks(links, false, false);
+        this.graph.selectPoints([...selected], true, false);
+      } else this.graph.selectPoints(selected.size ? [...selected] : null, false, true);
       this.graph.setFocusedPoint(this.inspectionFocusIndex());
       this.scheduleOutlines(this.chosenIndices(this.currentData));
       this.publishDiagnostics({

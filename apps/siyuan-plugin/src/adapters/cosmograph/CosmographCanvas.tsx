@@ -114,6 +114,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     chosenIds,
     highlightedIds,
     spotlightIds,
+    evidenceEdges,
     searchOrigins,
     active: visible = true,
     colorBy = "type",
@@ -498,6 +499,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       latestProps.current.highlightedIds,
       latestProps.current.chosenIds,
       latestProps.current.spotlightIds,
+      latestProps.current.evidenceEdges,
     );
     void session
       .update(
@@ -574,8 +576,8 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     if (previous.size !== new Set(chosenIds).size || chosenIds.some((id) => !previous.has(id)))
       gestures.current?.cancel();
     previousChosen.current = chosenIds;
-    session?.controls(selectedId, paused, highlightedIds, chosenIds, spotlightIds);
-  }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds]);
+    session?.controls(selectedId, paused, highlightedIds, chosenIds, spotlightIds, evidenceEdges);
+  }, [session, selectedId, paused, highlightedIds, chosenIds, spotlightIds, evidenceEdges]);
   useEffect(() => {
     chosenLabels.current?.update(session?.displayed ?? null, chosenIds, spotlightIds);
   }, [session, chosenIds, spotlightIds, language]);

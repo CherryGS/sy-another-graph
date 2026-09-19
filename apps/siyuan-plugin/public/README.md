@@ -42,6 +42,8 @@ matched IDs. The search button shows reading progress; click again to cancel.
 - **Navigate:** inspect nodes and edges, Shift-click to select multiple nodes,
   and explore directional neighborhoods or shortest paths.
 - **Trace sources:** preview or open original blocks and inspect relationship evidence.
+- **Discover related documents:** select starting nodes, then open **Discover
+  relationships** in the toolbar to find shared-reference candidates.
 - **Add relations:** enable containment, database connections, or text mentions
   derived from document titles, names, and aliases.
 - **Adjust the view:** switch 2D/3D, tune forces and labels, cluster communities,
@@ -59,6 +61,31 @@ Changing seeds, direction, scope or dimension rearranges nodes. You can drag
 nodes between rearrangements; **Rearrange layers and fit** restores their layout.
 Layered mode disables force motion. Returning to **Force** restores your force
 parameters and pause setting without changing colors, relations or selection.
+
+**Discover relationships** supports two rules:
+
+- **Shared references:** A and B both cite X; X supports the result.
+- **Co-cited:** X cites both A and B; X supports the result.
+
+Discovery groups explicit references by documents available in the current graph.
+Selected blocks use their available document; unsupported selections are skipped.
+Scope, exclusions and search boundaries still apply, including when a document
+represents hidden blocks. Enable references in the filter to use discovery.
+Text mentions, containment and database connections do not count toward the score.
+
+Candidates are ranked by weighted reference-set overlap: common reference
+objects carry less weight, and repeated citations do not add points. Each starting
+document is compared independently; the best overlap determines a candidate's
+score, with evidence retained for every matching start. The score is not a
+probability of semantic similarity.
+
+Click a candidate to highlight its supporting references and inspect both sides
+of each connection. Only **Add to selection** changes the selected nodes.
+Clearing the evidence or closing the panel restores normal graph highlighting.
+Up to 100 candidates are listed with the total count; details show up to 50
+supporting documents per start and highlight at most 2,000 actual edges, with a
+notice when evidence is limited. Queries support up to 128 starting documents
+and stop explicitly if the work budget or 60-second timeout is exceeded.
 
 For text mentions, enter one complete phrase or `/regex/` per line under
 **Exclusion rules**, then click **Apply exclusions**. Save the filter preset to keep

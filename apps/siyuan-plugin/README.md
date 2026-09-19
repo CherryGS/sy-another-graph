@@ -37,7 +37,7 @@ The configured test workspace is `E:/Data/SYTest`, served on port 6806.
 | `src/bootstrap/`           | Host and iframe entrypoints; concrete service composition.                             |
 | `src/core/`                | Graph facts and evidence, scope/projection rules, structured diagnostics.              |
 | `src/application/`         | Workspace source publication, session operation contracts, cross-capability workflows. |
-| `src/modules/`             | Mentions, communities, presets, search and export capabilities.                        |
+| `src/modules/`             | Discovery, mentions, communities, presets, search and export capabilities.             |
 | `src/adapters/`            | SiYuan acquisition/storage/host bridge, Cosmograph rendering, Rust WASM transport.     |
 | `src/workbench/`           | React bindings, graph presentation, panels and styles.                                 |
 | `src/shared/`              | shadcn primitives, localization and small utilities.                                   |
@@ -69,6 +69,12 @@ successful snapshot if refreshing fails. Sessions subscribe without owning the
 reader. Numeric topology belongs to its effective graph; style and community
 rendering indices are adapted separately. A language change never becomes an
 input to source acquisition, projection or analysis caches.
+
+Relationship discovery groups only eligible explicit references into document
+pairs. A dedicated disposable Worker receives numeric endpoints and computes
+per-seed weighted overlap; source evidence stays on the main thread. Candidates
+do not add graph edges or change selection. Evidence highlighting uses exact
+existing edge identities and restores ordinary highlights when dismissed.
 
 Localization uses bundled i18next catalogs in `src/shared/i18n/`. The host passes
 normalized language through the iframe URL and a checked same-origin handshake.

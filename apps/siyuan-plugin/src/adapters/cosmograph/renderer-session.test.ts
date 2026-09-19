@@ -171,6 +171,7 @@ function harness() {
       simulationRunning = true;
     }),
     selectPoints: vi.fn(),
+    selectLinks: vi.fn(),
     setFocusedPoint: vi.fn(),
     setPinnedPoints: vi.fn(),
     fitViewByCoordinates: vi.fn((_coordinates: number[], duration?: number, padding?: number) => {
@@ -302,6 +303,20 @@ function flushScheduledFrames(h: ReturnType<typeof harness>) {
 }
 
 describe("fixed layered coordinates", () => {
+  it("spotlights exact reference edges without changing pins, and restores neighborhood selection on close", async () => {
+    const h = harness();
+    const prepared = data("a", 2);
+    const evidence = [prepared.indexToEdge[0]];
+    h.session.controls("a", false, ["a", "b"], ["a"], [], evidence);
+    await h.session.update(prepared, {});
+    expect(h.graph.selectLinks).toHaveBeenLastCalledWith([0], false, false);
+    expect(h.graph.selectPoints).toHaveBeenLastCalledWith([0, 1], true, false);
+    expect(h.graph.setPinnedPoints).toHaveBeenLastCalledWith([0]);
+    h.session.controls("a", false, ["a"], ["a"]);
+    expect(h.graph.selectPoints).toHaveBeenLastCalledWith([0], false, true);
+    expect(h.session.getDiagnostics().dataRevisions).toBe(1);
+    await h.session.dispose();
+  });
   it("scales layers into the actual GPU-limited world extent", async () => {
     const h = harness();
     const layout = {
