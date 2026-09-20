@@ -166,7 +166,7 @@ export function GraphFiltersPanel({
   ];
   return (
     <section className="filter-panel" aria-label={t("text.graphFilters")}>
-      <SheetHeader className="gap-3 px-6 py-4 pr-14 sm:px-8 sm:pr-14">
+      <SheetHeader className="gap-3 px-6 py-4 pr-14">
         <div className="flex min-w-0 items-center gap-3">
           <Button
             ref={backRef}
@@ -190,10 +190,10 @@ export function GraphFiltersPanel({
         </SheetDescription>
       </SheetHeader>
       <Tabs value={page} onValueChange={setPage} className="min-h-0 flex-1 gap-0">
-        <div className="shrink-0 overflow-x-auto px-6 pb-2 sm:px-8">
+        <div className="shrink-0 overflow-x-auto px-6 pb-2">
           <TabsList variant="line" className="w-full min-w-max group-data-horizontal/tabs:h-10">
             {pages.map(({ value, title, summary, draft }) => (
-              <TabsTrigger key={value} value={value} title={summary} className="gap-2 px-3">
+              <TabsTrigger key={value} value={value} title={summary} className="gap-2 px-2">
                 {title}
                 {draft && <Badge variant="secondary">{t("filter.unapplied")}</Badge>}
               </TabsTrigger>
@@ -204,13 +204,13 @@ export function GraphFiltersPanel({
         <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
           {pages.map(({ value, content }) => (
             <TabsContent key={value} value={value} forceMount hidden={page !== value}>
-              <div className="px-6 py-6 sm:px-8">{content}</div>
+              <div className="p-6">{content}</div>
             </TabsContent>
           ))}
         </ScrollArea>
       </Tabs>
       <Separator />
-      <SheetFooter className="gap-3 px-6 py-4 sm:px-8">
+      <SheetFooter className="gap-3 px-6 py-4">
         {footer}
         <div className="grid grid-cols-2 gap-3">
           <FilterExplanation state={state} />

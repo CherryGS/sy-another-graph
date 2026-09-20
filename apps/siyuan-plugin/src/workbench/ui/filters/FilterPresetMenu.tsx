@@ -340,7 +340,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
         }}
       >
         <SheetContent
-          className="gap-0 data-[side=right]:w-[min(720px,100vw)] data-[side=right]:sm:max-w-none"
+          className="gap-0 data-[side=right]:w-[min(560px,100vw)] data-[side=right]:sm:max-w-none"
           onInteractOutside={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => {
             event.preventDefault();

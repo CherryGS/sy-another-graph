@@ -93,13 +93,13 @@ export function ContentExclusions({
       </div>
       {/* Vertical fields do not need size queries; Chromium can otherwise lose
           their layout inside a fieldset when asynchronous preview rows appear. */}
-      <FieldGroup className="grid grid-cols-1 gap-6 [container-type:normal] min-[700px]:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
+      <FieldGroup className="grid grid-cols-1 gap-4 [container-type:normal] min-[540px]:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
         {SCOPES.map((scope) => (
           <Fragment key={scope}>
             {scope === "subtree" && (
               <>
-                <Separator className="min-[700px]:hidden" />
-                <Separator orientation="vertical" className="hidden min-[700px]:block" />
+                <Separator className="min-[540px]:hidden" />
+                <Separator orientation="vertical" className="hidden min-[540px]:block" />
               </>
             )}
             <Field data-invalid={!!parsed[scope].error} className="min-w-0 gap-3">
@@ -120,7 +120,7 @@ export function ContentExclusions({
               <Textarea
                 id={`${id}-${scope}`}
                 rows={5}
-                className="min-h-32 max-h-80"
+                className="mt-auto min-h-32 max-h-80"
                 value={drafts[scope]}
                 placeholder={t(
                   scope === "document"
