@@ -41,6 +41,8 @@ import { useMentions } from "../../modules/mentions/use-mentions";
 import { useWorkbenchFilters } from "./use-workbench-filters";
 import { useGraphTabState } from "./use-graph-tab-state";
 import { buildSearchOrigins } from "../../modules/search/origins";
+import { contentExclusionRules } from "../../modules/content-exclusions/rules";
+import { useContentExclusions } from "../../modules/content-exclusions/use-content-exclusions";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -143,15 +145,21 @@ export function useWorkbenchState() {
     references,
     hierarchy,
     excludeIds,
+    exclusionRules,
     hiddenTypes,
     documentsOnly,
     databases,
     scopeId,
     includeChildDocuments,
   } = filters;
+  const contentRules = useMemo(
+    () => contentExclusionRules(excludeIds, exclusionRules),
+    [excludeIds, exclusionRules],
+  );
+  const contentExclusions = useContentExclusions(data, contentRules);
   const baseGraph = useMemo(
     () =>
-      data
+      data && contentExclusions.excludedIds
         ? projectGraph(
             data,
             {
@@ -159,7 +167,7 @@ export function useWorkbenchState() {
               notebook,
               references,
               hierarchy,
-              excludeIds,
+              excludeIds: [],
               hiddenTypes,
               documentsOnly,
               databases,
@@ -167,6 +175,7 @@ export function useWorkbenchState() {
               includeChildDocuments,
             },
             searchIds,
+            contentExclusions.excludedIds,
           )
         : null,
     [
@@ -174,7 +183,7 @@ export function useWorkbenchState() {
       notebook,
       references,
       hierarchy,
-      excludeIds,
+      contentExclusions.excludedIds,
       hiddenTypes,
       documentsOnly,
       databases,
@@ -365,6 +374,10 @@ export function useWorkbenchState() {
     if (Number.isSafeInteger(value) && value >= 0 && value <= 100) setDepthState(value);
   };
   const findPath = async (targetId: string) => {
+    if (contentExclusions.pending || contentExclusions.error) {
+      setToast(msg("contentExclusions.unavailable"));
+      return;
+    }
     if (source.refreshing) {
       setToast(msg("text.sourceDataIsUpdatingWaitBeforeFindingA"));
       return;
@@ -427,7 +440,13 @@ export function useWorkbenchState() {
     openNativeBlock(node?.entity === "block" ? node.id : null);
   };
 
-  const graphExport = useGraphExport(data, view, source.refreshing, mentionsPending, setToast);
+  const graphExport = useGraphExport(
+    data,
+    view,
+    source.refreshing || !contentExclusions.excludedIds,
+    mentionsPending,
+    setToast,
+  );
 
   return {
     data,
@@ -454,12 +473,15 @@ export function useWorkbenchState() {
     sourceLookups,
     backgroundIds,
     currentLookups,
-    loading,
-    error: error || engineError,
+    loading:
+      loading || (contentExclusions.pending ? userMessage(msg("contentExclusions.pending")) : ""),
+    error: error || contentExclusions.error || engineError,
     toast: toast ? userMessage(toast) : "",
     setToast,
     load,
     filters,
+    contentRules,
+    contentExclusions,
     setFilters,
     resetFilters,
     filterPresets,
@@ -502,7 +524,12 @@ export function useWorkbenchState() {
     setPaused,
     fitRequest,
     fit: () => setFitRequest((value) => value + 1),
-    busy: source.refreshing || busy || (chosenIds.length > 0 && engineLoading) || mentionsPending,
+    busy:
+      source.refreshing ||
+      contentExclusions.pending ||
+      busy ||
+      (chosenIds.length > 0 && engineLoading) ||
+      mentionsPending,
     findPath,
     openDocument,
     nativeBlockId: (id: string) =>

@@ -20,6 +20,19 @@ The interface follows SiYuan's language. Chinese variants use Simplified Chinese
 other languages use English. Note titles, aliases, excluded phrases and existing
 preset names keep their original text.
 
+## Exclude documents
+
+The filter panel has two groups that can be used together:
+
+- **Exclude document content, keep child documents** removes matched documents and their own blocks while retaining child documents and their relationships. Use it to hide date-based category documents.
+- **Exclude entire subtrees** removes matched documents/blocks and every descendant, including child documents. Use it for archive folders.
+
+Enter one document/block ID, title substring, or `/regex/` per line. Text and JavaScript regex rules match full document titles after width, case, and whitespace normalization; they do not search bodies or aliases. Regex uses fixed case-insensitive Unicode flags. For example, `/^\d{4}-\d{2}$/` in the first group hides a `2026-09` category while keeping its child documents. `Archive` in the second group removes matching documents and their descendants. Subtree rules still apply where both groups overlap. Block IDs remove that block and its nested blocks in either group. Escape literal leading `/` or `\` with another `\`.
+
+After typing pauses, the preview counts matched targets and affected documents and content blocks across both drafts, counting overlaps once. **View details** provides searchable, paginated affected identities. It covers the acquired workspace, including content outside the active scope, and does not change the applied graph. **Apply exclusions** removes the corresponding sources and incident relationships from the computation graph without creating replacement reference edges or deleting notes. Excluded category nodes no longer mediate containment or paths.
+
+Both groups allow up to 2,000 rules combined, including 128 regex rules, with at most 256 characters per rule. Invalid patterns show a line number. Matching runs in a cancellable background task with a 10-second deadline; edit or clear rules to recover. Update or save a preset to persist applied rules. Temporary search filters remain independent. Existing ID exclusions retain their behavior in the subtree group.
+
 ## Turn a search into a graph
 
 Run a native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search),

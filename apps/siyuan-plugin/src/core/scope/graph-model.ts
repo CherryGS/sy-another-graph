@@ -108,6 +108,29 @@ export function containedIds(
   return expandContainment(containmentIndex(data), [rootId], includeChildDocuments);
 }
 
+/** Resolve all roots together, including the document's own blocks while
+ * stopping at child documents when requested. Shared by application and preview. */
+export function excludedContentIds(
+  data: GraphLike,
+  subtreeRoots: readonly string[],
+  documentRoots: readonly string[],
+): Set<string> {
+  if (!subtreeRoots.length && !documentRoots.length) return new Set();
+  const containment = containmentIndex(data);
+  const excluded = expandContainment(containment, subtreeRoots, true);
+  for (const id of expandContainment(containment, documentRoots, false)) excluded.add(id);
+  // Native root identity also covers blocks whose indexed parent is missing.
+  const documents = new Set(
+    [...excluded].filter((id) => {
+      const node = containment.byId.get(id);
+      return node && nodeType(node) === "d";
+    }),
+  );
+  for (const node of data.nodes)
+    if (isBlock(node) && node.rootId && documents.has(node.rootId)) excluded.add(node.id);
+  return excluded;
+}
+
 /** Add the native parent chain of each search hit, including document-tree
  * parents up to the top-level document. Shared ancestors are visited once;
  * siblings, descendants and logical database entities are never expanded. */
@@ -161,6 +184,7 @@ export function projectGraph<Rules extends GraphProjectionRules>(
   data: GraphDataset,
   filters: Rules,
   searchIds?: ReadonlySet<string>,
+  contentExclusions?: ReadonlySet<string>,
 ): CurrentGraph {
   const { byId, byIndex } = getGraphLookups(data);
   const containment =
@@ -175,6 +199,7 @@ export function projectGraph<Rules extends GraphProjectionRules>(
   const excludedIds = containment
     ? expandContainment(containment, filters.excludeIds, true)
     : new Set<string>();
+  for (const id of contentExclusions ?? []) excludedIds.add(id);
   const candidates = new Set<string>();
   const boundary = {
     scopeIds,

@@ -1,5 +1,6 @@
 import { DEFAULT_PROJECTION_RULES, type GraphProjectionRules } from "../../core/scope/rules";
 import type { MentionMode } from "../mentions/types";
+import type { ContentExclusionRule } from "../content-exclusions/rules";
 
 export interface MentionRules {
   mentions: MentionMode;
@@ -14,7 +15,11 @@ export interface DisplayFilters {
 }
 
 /** Keep the v1 persisted shape while giving each computation its own input type. */
-export type GraphFilters = GraphProjectionRules & MentionRules & DisplayFilters;
+export type GraphFilters = GraphProjectionRules &
+  MentionRules &
+  DisplayFilters & {
+    exclusionRules: ContentExclusionRule[];
+  };
 
 export const DEFAULT_FILTERS: GraphFilters = {
   ...DEFAULT_PROJECTION_RULES,
@@ -23,4 +28,5 @@ export const DEFAULT_FILTERS: GraphFilters = {
   mentions: "off",
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],
+  exclusionRules: [],
 };

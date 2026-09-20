@@ -15,7 +15,6 @@ import {
   FieldSet,
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
-import { Textarea } from "@/shared/ui/textarea";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Separator } from "@/shared/ui/separator";
@@ -34,6 +33,8 @@ import { NODE_TYPE_LABELS } from "../../presentation/graph-labels";
 import { SettingSwitch } from "../appearance/SettingsPanel";
 import { MentionControls } from "../../../modules/mentions/ui/MentionControls";
 import { FilterExplanation } from "./FilterExplanation";
+import { ContentExclusions } from "../../../modules/content-exclusions/ui/ContentExclusions";
+import { splitContentExclusions } from "../../../modules/content-exclusions/rules";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 
@@ -53,15 +54,10 @@ export function GraphFiltersPanel({
     backRef.current?.focus();
   }, []);
   const [scopeDraft, setScopeDraft] = useState(filters.scopeId);
-  const [excludeDraft, setExcludeDraft] = useState(filters.excludeIds.join("\n"));
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Reflect native scope and filter-preset changes.
     setScopeDraft(filters.scopeId);
   }, [filters.scopeId]);
-  useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- Reflect restored exclusions.
-    setExcludeDraft(filters.excludeIds.join("\n"));
-  }, [filters.excludeIds]);
   const types = useMemo(() => {
     if (!data) return [];
     return [...getNodeTypeCounts(data.nodes)].sort(([a], [b]) =>
@@ -69,10 +65,10 @@ export function GraphFiltersPanel({
     );
   }, [data]);
   const scopeValid = !scopeDraft || NATIVE_ID.test(scopeDraft);
-  const exclusionsValid = excludeDraft
-    .split(/[\s,，;；]+/)
-    .filter(Boolean)
-    .every((id) => NATIVE_ID.test(id));
+  const editorKey =
+    (state.filterPresets.temporaryActive
+      ? state.filterPresets.temporary?.snapshot.requestId
+      : state.filterPresets.activeId) ?? "custom";
   return (
     <section className="filter-panel" aria-label={t("text.graphFilters")}>
       <div className="px-4 py-3">
@@ -133,31 +129,16 @@ export function GraphFiltersPanel({
                 }))
               }
             />
-            <Field data-invalid={!exclusionsValid}>
-              <FieldLabel htmlFor="graph-exclusions">
-                {t("text.excludeTheseIdsAndTheirDescendants")}
-              </FieldLabel>
-              <Textarea
-                id="graph-exclusions"
-                rows={2}
-                placeholder={t("text.oneDocumentOrBlockIdPerLine")}
-                value={excludeDraft}
-                aria-invalid={!exclusionsValid}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setExcludeDraft(value);
-                  const ids = value.split(/[\s,，;；]+/).filter(Boolean);
-                  if (ids.every((id) => NATIVE_ID.test(id)))
-                    setFilters((previous) => ({
-                      ...previous,
-                      excludeIds: [...new Set(ids)],
-                    }));
-                }}
-              />
-              {!exclusionsValid && (
-                <FieldError>{t("text.someIdsAreIncompleteThePreviousExclusionsRemain")}</FieldError>
-              )}
-            </Field>
+            <ContentExclusions
+              key={editorKey}
+              data={data}
+              rules={state.contentRules}
+              status={state.contentExclusions}
+              onApply={(rules) =>
+                setFilters((previous) => ({ ...previous, ...splitContentExclusions(rules) }))
+              }
+              onOpen={state.openReadIssueSource}
+            />
             <Field>
               <FieldLabel htmlFor="notebook-filter">{t("text.notebook")}</FieldLabel>
               <Select
@@ -219,11 +200,7 @@ export function GraphFiltersPanel({
                   }}
                   chosenCount={state.chosenIds.length}
                   status={state.mentionState}
-                  editorKey={
-                    (state.filterPresets.temporaryActive
-                      ? state.filterPresets.temporary?.snapshot.requestId
-                      : state.filterPresets.activeId) ?? "custom"
-                  }
+                  editorKey={editorKey}
                   onModeChange={(mentions) => setFilters((previous) => ({ ...previous, mentions }))}
                   onExclusionsChange={({ phrases, patterns }) =>
                     setFilters((previous) => ({

@@ -42,6 +42,9 @@ describe("semantic graph tab state", () => {
       mentions: "selected" as const,
       includeChildDocuments: false,
       excludeIds: [BLOCK],
+      exclusionRules: [
+        { kind: "regex" as const, value: "^\\d{4}-\\d{2}$", scope: "document" as const },
+      ],
       excludedMentionPhrases: ["01", "todo"],
       excludedMentionPatterns: ["^\\d{2}$"],
       hideIsolated: true,
@@ -57,7 +60,7 @@ describe("semantic graph tab state", () => {
       "已选节点",
       "提及排除规则：3 项",
       "子文档：不包含",
-      "排除：1 项",
+      "文档排除：2 条规则",
       "隐藏未选中的节点",
     ])
       expect(state.description).toContain(text);

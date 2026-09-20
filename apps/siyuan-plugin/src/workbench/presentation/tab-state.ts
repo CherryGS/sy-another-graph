@@ -91,7 +91,9 @@ export function graphTabState(
       t("text.childDocumentsValue", {
         p0: filters.includeChildDocuments ? t("text.included") : t("text.excluded"),
       }),
-      t("text.excludedIdsValue", { p0: filters.excludeIds.length }),
+      t("contentExclusions.summary", {
+        count: filters.excludeIds.length + filters.exclusionRules.length,
+      }),
       t("text.isolatedNodesValue", {
         p0: filters.hideIsolated ? t("text.hideUnselectedNodes") : t("text.shown"),
       }),

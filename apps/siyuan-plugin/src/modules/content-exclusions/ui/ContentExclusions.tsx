@@ -1,0 +1,143 @@
+import { useEffect, useId, useMemo, useState } from "react";
+import type { GraphDataset } from "../../../core/graph/types";
+import { useLocale } from "../../../shared/i18n/react";
+import { t, text } from "../../../shared/i18n/runtime";
+import { Button } from "../../../shared/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "../../../shared/ui/field";
+import { Textarea } from "../../../shared/ui/textarea";
+import {
+  CONTENT_EXCLUSION_LIMIT,
+  formatContentExclusionDraft,
+  normalizeContentExclusions,
+  parseContentExclusionDraft,
+  readContentExclusions,
+  type ContentExclusionRule,
+  type ExclusionScope,
+} from "../rules";
+import { ContentExclusionPreview } from "./ContentExclusionPreview";
+
+const SCOPES: ExclusionScope[] = ["document", "subtree"];
+const draftsFor = (rules: readonly ContentExclusionRule[]) => ({
+  document: formatContentExclusionDraft(rules, "document"),
+  subtree: formatContentExclusionDraft(rules, "subtree"),
+});
+
+export function ContentExclusions({
+  data,
+  rules,
+  status,
+  onApply,
+  onOpen,
+}: {
+  data: GraphDataset | null;
+  rules: readonly ContentExclusionRule[];
+  status: { error: string; retry: () => void };
+  onApply: (rules: ContentExclusionRule[]) => void;
+  onOpen: (id: string) => void;
+}) {
+  useLocale();
+  const id = useId();
+  const [drafts, setDrafts] = useState(() => draftsFor(rules));
+  useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect -- Preset application/reset replaces editable drafts.
+    setDrafts(draftsFor(rules));
+  }, [rules]);
+  const parsed = useMemo(
+    () => ({
+      document: parseContentExclusionDraft(drafts.document, "document"),
+      subtree: parseContentExclusionDraft(drafts.subtree, "subtree"),
+    }),
+    [drafts],
+  );
+  const combined = useMemo(
+    () =>
+      parsed.document.value && parsed.subtree.value
+        ? readContentExclusions([...parsed.document.value, ...parsed.subtree.value])
+        : null,
+    [parsed],
+  );
+  const limitError = parsed.document.value && parsed.subtree.value && !combined;
+  const changed =
+    combined !== null &&
+    JSON.stringify(combined) !== JSON.stringify(normalizeContentExclusions(rules));
+  return (
+    <FieldSet>
+      <FieldLegend>{t("contentExclusions.title")}</FieldLegend>
+      <FieldDescription>{t("contentExclusions.syntax")}</FieldDescription>
+      {/* Vertical fields do not need size queries; Chromium can otherwise lose
+          their layout inside a fieldset when asynchronous preview rows appear. */}
+      <FieldGroup className="gap-3 [container-type:normal]">
+        {SCOPES.map((scope) => (
+          <Field key={scope} data-invalid={!!parsed[scope].error}>
+            <FieldLabel htmlFor={`${id}-${scope}`}>
+              {t(
+                scope === "document"
+                  ? "contentExclusions.documentLabel"
+                  : "contentExclusions.subtreeLabel",
+              )}
+            </FieldLabel>
+            <Textarea
+              id={`${id}-${scope}`}
+              rows={2}
+              className="max-h-48"
+              value={drafts[scope]}
+              placeholder={t(
+                scope === "document"
+                  ? "contentExclusions.documentPlaceholder"
+                  : "contentExclusions.subtreePlaceholder",
+              )}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDrafts((previous) => ({ ...previous, [scope]: value }));
+              }}
+              aria-invalid={!!parsed[scope].error}
+              aria-describedby={`${id}-${scope}-description${parsed[scope].error ? ` ${id}-${scope}-error` : ""}`}
+            />
+            <FieldDescription id={`${id}-${scope}-description`}>
+              {t(
+                scope === "document"
+                  ? "contentExclusions.documentDescription"
+                  : "contentExclusions.subtreeDescription",
+              )}
+            </FieldDescription>
+            {parsed[scope].error && (
+              <FieldError id={`${id}-${scope}-error`}>{text(parsed[scope].error)}</FieldError>
+            )}
+          </Field>
+        ))}
+      </FieldGroup>
+      {limitError && (
+        <FieldError>{t("contentExclusions.limit", { count: CONTENT_EXCLUSION_LIMIT })}</FieldError>
+      )}
+      <ContentExclusionPreview data={data} rules={combined} onOpen={onOpen} />
+      <Button
+        variant="outline"
+        size="sm"
+        className="self-start"
+        disabled={!changed}
+        onClick={() => {
+          if (combined) onApply(combined);
+        }}
+      >
+        {t("text.applyExclusions")}
+      </Button>
+      {changed && <FieldDescription>{t("contentExclusions.unapplied")}</FieldDescription>}
+      {status.error && (
+        <>
+          <FieldError>{status.error}</FieldError>
+          <Button variant="outline" size="sm" className="self-start" onClick={status.retry}>
+            {t("contentExclusions.retry")}
+          </Button>
+        </>
+      )}
+    </FieldSet>
+  );
+}

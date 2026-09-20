@@ -77,6 +77,7 @@ describe("persistent preset schema", () => {
       hiddenTypes: ["future-type", "p"],
       excludedMentionPhrases: ["01", "graph theory"],
       excludedMentionPatterns: [],
+      exclusionRules: [],
     });
     expect("selectedId" in restored).toBe(false);
     filters.excludeIds.length = 0;
@@ -91,10 +92,44 @@ describe("persistent preset schema", () => {
     const legacy = createPresetStore();
     Reflect.deleteProperty(legacy.presets[0].filters, "excludedMentionPhrases");
     Reflect.deleteProperty(legacy.presets[0].filters, "excludedMentionPatterns");
+    Reflect.deleteProperty(legacy.presets[0].filters, "exclusionRules");
     const restored = readPresetStore(legacy)!;
     expect(restored.activePresetId).toBe(legacy.activePresetId);
     expect(restored.presets[0].filters.excludedMentionPhrases).toEqual([]);
     expect(restored.presets[0].filters.excludedMentionPatterns).toEqual([]);
+    expect(restored.presets[0].filters.exclusionRules).toEqual([]);
+  });
+
+  it("round trips mixed content exclusions, retains old IDs, and owns nested rule objects", () => {
+    const store = createPresetStore();
+    store.presets[0].filters.excludeIds = [BLOCK];
+    store.presets[0].filters.exclusionRules = [
+      { kind: "regex", value: "^\\D+$", scope: "document" },
+      { kind: "text", value: " Archive ", scope: "subtree" },
+      { kind: "id", value: OTHER, scope: "document" },
+    ];
+    const restored = readPresetStore(JSON.parse(JSON.stringify(store)))!.presets[0].filters;
+    expect(restored.excludeIds).toEqual([BLOCK]);
+    expect(restored.exclusionRules).toEqual(
+      expect.arrayContaining([
+        { kind: "regex", value: "^\\D+$", scope: "document" },
+        { kind: "text", value: "archive", scope: "subtree" },
+        { kind: "id", value: OTHER, scope: "document" },
+      ]),
+    );
+    const previous = { ...DEFAULT_FILTERS, ...restored };
+    expect(
+      applyPresetFilters(previous, {
+        ...restored,
+        exclusionRules: [...restored.exclusionRules].reverse(),
+      }),
+    ).toBe(previous);
+    const switched = applyPresetFilters(previous, { ...restored, mentions: "all" });
+    expect(switched.exclusionRules).toBe(previous.exclusionRules);
+    const copy = presetFilters(restored);
+    copy.exclusionRules[0].value = "changed";
+    expect(copy.exclusionRules).not.toEqual(restored.exclusionRules);
+    expect(samePresetFilters(previous, { ...restored, exclusionRules: [] })).toBe(false);
   });
 
   it("persists regex separately from legacy slash literals and preserves source case", () => {
@@ -222,6 +257,9 @@ describe("persistent preset schema", () => {
     ["excludedMentionPatterns", ["["]],
     ["excludedMentionPatterns", ["a".repeat(257)]],
     ["excludedMentionPatterns", Array(129).fill("a")],
+    ["exclusionRules", null],
+    ["exclusionRules", [{ kind: "regex", value: "[", scope: "document" }]],
+    ["exclusionRules", [{ kind: "text", value: "title", scope: "unknown" }]],
   ])("rejects invalid %s rules instead of silently broadening them", (field, value) => {
     const store = createPresetStore();
     store.presets[0].filters = { ...store.presets[0].filters, [field]: value };

@@ -10,6 +10,33 @@ const snapshot: SearchGraphSnapshot = {
 };
 
 describe("temporary search preset isolation", () => {
+  it("keeps document and subtree exclusion drafts independent across search, restore and reset", () => {
+    const session = new FilterSessions();
+    session.setFilters((previous) => ({
+      ...previous,
+      exclusionRules: [
+        { kind: "regex", value: "^\\d{4}-\\d{2}$", scope: "document" },
+        { kind: "text", value: "archive", scope: "subtree" },
+      ],
+    }));
+    const normal = session.normalRef.current;
+    session.search(snapshot);
+    expect(session.getSnapshot().temporary?.filters.exclusionRules).toEqual([]);
+    session.setFilters((previous) => ({
+      ...previous,
+      exclusionRules: [{ kind: "text", value: "search only", scope: "document" }],
+    }));
+    session.leave();
+    expect(session.normalRef.current).toBe(normal);
+    session.resume();
+    expect(session.getSnapshot().temporary?.filters.exclusionRules[0].value).toBe("search only");
+    session.reset();
+    expect(session.getSnapshot().temporary?.filters.exclusionRules).toEqual([]);
+    expect(session.normalRef.current.exclusionRules).toHaveLength(2);
+    session.leave();
+    session.reset();
+    expect(session.normalRef.current.exclusionRules).toEqual([]);
+  });
   it("keeps regex exclusions isolated and restores the original unsaved rules", () => {
     const session = new FilterSessions();
     session.setFilters((previous) => ({ ...previous, excludedMentionPatterns: ["^\\d{2}$"] }));

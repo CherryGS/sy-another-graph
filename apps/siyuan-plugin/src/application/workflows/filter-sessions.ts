@@ -6,6 +6,7 @@ type FilterAction = GraphFilters | ((previous: GraphFilters) => GraphFilters);
 const defaults = (): GraphFilters => ({
   ...DEFAULT_FILTERS,
   excludeIds: [],
+  exclusionRules: [],
   hiddenTypes: [],
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],

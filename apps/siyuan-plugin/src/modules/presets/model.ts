@@ -3,6 +3,11 @@ import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
 import { isMentionMode } from "../mentions/types";
 import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
 import { normalizeExcludedPatterns, readExcludedPatterns } from "../mentions/exclusions";
+import {
+  contentExclusionRules,
+  readContentExclusions,
+  splitContentExclusions,
+} from "../content-exclusions/rules";
 
 export type PresetFilters = Omit<GraphFilters, "query">;
 export interface FilterPreset {
@@ -45,7 +50,9 @@ export function presetFilters(filters: PresetFilters): PresetFilters {
     hideIsolated: filters.hideIsolated,
     scopeId: filters.scopeId,
     includeChildDocuments: filters.includeChildDocuments,
-    excludeIds: uniqueSorted(filters.excludeIds),
+    ...splitContentExclusions(
+      contentExclusionRules(filters.excludeIds, filters.exclusionRules ?? []),
+    ),
     hiddenTypes: filters.documentsOnly
       ? []
       : uniqueSorted(filters.hiddenTypes.filter((type) => type !== "d")),
@@ -74,6 +81,10 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
     excludeIds: sameValues(previous.excludeIds, next.excludeIds)
       ? previous.excludeIds
       : next.excludeIds,
+    exclusionRules:
+      JSON.stringify(previous.exclusionRules) === JSON.stringify(next.exclusionRules)
+        ? previous.exclusionRules
+        : next.exclusionRules,
     hiddenTypes: sameValues(previous.hiddenTypes, next.hiddenTypes)
       ? previous.hiddenTypes
       : next.hiddenTypes,
@@ -134,10 +145,19 @@ function readFilters(value: unknown): PresetFilters | null {
     value.excludedMentionPatterns === undefined ? [] : value.excludedMentionPatterns,
   );
   if (!excludedMentionPatterns) return null;
+  const exclusionRules = readContentExclusions(
+    value.exclusionRules === undefined ? [] : value.exclusionRules,
+  );
+  if (
+    !exclusionRules ||
+    !readContentExclusions(contentExclusionRules(value.excludeIds, exclusionRules))
+  )
+    return null;
   return presetFilters({
     ...value,
     excludedMentionPhrases,
     excludedMentionPatterns,
+    exclusionRules,
   } as unknown as PresetFilters);
 }
 
