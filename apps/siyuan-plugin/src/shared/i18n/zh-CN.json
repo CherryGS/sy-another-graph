@@ -1,4 +1,11 @@
 {
+  "filter.categories": "筛选分类",
+  "filter.inspectShort": "检查节点",
+  "filter.navExclusions": "排除",
+  "filter.navMentions": "提及",
+  "filter.navDisplay": "显示",
+  "filter.collapse": "收起筛选内容",
+  "filter.close": "关闭筛选栏",
   "graph.nodeContextMenu": "节点右键菜单",
   "graph.copyNodeId": "复制 ID",
   "graph.nodeIdCopied": "已复制节点 ID",

@@ -1,6 +1,7 @@
 import { useLocale } from "../../../shared/i18n/react";
 import { t } from "../../../shared/i18n/runtime";
-import { useRef, useState, type FormEvent, type Ref } from "react";
+import { useRef, useState, type FormEvent, type Ref, type RefObject } from "react";
+import { cn } from "@/shared/lib/utils";
 import {
   Check,
   Copy,
@@ -52,10 +53,17 @@ const NAMING_TITLES = {
   },
 };
 
-export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
+export function FilterPresetMenu({
+  state,
+  editorHost,
+}: {
+  state: WorkbenchState;
+  editorHost: RefObject<HTMLElement | null>;
+}) {
   useLocale();
   const presets = state.filterPresets;
   const [details, setDetails] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [naming, setNaming] = useState<NamingAction | null>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const editRequest = useRef(0);
@@ -67,6 +75,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
 
   function openEditor() {
     editorOpen.current = true;
+    setCollapsed(false);
     setDetails(true);
     state.setFiltersOpen(false);
   }
@@ -340,7 +349,13 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
         }}
       >
         <SheetContent
-          className="gap-0 data-[side=right]:w-[min(560px,100vw)] data-[side=right]:sm:max-w-none"
+          side="left"
+          container={editorHost.current}
+          showCloseButton={false}
+          className={cn(
+            "absolute gap-0 data-[side=left]:sm:max-w-none",
+            collapsed ? "data-[side=left]:w-11" : "data-[side=left]:w-[min(360px,100%)]",
+          )}
           onInteractOutside={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
@@ -350,6 +365,8 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
         >
           <GraphFiltersPanel
             state={state}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
             onBack={() => {
               editorOpen.current = false;
               setDetails(false);

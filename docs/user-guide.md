@@ -16,7 +16,9 @@ update SiYuan or the browser; older engines without EH are unsupported.
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 
-The compact preset menu provides quick switching. Editing opens a wide side panel with **Scope, Document exclusions, Relationships, Text mentions, and Node display** tabs while the graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields sit side by side on wide screens and stack on narrow screens, separated by a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching tabs retains inputs and marks unapplied changes as **Draft**. Apply the rules, then use the fixed footer to update or save a preset.
+The compact preset menu provides quick switching. Editing opens a narrow panel at the left of the canvas, below the toolbar. Icons and vertical labels select **Scope, Document exclusions, Relationships, Text mentions, and Node display**. Clicking the active category collapses the content to a slim rail; reopening it restores the draft. The graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields stack with a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching categories retains inputs; dots and **Draft** badges identify unapplied changes. Apply the rules, then use the fixed footer to update or save a preset.
+
+See the [mouse and keyboard reference (简体中文)](mouse-keyboard_zh_CN.md) for canvas gestures, search, sidebar navigation, and keyboard controls.
 
 The interface follows SiYuan's language. Chinese variants use Simplified Chinese;
 other languages use English. Note titles, aliases, excluded phrases and existing

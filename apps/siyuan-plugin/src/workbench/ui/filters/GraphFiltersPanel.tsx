@@ -1,12 +1,30 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  FolderOpen,
+  Link2,
+  ListFilter,
+  PanelLeftClose,
+  RotateCcw,
+  Shapes,
+  TextSearch,
+  X,
+} from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { FieldDescription, FieldGroup } from "@/shared/ui/field";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Separator } from "@/shared/ui/separator";
-import { SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/shared/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import {
+  SheetClose,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/shared/ui/sheet";
+import { cn } from "@/shared/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useLocale } from "../../../shared/i18n/react";
 import { t } from "../../../shared/i18n/runtime";
 import type { WorkbenchState } from "../../model/state";
@@ -20,16 +38,21 @@ import { NodeDisplayFilters } from "./NodeDisplayFilters";
 
 export function GraphFiltersPanel({
   state,
+  collapsed,
+  onCollapsedChange,
   onBack,
   footer,
 }: {
   state: WorkbenchState;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   onBack: () => void;
   footer: ReactNode;
 }) {
   useLocale();
   const { filters, setFilters, data } = state;
   const backRef = useRef<HTMLButtonElement>(null);
+  const id = useId();
   const [page, setPage] = useState(state.contentRules.length ? "exclusions" : "scope");
   const [contentDraft, setContentDraft] = useState(false);
   const [mentionDraft, setMentionDraft] = useState(false);
@@ -68,12 +91,16 @@ export function GraphFiltersPanel({
     {
       value: "scope",
       title: t("filter.scope"),
+      navLabel: t("filter.scope"),
+      icon: FolderOpen,
       summary: scopeName,
       content: <ScopeFilters state={state} />,
     },
     {
       value: "exclusions",
       title: t("contentExclusions.title"),
+      navLabel: t("filter.navExclusions"),
+      icon: ListFilter,
       summary: state.contentRules.length
         ? t("filter.ruleCount", { count: state.contentRules.length })
         : t("filter.noExclusions"),
@@ -96,6 +123,8 @@ export function GraphFiltersPanel({
     {
       value: "relationships",
       title: t("filter.relationships"),
+      navLabel: t("filter.relationships"),
+      icon: Link2,
       summary: relations.join(t("common.listSeparator")) || t("text.off"),
       content: (
         <FieldGroup className="gap-5 [container-type:normal]">
@@ -128,6 +157,8 @@ export function GraphFiltersPanel({
     {
       value: "mentions",
       title: t("filter.mentions"),
+      navLabel: t("filter.navMentions"),
+      icon: TextSearch,
       summary: mentionRules
         ? t("filter.mentionSummary", { mode: mentionMode, count: mentionRules })
         : mentionMode,
@@ -160,66 +191,139 @@ export function GraphFiltersPanel({
     {
       value: "display",
       title: t("filter.nodeDisplay"),
+      navLabel: t("filter.navDisplay"),
+      icon: Shapes,
       summary: filters.hideIsolated ? t("filter.displaySummary", { types }) : types,
       content: <NodeDisplayFilters state={state} />,
     },
   ];
+  const currentPage = pages.find(({ value }) => value === page)!;
   return (
     <section className="filter-panel" aria-label={t("text.graphFilters")}>
-      <SheetHeader className="gap-3 px-6 py-4 pr-14">
-        <div className="flex min-w-0 items-center gap-3">
+      <SheetTitle className="sr-only">{state.filterPresets.activeName}</SheetTitle>
+      <SheetDescription className="sr-only">{t("filter.editorDescription")}</SheetDescription>
+      <div className="flex min-h-0 w-11 shrink-0 flex-col items-center gap-2 py-2">
+        <Button
+          ref={backRef}
+          data-filter-editor-back
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("text.backToFilterPresets")}
+          title={t("text.backToFilterPresets")}
+          onClick={onBack}
+        >
+          <ArrowLeft />
+        </Button>
+        <ScrollArea className="min-h-0 w-full flex-1" data-scroll-panel>
+          <ToggleGroup
+            type="single"
+            orientation="vertical"
+            size="sm"
+            spacing={1}
+            className="w-full px-1"
+            value={collapsed ? "" : page}
+            aria-label={t("filter.categories")}
+            onValueChange={(value) => {
+              if (value) setPage(value);
+              onCollapsedChange(!value);
+            }}
+          >
+            {pages.map(({ value, title, navLabel, icon: Icon, summary, draft }) => (
+              <Tooltip key={value}>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem
+                    id={id + "-" + value + "-trigger"}
+                    value={value}
+                    aria-label={title}
+                    aria-controls={id + "-" + value}
+                    aria-expanded={!collapsed && page === value}
+                    className="relative h-auto w-full flex-col gap-1.5 px-2 py-2"
+                  >
+                    <Icon />
+                    <span className="[writing-mode:vertical-rl]">{navLabel}</span>
+                    {draft && (
+                      <Badge className="absolute top-1 right-1 size-1.5 p-0">
+                        <span className="sr-only">{t("filter.unapplied")}</span>
+                      </Badge>
+                    )}
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{title}</p>
+                  <p>{summary}</p>
+                  {draft && <p>{t("filter.unappliedHint")}</p>}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </ToggleGroup>
+        </ScrollArea>
+        <SheetClose asChild>
           <Button
-            ref={backRef}
-            data-filter-editor-back
             variant="ghost"
             size="icon-sm"
-            aria-label={t("text.backToFilterPresets")}
-            onClick={onBack}
+            aria-label={t("filter.close")}
+            title={t("filter.close")}
           >
-            <ArrowLeft />
+            <X />
           </Button>
-          <SheetTitle className="min-w-0 flex-1 truncate" title={state.filterPresets.activeName}>
-            {state.filterPresets.activeName}
-          </SheetTitle>
-          {state.filterPresets.modified && <Badge variant="secondary">{t("text.modified2")}</Badge>}
-        </div>
-        <SheetDescription>
-          {state.filterPresets.temporaryActive
-            ? t("text.theTemporaryScopeIncludesMatchesAndTheirAncestor")
-            : t("filter.editorDescription")}
-        </SheetDescription>
-      </SheetHeader>
-      <Tabs value={page} onValueChange={setPage} className="min-h-0 flex-1 gap-0">
-        <div className="shrink-0 overflow-x-auto px-6 pb-2">
-          <TabsList variant="line" className="w-full min-w-max group-data-horizontal/tabs:h-10">
-            {pages.map(({ value, title, summary, draft }) => (
-              <TabsTrigger key={value} value={value} title={summary} className="gap-2 px-2">
-                {title}
-                {draft && <Badge variant="secondary">{t("filter.unapplied")}</Badge>}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        </SheetClose>
+      </div>
+      {!collapsed && <Separator orientation="vertical" />}
+      <div className={cn("min-h-0 min-w-0 flex-1 flex-col", collapsed ? "hidden" : "flex")}>
+        <SheetHeader className="gap-2 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2
+              className="min-w-0 flex-1 truncate font-medium"
+              title={state.filterPresets.activeName}
+            >
+              {state.filterPresets.activeName}
+            </h2>
+            {state.filterPresets.modified && (
+              <Badge variant="secondary">{t("text.modified2")}</Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("filter.collapse")}
+              title={t("filter.collapse")}
+              onClick={() => {
+                onCollapsedChange(true);
+                document.getElementById(id + "-" + page + "-trigger")?.focus();
+              }}
+            >
+              <PanelLeftClose />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">{currentPage.title}</h3>
+            {currentPage.draft && <Badge variant="secondary">{t("filter.unapplied")}</Badge>}
+          </div>
+        </SheetHeader>
         <Separator />
-        <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
-          {pages.map(({ value, content }) => (
-            <TabsContent key={value} value={value} forceMount hidden={page !== value}>
-              <div className="p-6">{content}</div>
-            </TabsContent>
-          ))}
-        </ScrollArea>
-      </Tabs>
-      <Separator />
-      <SheetFooter className="gap-3 px-6 py-4">
-        {footer}
-        <div className="grid grid-cols-2 gap-3">
-          <FilterExplanation state={state} />
-          <Button variant="ghost" size="sm" className="w-full" onClick={state.resetFilters}>
-            <RotateCcw data-icon="inline-start" />
-            {t("text.resetFilters")}
-          </Button>
-        </div>
-      </SheetFooter>
+        {pages.map(({ value, title, content }) => (
+          <section
+            key={value}
+            id={id + "-" + value}
+            aria-label={title}
+            className={cn("min-h-0 flex-1 flex-col", page === value ? "flex" : "hidden")}
+          >
+            <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
+              <div className="p-4">{content}</div>
+            </ScrollArea>
+          </section>
+        ))}
+        <Separator />
+        <SheetFooter className="max-h-[40%] gap-3 overflow-y-auto p-3" data-scroll-panel>
+          {footer}
+          <div className="grid grid-cols-2 gap-2">
+            <FilterExplanation state={state} compact />
+            <Button variant="ghost" size="sm" className="w-full" onClick={state.resetFilters}>
+              <RotateCcw data-icon="inline-start" />
+              {t("text.resetFilters")}
+            </Button>
+          </div>
+        </SheetFooter>
+      </div>
     </section>
   );
 }

@@ -1,4 +1,11 @@
 {
+  "filter.categories": "Filter categories",
+  "filter.inspectShort": "Inspect",
+  "filter.navExclusions": "Exclude",
+  "filter.navMentions": "Mentions",
+  "filter.navDisplay": "Display",
+  "filter.collapse": "Collapse filter content",
+  "filter.close": "Close filter sidebar",
   "graph.nodeContextMenu": "Node context menu",
   "graph.copyNodeId": "Copy ID",
   "graph.nodeIdCopied": "Node ID copied",

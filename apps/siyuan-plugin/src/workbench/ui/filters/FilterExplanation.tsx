@@ -74,7 +74,13 @@ function NodeTrace({
   );
 }
 
-export function FilterExplanation({ state }: { state: WorkbenchState }) {
+export function FilterExplanation({
+  state,
+  compact = false,
+}: {
+  state: WorkbenchState;
+  compact?: boolean;
+}) {
   useLocale();
   const [from, setFrom] = useState(state.selectedId ?? "");
   const [to, setTo] = useState("");
@@ -99,9 +105,15 @@ export function FilterExplanation({ state }: { state: WorkbenchState }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={!data || !currentGraph}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!data || !currentGraph}
+          aria-label={t("graph.traceTrigger")}
+          title={t("graph.traceTrigger")}
+        >
           <ScanSearch data-icon="inline-start" />
-          {t("graph.traceTrigger")}
+          {t(compact ? "filter.inspectShort" : "graph.traceTrigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-3xl" data-filter-dialog>

@@ -3,7 +3,8 @@
 从笔记、块或搜索结果出发，在交互式 2D / 3D 图谱中探索它们之间的联系。
 
 [English](README.md) ·
-[使用指南](https://github.com/CherryGS/sy-another-graph/blob/master/docs/user-guide_zh_CN.md)
+[使用指南](https://github.com/CherryGS/sy-another-graph/blob/master/docs/user-guide_zh_CN.md) ·
+[鼠标与键盘操作](https://github.com/CherryGS/sy-another-graph/blob/master/docs/mouse-keyboard_zh_CN.md)
 
 _以下截图均使用测试工作区中的演示笔记。_
 

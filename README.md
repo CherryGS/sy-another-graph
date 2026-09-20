@@ -4,6 +4,7 @@ Explore SiYuan notes, blocks, and search results in an interactive 2D / 3D graph
 
 [简体中文](apps/siyuan-plugin/public/README_zh_CN.md) ·
 [User guide](docs/user-guide.md) ·
+[Mouse & keyboard (简体中文)](docs/mouse-keyboard_zh_CN.md) ·
 [Development](apps/siyuan-plugin/README.md)
 
 _Screenshots below use demonstration notes from the test workspace._

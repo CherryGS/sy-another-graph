@@ -36,6 +36,7 @@ export function ExplorePage({ active }: { active: boolean }) {
   const state = useWorkbench();
   const { Renderer } = useWorkbenchServices();
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const filterHostRef = useRef<HTMLElement>(null);
   const [nodeMenu, setNodeMenu] = useState<{
     target: CanvasContextTarget;
     nodes: readonly CanvasNode[];
@@ -207,7 +208,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             <GraphActions state={state} />
           </div>
         </div>
-        <FilterPresetMenu state={state} />
+        <FilterPresetMenu state={state} editorHost={filterHostRef} />
       </Popover>
       <GraphNotices state={state} />
       <MentionNotice mode={filters.mentions} status={state.mentionState} />
@@ -218,7 +219,7 @@ export function ExplorePage({ active }: { active: boolean }) {
         </Alert>
       )}
       <div className={cn("explore-layout", hasInspector && "has-inspector")}>
-        <section className="graph-stage" aria-label={t("text.graphCanvas")}>
+        <section ref={filterHostRef} className="graph-stage" aria-label={t("text.graphCanvas")}>
           <ReadDiagnostics state={state} />
           {data && (
             <Renderer
