@@ -237,10 +237,12 @@ export function GraphFiltersPanel({
                     aria-label={title}
                     aria-controls={id + "-" + value}
                     aria-expanded={!collapsed && page === value}
-                    className="relative h-auto w-full flex-col gap-1.5 px-2 py-2"
+                    className="relative h-auto w-full px-2 py-2"
                   >
-                    <Icon />
-                    <span className="[writing-mode:vertical-rl]">{navLabel}</span>
+                    <span className="flex rotate-180 items-center gap-1.5 [text-orientation:sideways] [writing-mode:vertical-rl]">
+                      <Icon className="rotate-90" />
+                      <span>{navLabel}</span>
+                    </span>
                     {draft && (
                       <Badge className="absolute top-1 right-1 size-1.5 p-0">
                         <span className="sr-only">{t("filter.unapplied")}</span>
