@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useState } from "react";
+import { cn } from "cn";
 import type { GraphDataset } from "../../../core/graph/types";
 import { useLocale } from "../../../shared/i18n/react";
 import { t, text } from "../../../shared/i18n/runtime";
@@ -13,6 +14,7 @@ import {
   FieldSet,
 } from "../../../shared/ui/field";
 import { Textarea } from "../../../shared/ui/textarea";
+import { Separator } from "../../../shared/ui/separator";
 import {
   CONTENT_EXCLUSION_LIMIT,
   formatContentExclusionDraft,
@@ -36,12 +38,16 @@ export function ContentExclusions({
   status,
   onApply,
   onOpen,
+  hideTitle = false,
+  onDraftChange,
 }: {
   data: GraphDataset | null;
   rules: readonly ContentExclusionRule[];
   status: { error: string; retry: () => void };
   onApply: (rules: ContentExclusionRule[]) => void;
   onOpen: (id: string) => void;
+  hideTitle?: boolean;
+  onDraftChange?: (changed: boolean) => void;
 }) {
   useLocale();
   const id = useId();
@@ -68,50 +74,58 @@ export function ContentExclusions({
   const changed =
     combined !== null &&
     JSON.stringify(combined) !== JSON.stringify(normalizeContentExclusions(rules));
+  useEffect(() => {
+    onDraftChange?.(changed || combined === null);
+  }, [changed, combined, onDraftChange]);
   return (
     <FieldSet>
-      <FieldLegend>{t("contentExclusions.title")}</FieldLegend>
+      <FieldLegend className={cn(hideTitle && "sr-only")}>
+        {t("contentExclusions.title")}
+      </FieldLegend>
       <FieldDescription>{t("contentExclusions.syntax")}</FieldDescription>
       {/* Vertical fields do not need size queries; Chromium can otherwise lose
           their layout inside a fieldset when asynchronous preview rows appear. */}
       <FieldGroup className="gap-3 [container-type:normal]">
         {SCOPES.map((scope) => (
-          <Field key={scope} data-invalid={!!parsed[scope].error}>
-            <FieldLabel htmlFor={`${id}-${scope}`}>
-              {t(
-                scope === "document"
-                  ? "contentExclusions.documentLabel"
-                  : "contentExclusions.subtreeLabel",
+          <Fragment key={scope}>
+            {scope === "subtree" && <Separator />}
+            <Field data-invalid={!!parsed[scope].error}>
+              <FieldLabel htmlFor={`${id}-${scope}`}>
+                {t(
+                  scope === "document"
+                    ? "contentExclusions.documentLabel"
+                    : "contentExclusions.subtreeLabel",
+                )}
+              </FieldLabel>
+              <Textarea
+                id={`${id}-${scope}`}
+                rows={2}
+                className="max-h-48"
+                value={drafts[scope]}
+                placeholder={t(
+                  scope === "document"
+                    ? "contentExclusions.documentPlaceholder"
+                    : "contentExclusions.subtreePlaceholder",
+                )}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDrafts((previous) => ({ ...previous, [scope]: value }));
+                }}
+                aria-invalid={!!parsed[scope].error}
+                aria-describedby={`${id}-${scope}-description${parsed[scope].error ? ` ${id}-${scope}-error` : ""}`}
+              />
+              <FieldDescription id={`${id}-${scope}-description`}>
+                {t(
+                  scope === "document"
+                    ? "contentExclusions.documentDescription"
+                    : "contentExclusions.subtreeDescription",
+                )}
+              </FieldDescription>
+              {parsed[scope].error && (
+                <FieldError id={`${id}-${scope}-error`}>{text(parsed[scope].error)}</FieldError>
               )}
-            </FieldLabel>
-            <Textarea
-              id={`${id}-${scope}`}
-              rows={2}
-              className="max-h-48"
-              value={drafts[scope]}
-              placeholder={t(
-                scope === "document"
-                  ? "contentExclusions.documentPlaceholder"
-                  : "contentExclusions.subtreePlaceholder",
-              )}
-              onChange={(event) => {
-                const value = event.target.value;
-                setDrafts((previous) => ({ ...previous, [scope]: value }));
-              }}
-              aria-invalid={!!parsed[scope].error}
-              aria-describedby={`${id}-${scope}-description${parsed[scope].error ? ` ${id}-${scope}-error` : ""}`}
-            />
-            <FieldDescription id={`${id}-${scope}-description`}>
-              {t(
-                scope === "document"
-                  ? "contentExclusions.documentDescription"
-                  : "contentExclusions.subtreeDescription",
-              )}
-            </FieldDescription>
-            {parsed[scope].error && (
-              <FieldError id={`${id}-${scope}-error`}>{text(parsed[scope].error)}</FieldError>
-            )}
-          </Field>
+            </Field>
+          </Fragment>
         ))}
       </FieldGroup>
       {limitError && (
@@ -121,7 +135,7 @@ export function ContentExclusions({
       <Button
         variant="outline"
         size="sm"
-        className="self-start"
+        className="w-full"
         disabled={!changed}
         onClick={() => {
           if (combined) onApply(combined);
@@ -133,7 +147,7 @@ export function ContentExclusions({
       {status.error && (
         <>
           <FieldError>{status.error}</FieldError>
-          <Button variant="outline" size="sm" className="self-start" onClick={status.retry}>
+          <Button variant="outline" size="sm" className="w-full" onClick={status.retry}>
             {t("contentExclusions.retry")}
           </Button>
         </>

@@ -23,6 +23,7 @@ export interface MentionControlsProps {
   chosenCount: number;
   status: MentionStatusView;
   editorKey: string;
+  onDraftChange?: (changed: boolean) => void;
   onModeChange: (mode: MentionMode) => void;
   onExclusionsChange: (rules: MentionExclusions) => void;
 }

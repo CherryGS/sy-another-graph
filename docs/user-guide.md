@@ -16,6 +16,8 @@ update SiYuan or the browser; older engines without EH are unsupported.
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 
+The preset editor separates **Scope, Document exclusions, Relationships, Text mentions, and Node display** with dividers. Expand a section to edit it; collapsed sections summarize the applied settings. Notebook and document/block scope controls stay together, while node types and isolated-node visibility share Node display. Both exclusion editors use full-width **Apply exclusions** buttons. Folding a section retains its input and marks unapplied changes as **Draft**. Apply the rules, then use the fixed footer to update or save a preset.
+
 The interface follows SiYuan's language. Chinese variants use Simplified Chinese;
 other languages use English. Note titles, aliases, excluded phrases and existing
 preset names keep their original text.

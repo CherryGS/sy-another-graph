@@ -89,13 +89,19 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       </div>
       <div className="flex gap-2">
         {presets.activeId && (
-          <Button size="sm" disabled={disabled} onClick={() => void presets.update()}>
+          <Button
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => void presets.update()}
+          >
             {t("text.updatePreset")}
           </Button>
         )}
         <Button
           variant="outline"
           size="sm"
+          className="flex-1"
           disabled={disabled || full}
           onClick={() => startNaming({ kind: "saveAs" })}
         >
@@ -175,6 +181,7 @@ export function FilterPresetMenu({ state }: { state: WorkbenchState }) {
       <PopoverContent
         align="start"
         className="filter-popover gap-0 p-0"
+        data-editing={details}
         onInteractOutside={(event) => {
           // Keep the editor and its unsaved draft mounted while its detail
           // dialog is portalled outside this non-modal popover.

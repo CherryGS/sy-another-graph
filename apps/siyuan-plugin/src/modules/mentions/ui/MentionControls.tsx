@@ -4,6 +4,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/shared/ui/fie
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { Progress } from "@/shared/ui/progress";
 import { Button } from "@/shared/ui/button";
+import { Separator } from "@/shared/ui/separator";
 import { isMentionMode } from "../types";
 import type { MentionControlsProps } from "./types";
 import { MentionExclusions } from "./MentionExclusions";
@@ -16,15 +17,16 @@ export function MentionControls({
   chosenCount,
   status,
   editorKey,
+  onDraftChange,
   onModeChange,
   onExclusionsChange,
 }: MentionControlsProps) {
   useLocale();
   const { progress, ready, error, pending } = status;
   return (
-    <FieldGroup className="gap-3">
+    <FieldGroup className="gap-4 [container-type:normal]">
       <Field>
-        <FieldLabel>{t("text.textMentionsDotted")}</FieldLabel>
+        <FieldLabel>{t("filter.mentionMode")}</FieldLabel>
         <ToggleGroup
           type="single"
           size="sm"
@@ -81,12 +83,14 @@ export function MentionControls({
           </FieldDescription>
         )}
       </Field>
+      <Separator />
       <MentionExclusions
         key={editorKey}
         phrases={phrases}
         patterns={patterns}
         source={previewSource}
         onApply={onExclusionsChange}
+        onDraftChange={onDraftChange}
       />
     </FieldGroup>
   );
