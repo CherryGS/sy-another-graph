@@ -1,4 +1,5 @@
 {
+  "app.name": "Another Graph",
   "filter.categories": "Filter categories",
   "filter.inspectShort": "Inspect",
   "filter.navExclusions": "Exclude",
@@ -295,7 +296,7 @@
   "text.directSearchMatchAlsoRepresentingValueHiddenMatching": "Direct search match, also representing {{p0, value}} hidden matching blocks.",
   "text.directMatchIncludedInTheOriginalSearchResults": "Direct match: included in the original search results.",
   "text.off": "Off",
-  "text.readDiagnostics": "一个思源图谱 — read diagnostics",
+  "text.readDiagnostics": "Another Graph — read diagnostics",
   "text.impactValue": "Impact: {{p0, value}}",
   "text.suggestionValue": "Suggestion: {{p0, value}}",
   "text.detailsValueValueUpTo20PerCategory": "Details: {{p0, value}} / {{p1, value}} (up to 20 per category; long values are marked as truncated)",
@@ -506,7 +507,7 @@
   "text.referencePaginationBoundaryStartEnd": "Reference pagination boundary (start → end)",
   "text.graphAllDocumentReferences": "Graph · All · Document references",
   "text.scopeAllPresetDocumentReferencesContainmentOffText": "Scope: All; preset: Document references; containment: Off; text mentions: Off; types: Document",
-  "text.open": "Open 一个思源图谱",
+  "text.open": "Open Another Graph",
   "text.storageRequestFailed": "Storage request failed",
   "text.invalidPresetContentNothingWasSaved": "Invalid preset content. Nothing was saved.",
   "text.presetStorageDidNotFinishRetryLaterReload": "Preset storage did not finish. Retry later; reload SiYuan if it keeps failing.",

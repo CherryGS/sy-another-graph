@@ -1,4 +1,4 @@
-# 发布一个思源图谱
+# 发布「另一个图谱」
 
 仓库为 `CherryGS/sy-another-graph`，插件 ID 为 `sy-another-graph`。
 项目自有代码使用 MIT，第三方声明见 [NOTICE.md](../NOTICE.md)。
@@ -81,7 +81,7 @@ pnpm publish:plugin --bump patch --notes temp/release-notes.md --yes
 4. 如果尚无 Release，使用保留的安装包和说明创建：
 
    ```powershell
-   gh release create vX.Y.Z "保留目录/package.zip" --repo CherryGS/sy-another-graph --verify-tag --title "vX.Y.Z · 一个思源图谱" --notes-file "保留目录/release-notes.md" --latest
+   gh release create vX.Y.Z "保留目录/package.zip" --repo CherryGS/sy-another-graph --verify-tag --title "vX.Y.Z · 另一个图谱" --notes-file "保留目录/release-notes.md" --latest
    ```
 
 5. 如果已有草稿，检查并补齐该草稿的附件和说明后发布；如果正式 Release 已存在，

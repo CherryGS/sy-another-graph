@@ -1,4 +1,4 @@
-# 一个思源图谱
+# Another Graph
 
 Explore SiYuan notes, blocks, and search results in an interactive 2D / 3D graph.
 

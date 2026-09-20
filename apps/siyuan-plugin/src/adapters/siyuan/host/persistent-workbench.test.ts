@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PersistentWorkbench, WORKBENCH_CHANNEL } from "./persistent-workbench";
 import { NativeBlockPreview } from "./native-preview";
+import { setLocale } from "../../../shared/i18n/runtime";
 
 interface Box {
   left: number;
@@ -180,9 +181,29 @@ function harness() {
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setLocale("en");
+});
 
 describe("plugin-lifetime workbench browsing context", () => {
+  it("updates the localized frame title without restarting the graph session", () => {
+    setLocale("zh-CN");
+    const h = harness();
+    h.attach(h.placeholder());
+    const frame = h.iframe();
+    expect(frame.title).toBe("另一个图谱");
+    setLocale("en_US");
+    h.session.announceLanguage();
+    expect(frame.title).toBe("Another Graph");
+    expect(frame.contentWindow.postMessage).toHaveBeenLastCalledWith(
+      { channel: WORKBENCH_CHANNEL, type: "host-language", language: "en" },
+      h.window.location.origin,
+    );
+    expect(frame.sourceAssignments).toBe(1);
+    expect(frame.disconnections).toBe(0);
+    h.session.dispose();
+  });
   it("replays only the latest search/scope request until its matching acknowledgement", () => {
     const h = harness();
     const first = {

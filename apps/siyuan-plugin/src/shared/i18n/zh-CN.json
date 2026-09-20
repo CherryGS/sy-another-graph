@@ -1,4 +1,5 @@
 {
+  "app.name": "另一个图谱",
   "filter.categories": "筛选分类",
   "filter.inspectShort": "检查节点",
   "filter.navExclusions": "排除",
@@ -295,7 +296,7 @@
   "text.directSearchMatchAlsoRepresentingValueHiddenMatching": "直接命中搜索，同时承载 {{p0, value}} 个隐藏命中块。",
   "text.directMatchIncludedInTheOriginalSearchResults": "直接命中：来自原始搜索结果。",
   "text.off": "关闭",
-  "text.readDiagnostics": "一个思源图谱 — read diagnostics",
+  "text.readDiagnostics": "另一个图谱 — 读取诊断",
   "text.impactValue": "影响：{{p0, value}}",
   "text.suggestionValue": "建议：{{p0, value}}",
   "text.detailsValueValueUpTo20PerCategory": "明细：{{p0, value}} / {{p1, value}}（每类最多保留 20 条，长值会标注截断）",
@@ -506,7 +507,7 @@
   "text.referencePaginationBoundaryStartEnd": "引用分页边界（开始 → 结束）",
   "text.graphAllDocumentReferences": "图谱 · 全部 · 文档引用",
   "text.scopeAllPresetDocumentReferencesContainmentOffText": "范围：全部；预设：文档引用；包含关系：关闭；文本提及：关闭；类型：文档",
-  "text.open": "打开一个思源图谱",
+  "text.open": "打开「另一个图谱」",
   "text.storageRequestFailed": "存储请求失败",
   "text.invalidPresetContentNothingWasSaved": "预设内容无效，未保存。",
   "text.presetStorageDidNotFinishRetryLaterReload": "预设存储未完成，请稍后重试；若持续失败，请重载思源。",

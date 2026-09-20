@@ -28,7 +28,6 @@ export default class SiYuanGraphPlugin extends Plugin {
     this.unloaded = false;
     const workbench = new PersistentWorkbench(this.name);
     this.workbench = workbench;
-    this.removeLanguage = watchHostLanguage(() => workbench.announceLanguage());
     const ownsMessage = (event: MessageEvent) => workbench.ownsMessage(event);
     this.presetStorage = new PresetStorage(this, ownsMessage, window.location.origin);
     const graphTitle = new GraphTabTitle(ownsMessage);
@@ -59,9 +58,9 @@ export default class SiYuanGraphPlugin extends Plugin {
         workbench.detach(this.element as HTMLElement);
       },
     });
-    this.addTopBar({
+    const topBar = this.addTopBar({
       icon: "iconAtlasGraph",
-      title: "一个思源图谱",
+      title: t("app.name"),
       position: "right",
       callback: () => {
         void this.openGraph();
@@ -74,6 +73,13 @@ export default class SiYuanGraphPlugin extends Plugin {
       callback: () => {
         void this.openGraph();
       },
+    });
+    this.removeLanguage = watchHostLanguage(() => {
+      topBar.setAttribute("aria-label", t("app.name"));
+      if (topBar.hasAttribute("title")) topBar.title = t("app.name");
+      const command = this.commands.find((item) => item.langKey === "openAtlasGraph");
+      if (command) command.langText = t("text.open");
+      workbench.announceLanguage();
     });
     window.addEventListener("message", this.onMessage);
     this.eventBus.on("switch-protyle", this.onHostSwitch);

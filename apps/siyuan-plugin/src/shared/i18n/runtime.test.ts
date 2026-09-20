@@ -10,7 +10,7 @@ describe("bundled localization", () => {
       expect(normalizeLocale(value)).toBe("zh-CN");
     },
   );
-  it.each(["en_US", "en-GB", "fr_FR", "", undefined, null, 42])(
+  it.each(["en_US", "en-US", "en-GB", "fr_FR", "", undefined, null, 42])(
     "falls back to English for %s",
     (value) => {
       expect(normalizeLocale(value)).toBe("en");

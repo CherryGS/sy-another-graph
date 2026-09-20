@@ -1,4 +1,4 @@
-# 一个思源图谱 · User guide
+# Another Graph · User guide
 
 Explore connections between SiYuan notes, blocks, and search results in 2D or 3D.
 

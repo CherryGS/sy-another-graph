@@ -9,11 +9,25 @@ const parameters = (value: string) =>
   [...new Set(Array.from(value.matchAll(/\{\{\s*(\w+)/g), (match) => match[1]))].sort();
 
 describe("translation coverage", () => {
+  it("keeps marketplace names and English fallbacks aligned with the UI catalogs", () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../../../public/plugin.json", import.meta.url), "utf8"),
+    );
+    expect(manifest.displayName).toEqual({
+      default: en["app.name"],
+      "en-US": en["app.name"],
+      "zh-CN": zhCN["app.name"],
+    });
+    for (const field of ["description", "readme"]) {
+      expect(manifest[field]["en-US"]).toBeTruthy();
+      expect(manifest[field]["en-US"]).toBe(manifest[field].default);
+    }
+  });
   it("keeps the same keys and interpolation parameters in both catalogs", () => {
     expect(Object.keys(zhCN).sort()).toEqual(Object.keys(en).sort());
     for (const key of Object.keys(en) as (keyof typeof en)[]) {
       expect(parameters(en[key]), key).toEqual(parameters(zhCN[key]));
-      expect(en[key].replaceAll("一个思源图谱", "")).not.toMatch(/\p{Script=Han}/u);
+      expect(en[key]).not.toMatch(/\p{Script=Han}/u);
     }
   });
   it("covers portable message codes and supplies each directly formatted sentence's parameters", () => {
@@ -30,7 +44,7 @@ describe("translation coverage", () => {
       const visit = (node: ts.Node) => {
         if (
           ts.isStringLiteral(node) &&
-          /^(text|common|diagnostics|canvas|community|selection|preset|mentions|search|evidence|relations|report|graph)\./.test(
+          /^(app|text|common|diagnostics|canvas|community|selection|preset|mentions|search|evidence|relations|report|graph)\./.test(
             node.text,
           )
         ) {

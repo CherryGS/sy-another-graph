@@ -1,8 +1,9 @@
-import { locale, setLocale } from "../../../shared/i18n/runtime";
+import { locale, setLocale, t } from "../../../shared/i18n/runtime";
 
 export function initializeWorkbenchLanguage(target: Window): void {
   setLocale(new URL(target.location.href).searchParams.get("lang"));
   target.document.documentElement.lang = locale();
+  target.document.title = t("app.name");
 }
 
 export function subscribeHostLanguage(target: Window): () => void {
@@ -25,6 +26,7 @@ export function subscribeHostLanguage(target: Window): () => void {
     if (data.language !== "zh-CN" && data.language !== "en") return;
     setLocale(data.language);
     target.document.documentElement.lang = locale();
+    target.document.title = t("app.name");
   };
   target.addEventListener("message", receive);
   if (target.parent !== target)

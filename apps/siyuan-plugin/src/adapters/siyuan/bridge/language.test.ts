@@ -9,7 +9,7 @@ function host() {
   const parent = { postMessage: vi.fn() };
   const target = {
     parent,
-    document: { documentElement: { lang: "" } },
+    document: { documentElement: { lang: "" }, title: "" },
     location: {
       origin: "http://localhost:6806",
       href: "http://localhost:6806/plugins/graph/ui/?lang=zh-CN",
@@ -36,6 +36,7 @@ describe("trusted host language", () => {
     initializeWorkbenchLanguage(h.target);
     expect(locale()).toBe("zh-CN");
     expect(h.target.document.documentElement.lang).toBe("zh-CN");
+    expect(h.target.document.title).toBe("另一个图谱");
     const dispose = subscribeHostLanguage(h.target);
     expect(h.parent.postMessage).toHaveBeenCalledExactlyOnceWith(
       { channel: "sy-another-graph", type: "language-ready" },
@@ -43,6 +44,14 @@ describe("trusted host language", () => {
     );
     dispose();
     expect(h.target.removeEventListener).toHaveBeenCalledOnce();
+  });
+  it("accepts the host en_US locale before the first render", () => {
+    const h = host();
+    h.target.location.href = "http://localhost:6806/plugins/graph/ui/?lang=en_US";
+    initializeWorkbenchLanguage(h.target);
+    expect(locale()).toBe("en");
+    expect(h.target.document.documentElement.lang).toBe("en");
+    expect(h.target.document.title).toBe("Another Graph");
   });
   it("ignores foreign, malformed and unsupported messages and updates only the owned iframe", () => {
     const h = host();
@@ -60,9 +69,11 @@ describe("trusted host language", () => {
     ])
       h.send(value);
     expect(locale()).toBe("zh-CN");
+    expect(h.target.document.title).toBe("另一个图谱");
     h.send(update);
     expect(locale()).toBe("en");
     expect(h.target.document.documentElement.lang).toBe("en");
+    expect(h.target.document.title).toBe("Another Graph");
     dispose();
     h.send({ ...update, language: "zh-CN" });
     expect(locale()).toBe("en");
