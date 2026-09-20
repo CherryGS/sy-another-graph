@@ -56,6 +56,8 @@ matched IDs. The search button shows reading progress; click again to cancel.
 
 - **Navigate:** inspect nodes and edges, Shift-click to select multiple nodes,
   and explore directional neighborhoods or shortest paths.
+- **Copy an ID:** right-click a node circle or label and choose **Copy ID**.
+  Works in 2D and 3D without changing the current selection.
 - **Trace sources:** preview or open original blocks and inspect relationship evidence.
 - **Discover related documents:** select starting nodes, then open **Discover
   relationships** in the toolbar to find shared-reference candidates.

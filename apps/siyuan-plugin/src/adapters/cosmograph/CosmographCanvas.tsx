@@ -34,6 +34,8 @@ import { GraphCanvasState } from "./GraphCanvasState";
 import { nodeContext } from "../../workbench/presentation/node-context";
 import { canvasClick } from "./canvas-click";
 import { hitTestPoint } from "./point-hit-test";
+import { labelNodeId, nodeLabelClass } from "./node-label-target";
+import { cn } from "@/shared/lib/utils";
 import type { CanvasNode, GraphCanvasProps } from "../../workbench/presentation/types";
 import "./canvas.css";
 
@@ -231,6 +233,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     let labels: ChosenLabels | undefined;
     let background: CommunityBackground | undefined;
     let interaction: CanvasGestures | undefined;
+    let removeContextMenu: (() => void) | undefined;
     let active = true;
     // eslint-disable-next-line react/set-state-in-effect -- Mirror the lifetime of an external GPU/worker resource.
     setSession(null);
@@ -241,6 +244,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     const labelGuard = element ? new DragLabelGuard(element) : null;
     dragLabels.current = labelGuard;
     const fail = (failure: unknown) => {
+      latestProps.current.onContextMenu?.(null);
       interaction?.cancel();
       labels?.setActive(false);
       background?.setActive(false);
@@ -253,6 +257,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     };
     const handleContextLost = (event: Event) => {
       event.preventDefault();
+      latestProps.current.onContextMenu?.(null);
       interaction?.cancel();
       labels?.setActive(false);
       background?.setActive(false);
@@ -341,11 +346,14 @@ export function CosmographCanvas(props: GraphCanvasProps) {
             background?.refresh("projection");
           },
           pointLabelClassName: (_text, _index, id) =>
-            id &&
-            (latestProps.current.chosenIds.includes(id) ||
-              latestProps.current.spotlightIds?.includes(id))
-              ? "ag-graph-label ag-graph-label--chosen"
-              : "ag-graph-label",
+            cn(
+              "ag-graph-label",
+              id && nodeLabelClass(id),
+              id &&
+                (latestProps.current.chosenIds.includes(id) ||
+                  latestProps.current.spotlightIds?.includes(id)) &&
+                "ag-graph-label--chosen",
+            ),
           onGraphRebuildError: fail,
         };
         interactiveConfig.current = base;
@@ -369,13 +377,36 @@ export function CosmographCanvas(props: GraphCanvasProps) {
         };
         const nodeAt = (event: MouseEvent) => {
           const target = event.target instanceof Element ? event.target : null;
-          const label = target?.closest<HTMLElement>("[data-graph-node-id]");
-          const labelId = label?.dataset.graphNodeId;
-          if (labelId && owned?.displayed?.idToIndex.has(labelId)) return labelId;
-          if (target?.closest(".css-label--label")) return null;
+          const displayed = owned?.displayed;
+          if (!displayed) return null;
+          const labelId = labelNodeId(target, displayed.idToIndex);
+          if (labelId !== undefined) return labelId;
           const index = hitTestPoint(graph, localPosition(event));
-          return index === undefined ? null : (owned?.displayed?.indexToId[index] ?? null);
+          return index === undefined ? null : (displayed.indexToId[index] ?? null);
         };
+        const contextMenu = (event: MouseEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const displayed = owned?.displayed;
+          if (
+            !active ||
+            !owned?.isInteractive ||
+            displayed?.indexToNode !== latestProps.current.nodes
+          ) {
+            latestProps.current.onContextMenu?.(null);
+            return;
+          }
+          interaction?.cancel();
+          setHovered(null);
+          const id = nodeAt(event);
+          const index = id === null ? undefined : displayed.idToIndex.get(id);
+          const node = index === undefined ? undefined : displayed.indexToNode[index];
+          latestProps.current.onContextMenu?.(
+            node ? { id: node.id, label: node.label, x: event.clientX, y: event.clientY } : null,
+          );
+        };
+        element.addEventListener("contextmenu", contextMenu, true);
+        removeContextMenu = () => element.removeEventListener("contextmenu", contextMenu, true);
         interaction = new CanvasGestures(element, {
           active: () => active && Boolean(owned?.isInteractive),
           chosenIds: () => latestProps.current.chosenIds,
@@ -432,6 +463,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     const initializing = initialize();
     return () => {
       active = false;
+      removeContextMenu?.();
       interaction?.dispose();
       labels?.dispose();
       background?.dispose();
@@ -455,6 +487,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
 
   useEffect(() => {
     const controller = new AbortController();
+    latestProps.current.onContextMenu?.(null);
     dragLabels.current?.end();
     gestures.current?.cancel();
     chosenLabels.current?.setActive(false);
@@ -485,6 +518,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
   useEffect(() => {
     if (!session || !prepared) return;
     let active = true;
+    latestProps.current.onContextMenu?.(null);
     dragLabels.current?.end();
     gestures.current?.cancel();
     chosenLabels.current?.setActive(false);
@@ -563,6 +597,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
 
   useLayoutEffect(() => {
     if (!visible) {
+      latestProps.current.onContextMenu?.(null);
       dragLabels.current?.end();
       gestures.current?.cancel();
     }

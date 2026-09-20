@@ -7,6 +7,7 @@ export type CanvasClick =
 
 /** Node circles and both label layers share one gesture meaning. */
 export function canvasClick(id: string | null, event: CanvasSelectEvent): CanvasClick {
+  if (event.button !== undefined && event.button !== 0) return { kind: "none" };
   if (event.detail === 2) {
     if (id && !event.shiftKey) return { kind: "open", id };
     return { kind: "none" };

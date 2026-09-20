@@ -1,4 +1,8 @@
 {
+  "graph.nodeContextMenu": "节点右键菜单",
+  "graph.copyNodeId": "复制 ID",
+  "graph.nodeIdCopied": "已复制节点 ID",
+  "graph.nodeIdCopyFailed": "无法复制 ID，请检查剪贴板权限后重试。",
   "filter.scope": "范围",
   "filter.unapplied": "未应用",
   "filter.mentions": "文本提及",

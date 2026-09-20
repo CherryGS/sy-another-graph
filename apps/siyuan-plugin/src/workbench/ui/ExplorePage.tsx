@@ -1,7 +1,8 @@
 import { useLocale } from "../../shared/i18n/react";
 import { t } from "../../shared/i18n/runtime";
 import { presentNodes } from "../presentation/present-nodes";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { CanvasContextTarget, CanvasNode } from "../presentation/types";
 import { ChevronDown, Focus, Pause, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
@@ -23,6 +24,7 @@ import { FilterPresetMenu } from "./filters/FilterPresetMenu";
 import { GraphSearch } from "./GraphSearch";
 import { GraphActions } from "./GraphActions";
 import { GraphNotices } from "./GraphNotices";
+import { GraphContextMenu } from "./GraphContextMenu";
 import { ReadDiagnostics } from "./diagnostics/ReadDiagnostics";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { EdgeInspector } from "./inspector/EdgeInspector";
@@ -34,6 +36,10 @@ export function ExplorePage({ active }: { active: boolean }) {
   const state = useWorkbench();
   const { Renderer } = useWorkbenchServices();
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [nodeMenu, setNodeMenu] = useState<{
+    target: CanvasContextTarget;
+    nodes: readonly CanvasNode[];
+  } | null>(null);
   const { data, filters, selected, view } = state;
   const panelScrolling = usePanelScrolling();
   const canvasNodes = useMemo(
@@ -235,6 +241,9 @@ export function ExplorePage({ active }: { active: boolean }) {
               onClearChosen={state.clearChosen}
               onInspectEdge={state.inspectEdge}
               onOpen={state.openDocument}
+              onContextMenu={(target) =>
+                setNodeMenu(target ? { target, nodes: canvasNodes } : null)
+              }
               showLabels={state.showLabels}
               showLinks={state.showLinks}
               pointSize={state.pointSize}
@@ -330,6 +339,10 @@ export function ExplorePage({ active }: { active: boolean }) {
           {t("text.shiftClickToSelectMultipleNodesShiftDrag")}
         </span>
       </footer>
+      <GraphContextMenu
+        target={active && nodeMenu?.nodes === canvasNodes ? nodeMenu.target : null}
+        onClose={() => setNodeMenu(null)}
+      />
     </div>
   );
 }

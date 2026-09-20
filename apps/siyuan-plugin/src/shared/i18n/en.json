@@ -1,4 +1,8 @@
 {
+  "graph.nodeContextMenu": "Node context menu",
+  "graph.copyNodeId": "Copy ID",
+  "graph.nodeIdCopied": "Node ID copied",
+  "graph.nodeIdCopyFailed": "Could not copy the ID. Check clipboard permissions and retry.",
   "filter.scope": "Scope",
   "filter.unapplied": "Draft",
   "filter.mentions": "Text mentions",

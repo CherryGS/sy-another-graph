@@ -12,6 +12,14 @@ export type CanvasEdge = GraphEdge;
 export interface CanvasSelectEvent {
   shiftKey: boolean;
   detail: number;
+  button?: number;
+}
+
+export interface CanvasContextTarget {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
 }
 
 export interface CanvasStats {
@@ -46,6 +54,7 @@ export interface GraphCanvasProps {
   onClearChosen: () => void;
   onInspectEdge: (edge: CanvasEdge) => void;
   onOpen: (id: string) => void;
+  onContextMenu?: (target: CanvasContextTarget | null) => void;
   showLabels: boolean;
   showLinks: boolean;
   pointSize: number;
