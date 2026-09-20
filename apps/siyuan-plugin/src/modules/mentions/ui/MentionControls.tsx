@@ -5,6 +5,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { Progress } from "@/shared/ui/progress";
 import { Button } from "@/shared/ui/button";
 import { Separator } from "@/shared/ui/separator";
+import { FieldHelp } from "@/shared/ui/field-help";
 import { isMentionMode } from "../types";
 import type { MentionControlsProps } from "./types";
 import { MentionExclusions } from "./MentionExclusions";
@@ -24,9 +25,16 @@ export function MentionControls({
   useLocale();
   const { progress, ready, error, pending } = status;
   return (
-    <FieldGroup className="gap-4 [container-type:normal]">
+    <FieldGroup className="gap-6 [container-type:normal]">
       <Field>
-        <FieldLabel>{t("filter.mentionMode")}</FieldLabel>
+        <div className="flex items-center justify-between gap-4">
+          <FieldLabel>{t("filter.mentionMode")}</FieldLabel>
+          <FieldHelp label={t("filter.mentionHelp")}>
+            <FieldDescription>
+              {t("text.matchDocumentTitlesNamesAndAliasesAgainstProse")}
+            </FieldDescription>
+          </FieldHelp>
+        </div>
         <ToggleGroup
           type="single"
           size="sm"
@@ -48,9 +56,6 @@ export function MentionControls({
             {t("text.allInScope")}
           </ToggleGroupItem>
         </ToggleGroup>
-        <FieldDescription>
-          {t("text.matchDocumentTitlesNamesAndAliasesAgainstProse")}
-        </FieldDescription>
         {error ? (
           <>
             <FieldDescription>{error}</FieldDescription>
@@ -58,7 +63,7 @@ export function MentionControls({
               {t("text.retryTextMentions")}
             </Button>
           </>
-        ) : !ready ? (
+        ) : mode === "off" ? null : !ready ? (
           <>
             <Progress
               aria-label={t("text.textMentionIndexingProgress")}

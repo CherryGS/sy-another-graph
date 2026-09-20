@@ -86,12 +86,10 @@ textarea {
 .filter-popover {
   width: min(360px, calc(100vw - 24px));
 }
-.filter-popover[data-editing="true"] {
-  width: min(400px, calc(100vw - 24px));
-}
 .filter-panel {
   display: flex;
-  height: min(720px, var(--radix-popover-content-available-height));
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
 }
 .filter-scroll {

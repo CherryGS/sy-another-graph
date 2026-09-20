@@ -71,6 +71,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
                   <Button
+                    data-filter-presets-trigger
                     variant={state.filtersOpen ? "secondary" : "outline"}
                     className="max-w-[min(14rem,100%)]"
                     aria-label={t("text.graphFilterValueValue", {

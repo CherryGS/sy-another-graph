@@ -15,6 +15,7 @@ import {
 } from "../../../shared/ui/field";
 import { Textarea } from "../../../shared/ui/textarea";
 import { Separator } from "../../../shared/ui/separator";
+import { FieldHelp } from "../../../shared/ui/field-help";
 import {
   CONTENT_EXCLUSION_LIMIT,
   formatContentExclusionDraft,
@@ -78,29 +79,48 @@ export function ContentExclusions({
     onDraftChange?.(changed || combined === null);
   }, [changed, combined, onDraftChange]);
   return (
-    <FieldSet>
+    <FieldSet className="gap-4">
       <FieldLegend className={cn(hideTitle && "sr-only")}>
         {t("contentExclusions.title")}
       </FieldLegend>
-      <FieldDescription>{t("contentExclusions.syntax")}</FieldDescription>
+      <div className="flex items-start justify-between gap-4">
+        <FieldDescription>{t("contentExclusions.syntaxShort")}</FieldDescription>
+        <FieldHelp label={t("contentExclusions.ruleHelp")}>
+          <FieldDescription>{t("contentExclusions.syntax")}</FieldDescription>
+          <FieldDescription>{t("contentExclusions.documentDescription")}</FieldDescription>
+          <FieldDescription>{t("contentExclusions.subtreeDescription")}</FieldDescription>
+        </FieldHelp>
+      </div>
       {/* Vertical fields do not need size queries; Chromium can otherwise lose
           their layout inside a fieldset when asynchronous preview rows appear. */}
-      <FieldGroup className="gap-3 [container-type:normal]">
+      <FieldGroup className="grid grid-cols-1 gap-6 [container-type:normal] min-[700px]:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
         {SCOPES.map((scope) => (
           <Fragment key={scope}>
-            {scope === "subtree" && <Separator />}
-            <Field data-invalid={!!parsed[scope].error}>
+            {scope === "subtree" && (
+              <>
+                <Separator className="min-[700px]:hidden" />
+                <Separator orientation="vertical" className="hidden min-[700px]:block" />
+              </>
+            )}
+            <Field data-invalid={!!parsed[scope].error} className="min-w-0 gap-3">
               <FieldLabel htmlFor={`${id}-${scope}`}>
                 {t(
                   scope === "document"
-                    ? "contentExclusions.documentLabel"
-                    : "contentExclusions.subtreeLabel",
+                    ? "contentExclusions.documentLabelShort"
+                    : "contentExclusions.subtreeLabelShort",
                 )}
               </FieldLabel>
+              <FieldDescription id={`${id}-${scope}-description`}>
+                {t(
+                  scope === "document"
+                    ? "contentExclusions.documentHint"
+                    : "contentExclusions.subtreeHint",
+                )}
+              </FieldDescription>
               <Textarea
                 id={`${id}-${scope}`}
-                rows={2}
-                className="max-h-48"
+                rows={5}
+                className="min-h-32 max-h-80"
                 value={drafts[scope]}
                 placeholder={t(
                   scope === "document"
@@ -114,13 +134,6 @@ export function ContentExclusions({
                 aria-invalid={!!parsed[scope].error}
                 aria-describedby={`${id}-${scope}-description${parsed[scope].error ? ` ${id}-${scope}-error` : ""}`}
               />
-              <FieldDescription id={`${id}-${scope}-description`}>
-                {t(
-                  scope === "document"
-                    ? "contentExclusions.documentDescription"
-                    : "contentExclusions.subtreeDescription",
-                )}
-              </FieldDescription>
               {parsed[scope].error && (
                 <FieldError id={`${id}-${scope}-error`}>{text(parsed[scope].error)}</FieldError>
               )}
@@ -131,27 +144,29 @@ export function ContentExclusions({
       {limitError && (
         <FieldError>{t("contentExclusions.limit", { count: CONTENT_EXCLUSION_LIMIT })}</FieldError>
       )}
-      <ContentExclusionPreview data={data} rules={combined} onOpen={onOpen} />
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        disabled={!changed}
-        onClick={() => {
-          if (combined) onApply(combined);
-        }}
-      >
-        {t("text.applyExclusions")}
-      </Button>
-      {changed && <FieldDescription>{t("contentExclusions.unapplied")}</FieldDescription>}
-      {status.error && (
-        <>
-          <FieldError>{status.error}</FieldError>
-          <Button variant="outline" size="sm" className="w-full" onClick={status.retry}>
-            {t("contentExclusions.retry")}
-          </Button>
-        </>
-      )}
+      <Separator />
+      <FieldGroup className="gap-3 [container-type:normal]">
+        <ContentExclusionPreview data={data} rules={combined} onOpen={onOpen} />
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={!changed}
+          onClick={() => {
+            if (combined) onApply(combined);
+          }}
+        >
+          {t("text.applyExclusions")}
+        </Button>
+        {changed && <FieldDescription>{t("filter.unappliedHint")}</FieldDescription>}
+        {status.error && (
+          <>
+            <FieldError>{status.error}</FieldError>
+            <Button variant="outline" size="sm" className="w-full" onClick={status.retry}>
+              {t("contentExclusions.retry")}
+            </Button>
+          </>
+        )}
+      </FieldGroup>
     </FieldSet>
   );
 }

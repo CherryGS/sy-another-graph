@@ -78,9 +78,17 @@ export function ContentExclusionPreview({
     : "";
   return (
     <Dialog>
-      <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-3" aria-live="polite">
         <FieldDescription>
-          {preview.error || (preview.pending ? t("contentExclusions.previewPending") : summary)}
+          {preview.error ||
+            (preview.pending
+              ? t("contentExclusions.previewPending")
+              : result
+                ? t("contentExclusions.previewCompact", {
+                    documents: result.documents,
+                    blocks: result.blocks,
+                  })
+                : "")}
         </FieldDescription>
         {preview.error ? (
           <Button size="sm" variant="ghost" onClick={preview.retry}>
