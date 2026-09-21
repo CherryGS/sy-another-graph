@@ -69,8 +69,10 @@ export class CommunityBackground {
       this.enabled = enabled;
       this.colors.clear();
       if (partition && data)
-        for (let i = 0; i < partition.sizes.length; i++) {
-          if (partition.sizes[i] > 1) this.colors.set(i, communityColor(data.indexToId[i]));
+        for (let i = 0; i < partition.membership.length; i++) {
+          const group = partition.membership[i];
+          if (partition.sizes[group] > 1 && !this.colors.has(group))
+            this.colors.set(group, communityColor(partition.keys?.[group] ?? data.indexToId[i]));
         }
     }
     this.refresh("projection");

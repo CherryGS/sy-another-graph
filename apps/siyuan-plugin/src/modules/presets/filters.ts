@@ -1,6 +1,7 @@
 import { DEFAULT_PROJECTION_RULES, type GraphProjectionRules } from "../../core/scope/rules";
 import type { MentionMode } from "../mentions/types";
 import type { ContentExclusionRule } from "../content-exclusions/rules";
+import { defaultGrouping, type LayoutGrouping } from "../layout-groups/model";
 
 export interface MentionRules {
   mentions: MentionMode;
@@ -14,11 +15,12 @@ export interface DisplayFilters {
   hideIsolated: boolean;
 }
 
-/** Keep the v1 persisted shape while giving each computation its own input type. */
+/** Keep source, relation, display and grouping inputs independently reusable. */
 export type GraphFilters = GraphProjectionRules &
   MentionRules &
   DisplayFilters & {
     exclusionRules: ContentExclusionRule[];
+    grouping: LayoutGrouping;
   };
 
 export const DEFAULT_FILTERS: GraphFilters = {
@@ -29,4 +31,5 @@ export const DEFAULT_FILTERS: GraphFilters = {
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],
   exclusionRules: [],
+  grouping: defaultGrouping(),
 };

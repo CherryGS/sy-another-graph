@@ -78,6 +78,7 @@ describe("persistent preset schema", () => {
       excludedMentionPhrases: ["01", "graph theory"],
       excludedMentionPatterns: [],
       exclusionRules: [],
+      grouping: DEFAULT_FILTERS.grouping,
     });
     expect("selectedId" in restored).toBe(false);
     filters.excludeIds.length = 0;
@@ -215,7 +216,7 @@ describe("persistent preset schema", () => {
     null,
     [],
     {},
-    { version: 2, presets: [], activePresetId: null },
+    { version: 3, presets: [], activePresetId: null },
     { ...createPresetStore(), activePresetId: "missing" },
     {
       ...createPresetStore(),

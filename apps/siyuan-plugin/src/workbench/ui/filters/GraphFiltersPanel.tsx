@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
+  Boxes,
   FolderOpen,
   Link2,
   ListFilter,
@@ -35,6 +36,7 @@ import { splitContentExclusions } from "../../../modules/content-exclusions/rule
 import { FilterExplanation } from "./FilterExplanation";
 import { ScopeFilters } from "./ScopeFilters";
 import { NodeDisplayFilters } from "./NodeDisplayFilters";
+import { GroupingFilters } from "./GroupingFilters";
 
 export function GraphFiltersPanel({
   state,
@@ -56,6 +58,7 @@ export function GraphFiltersPanel({
   const [page, setPage] = useState(state.contentRules.length ? "exclusions" : "scope");
   const [contentDraft, setContentDraft] = useState(false);
   const [mentionDraft, setMentionDraft] = useState(false);
+  const [groupingDraft, setGroupingDraft] = useState(false);
   useEffect(() => {
     backRef.current?.focus();
   }, []);
@@ -187,6 +190,20 @@ export function GraphFiltersPanel({
           }
         />
       ),
+    },
+    {
+      value: "grouping",
+      title: t("grouping.title"),
+      navLabel: t("grouping.title"),
+      icon: Boxes,
+      summary:
+        filters.grouping.mode === "sets"
+          ? t("grouping.customSummary", {
+              count: filters.grouping.sets.filter((set) => set.enabled).length,
+            })
+          : t(filters.grouping.mode === "community" ? "grouping.community" : "text.off"),
+      draft: groupingDraft,
+      content: <GroupingFilters key={editorKey} state={state} onDraftChange={setGroupingDraft} />,
     },
     {
       value: "display",

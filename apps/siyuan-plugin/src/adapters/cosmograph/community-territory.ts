@@ -42,7 +42,7 @@ export function territoryRaster(
   const [a, b, c, d, tx, ty] = transform;
   for (let i = 0; i < membership.length; i++) {
     const group = membership[i];
-    if (sizes[group] < 2) continue;
+    if (!(sizes[group] > 1)) continue;
     const x = positions[i * 2],
       y = positions[i * 2 + 1];
     const sx = (a * x + c * y + tx) / cell,

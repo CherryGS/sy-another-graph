@@ -5,12 +5,14 @@ import {
   type Failure,
 } from "../../core/diagnostics/message";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
+import { defaultGrouping, type LayoutGrouping } from "../layout-groups/model";
 import {
   createPresetStore,
   presetFilters,
   presetName,
   readPresetStore,
   samePresetFilters,
+  migratePresetGrouping,
   PRESET_LIMIT,
   type FilterPreset,
   type PresetFilters,
@@ -32,6 +34,7 @@ export interface PresetSnapshot {
 }
 interface Context {
   defaultName?: () => string;
+  legacyGrouping?: () => LayoutGrouping;
   getFilters: () => GraphFilters;
   applyFilters: (filters: PresetFilters) => void;
   ruleRevision: () => number;
@@ -54,6 +57,7 @@ export class PresetController {
   private generation = 0;
   private closed = false;
   private pendingRestore = false;
+  private pendingLegacyGrouping: LayoutGrouping | null = null;
   private undo: { preset: FilterPreset; index: number; active: boolean } | null = null;
   private readonly port: PresetPort;
   private readonly context: Context;
@@ -69,13 +73,20 @@ export class PresetController {
     if (this.closed || this.snapshot.saving) return;
     const generation = ++this.generation;
     this.pendingRestore = restore;
+    this.pendingLegacyGrouping = null;
     this.set({ loading: true, available: false, error: "" });
     try {
       const stored = await this.port.load();
       if (this.closed || generation !== this.generation) return;
-      const store =
-        stored === null ? createPresetStore(this.context.defaultName?.()) : readPresetStore(stored);
+      const legacy = this.context.legacyGrouping?.() ?? defaultGrouping();
+      const restored =
+        stored === null
+          ? createPresetStore(this.context.defaultName?.(), legacy)
+          : readPresetStore(stored);
+      const store = restored && migratePresetGrouping(restored, legacy);
       if (!store) throw new MessageError(msg("text.thePresetFormatIsUnsupportedTheOriginalFile"));
+      this.pendingLegacyGrouping =
+        restore && restored?.version === 1 && !store.activePresetId ? legacy : null;
       this.undo = null;
       this.set({ store, loading: false, available: true, error: "", deleted: null });
       this.hydrate();
@@ -92,6 +103,7 @@ export class PresetController {
       return;
     if (this.context.ruleRevision() !== 0) {
       this.pendingRestore = false;
+      this.pendingLegacyGrouping = null;
       return;
     }
     if (!this.context.sourceReady()) return;
@@ -99,7 +111,16 @@ export class PresetController {
     const preset = this.snapshot.store.presets.find(
       (item) => item.id === this.snapshot.store.activePresetId,
     );
-    if (!preset) return;
+    const legacy = this.pendingLegacyGrouping;
+    this.pendingLegacyGrouping = null;
+    if (!preset) {
+      // Old global community settings also applied when no saved preset was selected.
+      if (legacy)
+        this.context.applyFilters(
+          presetFilters({ ...this.context.getFilters(), grouping: legacy }),
+        );
+      return;
+    }
     const error = this.context.validate(preset.filters);
     if (error) {
       this.set({ error: msg("text.valueThePresetWasNotAppliedAutomatically", { p0: error }) });

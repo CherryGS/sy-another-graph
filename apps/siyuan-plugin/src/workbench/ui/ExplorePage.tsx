@@ -224,6 +224,7 @@ export function ExplorePage({ active }: { active: boolean }) {
           {data && (
             <Renderer
               analysisGraph={state.currentGraph ?? view}
+              grouping={state.layoutGrouping.presentation}
               layers={state.layeredLayout.layers}
               relayoutRequest={state.relayoutRequest}
               nodes={canvasNodes}

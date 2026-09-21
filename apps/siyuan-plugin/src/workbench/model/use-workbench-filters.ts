@@ -7,6 +7,7 @@ import { searchAncestorIds } from "../../core/scope/graph-model";
 import { FilterSessions } from "../../application/workflows/filter-sessions";
 import { readSearchSnapshot } from "../../modules/search/model";
 import { useFilterPresets } from "../../modules/presets/use-filter-presets";
+import type { LayoutGrouping } from "../../modules/layout-groups/model";
 
 const CHANNEL = "sy-another-graph";
 
@@ -16,6 +17,7 @@ export function useWorkbenchFilters(
   onEntry: () => void,
   loading: string,
   reload: () => Promise<unknown>,
+  legacyGrouping: LayoutGrouping,
 ) {
   useLocale();
   const [sessions] = useState(() => new FilterSessions());
@@ -27,6 +29,7 @@ export function useWorkbenchFilters(
     data,
     dataRef,
     sessions.setNormal,
+    legacyGrouping,
   );
   const temporary = state.active ? state.temporary : null;
   const search = temporary?.snapshot;

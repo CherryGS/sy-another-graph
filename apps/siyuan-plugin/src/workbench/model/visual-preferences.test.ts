@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_GRAPH_SETTINGS } from "../presentation/settings";
+import { defaultGrouping } from "../../modules/layout-groups/model";
 import {
   normalizeVisualPreferences,
   readVisualPreferences,
@@ -12,6 +13,7 @@ const defaults = {
   showLabels: true,
   showLinks: true,
   graphSettings: { ...DEFAULT_GRAPH_SETTINGS },
+  legacyGrouping: defaultGrouping(),
 };
 
 describe("visual preference normalization", () => {
@@ -79,9 +81,6 @@ describe("visual preference normalization", () => {
       graphSettings: {
         dimensions: 2,
         labelDensity: "dense",
-        communityEnabled: false,
-        communityStrength: 1,
-        communityResolution: 1,
         linkWidth: 4,
         linkOpacity: 0.05,
         gravity: DEFAULT_GRAPH_SETTINGS.gravity,
@@ -89,6 +88,7 @@ describe("visual preference normalization", () => {
         showArrows: true,
         curvedLinks: false,
       },
+      legacyGrouping: { mode: "off", strength: 1, resolution: 1, background: false, sets: [] },
     });
     expect(restored.graphSettings).not.toHaveProperty("simulationSpaceSize");
     for (const graphSettings of [null, [], true, 3, "legacy"])
@@ -119,7 +119,25 @@ describe("visual preference normalization", () => {
     };
     const text = JSON.stringify({ ...saved, chosenIds: ["old-node"], paused: true });
     const restored = normalizeVisualPreferences(JSON.parse(text));
-    expect(restored).toEqual(saved);
+    const expectedSettings = { ...saved.graphSettings };
+    for (const key of [
+      "communityEnabled",
+      "communityStrength",
+      "communityResolution",
+      "communityBackground",
+    ])
+      Reflect.deleteProperty(expectedSettings, key);
+    expect(restored).toEqual({
+      ...saved,
+      graphSettings: expectedSettings,
+      legacyGrouping: {
+        mode: "community",
+        strength: 0.6,
+        resolution: 2,
+        background: true,
+        sets: [],
+      },
+    });
     expect(restored).not.toHaveProperty("chosenIds");
     expect(restored).not.toHaveProperty("paused");
     expect(normalizeVisualPreferences(JSON.parse(JSON.stringify(restored)))).toEqual(restored);
@@ -183,6 +201,7 @@ describe("versioned visual preference restoration", () => {
     expect(readVisualPreferences(storage)).toEqual({
       ...legacy,
       graphSettings: { ...legacy.graphSettings, linkSpring: 0.4 },
+      legacyGrouping: defaultGrouping(),
     });
     expect(storage.getItem.mock.calls).toEqual([[VISUAL_PREFERENCES_KEY], [legacyKey]]);
     expect(storage.getItem(legacyKey)).toBe(text);

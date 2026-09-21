@@ -16,13 +16,44 @@ update SiYuan or the browser; older engines without EH are unsupported.
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 
-The compact preset menu provides quick switching. Editing opens a narrow panel at the left of the canvas, below the toolbar. Icons and vertical labels select **Scope, Document exclusions, Relationships, Text mentions, and Node display**. Clicking the active category collapses the content to a slim rail; reopening it restores the draft. The graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields stack with a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching categories retains inputs; dots and **Draft** badges identify unapplied changes. Apply the rules, then use the fixed footer to update or save a preset.
+The compact preset menu provides quick switching. Editing opens a narrow panel at the left of the canvas, below the toolbar. Icons and sideways labels select **Scope, Document exclusions, Relationships, Text mentions, Grouping, and Node display**. Clicking the active category collapses the content to a slim rail; reopening it restores the draft. The graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields stack with a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching categories retains inputs; dots and **Draft** badges identify unapplied changes. Apply the rules, then use the fixed footer to update or save a preset.
 
 See the [mouse and keyboard reference (简体中文)](mouse-keyboard_zh_CN.md) for canvas gestures, search, sidebar navigation, and keyboard controls.
 
 The interface follows SiYuan's language. Chinese variants use Simplified Chinese;
 other languages use English. Note titles, aliases, excluded phrases and existing
 preset names keep their original text.
+
+## Group nodes with sets
+
+In **Filter → Grouping**, choose **Off**, **Communities**, or **Sets**. Communities
+derive groups from connections; Sets let you specify the members. Both use the
+group-attraction control and optional 2D regions. Nodes keep their original
+colors and connections. Attraction works in 2D/3D force layout; layered mode
+offers a button to switch to force layout.
+
+Create a set, give it a name, and enter one node ID, title substring, or `/regex/`
+per line. Rules are combined with OR. IDs match exactly, including database and
+item IDs; title text and regex ignore case. Only nodes in the current displayed
+graph are matched, and documents do not automatically include their blocks or
+child documents. Use `^` and `$` to match a complete title with regex.
+
+Click **Apply set** after editing rules or the name. Drag a card's handle to change
+priority, or focus the handle and press Up/Down. Higher enabled sets take priority;
+a node belongs to the first one it matches. Matched and Assigned counts explain
+overlap. Disabling a set lets lower-priority sets receive its matching nodes;
+re-enabling uses its existing position. Dragging commits after dropping.
+
+**Update preset** saves the grouping mode, parameters, sets and their order.
+Each preset owns an independent configuration, including when copied. Rules are
+saved and reevaluated as the graph changes; switching grouping modes retains the
+configured sets. Rule drafts are retained while switching modes/categories but
+are not saved until applied. Existing community settings migrate into old
+presets on load and are persisted on the next preset save.
+
+Up to 50 sets, 2,000 rules and 128 regex patterns are supported per preset.
+Matching runs in a cancellable worker with a 10-second deadline. Simplify or
+disable a problematic set and retry if it times out.
 
 ## Exclude documents
 

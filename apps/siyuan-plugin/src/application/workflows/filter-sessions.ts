@@ -1,5 +1,6 @@
 import { DEFAULT_FILTERS, type GraphFilters } from "../../modules/presets/filters";
 import { samePresetFilters } from "../../modules/presets/model";
+import { defaultGrouping } from "../../modules/layout-groups/model";
 import type { SearchGraphSnapshot } from "../../modules/search/model";
 
 type FilterAction = GraphFilters | ((previous: GraphFilters) => GraphFilters);
@@ -10,6 +11,7 @@ const defaults = (): GraphFilters => ({
   hiddenTypes: [],
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],
+  grouping: defaultGrouping(),
 });
 const searchDefaults = (): GraphFilters => ({
   ...defaults(),

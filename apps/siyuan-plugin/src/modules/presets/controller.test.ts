@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
+import { defaultGrouping, type LayoutGrouping } from "../layout-groups/model";
 import { PresetController, initialPresetSnapshot, type PresetSnapshot } from "./controller";
 import {
   createPresetStore,
@@ -38,7 +39,11 @@ function saved() {
   return store;
 }
 
-function harness(initial: PresetStore | null = saved(), ready = true) {
+function harness(
+  initial: PresetStore | null = saved(),
+  ready = true,
+  legacyGrouping: LayoutGrouping = defaultGrouping(),
+) {
   let disk = initial;
   let filters = { ...DEFAULT_FILTERS, excludeIds: [], hiddenTypes: [] } as GraphFilters;
   let revision = 0;
@@ -71,6 +76,7 @@ function harness(initial: PresetStore | null = saved(), ready = true) {
     port,
     {
       getFilters: () => filters,
+      legacyGrouping: () => legacyGrouping,
       applyFilters: apply,
       ruleRevision: () => revision,
       sourceReady: () => sourceReady,
@@ -349,6 +355,55 @@ describe("asynchronous preset activation", () => {
       h.controller.dispose();
     },
   );
+
+  it("retains old global grouping without an active preset, while v2 ignores the legacy value", async () => {
+    const legacy = { ...defaultGrouping(), mode: "community" as const, strength: 0.47 };
+    const old = harness({ version: 1, presets: [], activePresetId: null }, true, legacy);
+    await old.controller.load(true);
+    expect(old.filters.grouping).toEqual(legacy);
+    expect(old.port.save).not.toHaveBeenCalled();
+    const current = harness({ version: 2, presets: [], activePresetId: null }, true, legacy);
+    await current.controller.load(true);
+    expect(current.filters.grouping.mode).toBe("off");
+  });
+
+  it("restores legacy communities without writing on load, then persists independent v2 settings", async () => {
+    const legacy = {
+      ...defaultGrouping(),
+      mode: "community" as const,
+      strength: 0.47,
+      resolution: 2,
+    };
+    const h = harness({ ...saved(), version: 1 }, true, legacy);
+    await h.controller.load(true);
+    expect(h.filters.grouping).toEqual(legacy);
+    expect(h.snapshot.store.version).toBe(2);
+    expect(h.port.save).not.toHaveBeenCalled();
+    h.edit({
+      grouping: {
+        ...h.filters.grouping,
+        mode: "sets",
+        sets: [
+          { id: "a", name: "Projects", enabled: true, rules: [{ kind: "text", value: "project" }] },
+        ],
+      },
+    });
+    expect(await h.controller.update()).toBe(true);
+    expect(h.disk?.version).toBe(2);
+    expect(h.disk?.presets[1].filters.grouping.mode).toBe("community");
+    expect(await h.controller.copy("documents", "Copy")).toBe(true);
+    const copy = h.snapshot.store.activePresetId;
+    h.edit({ grouping: { ...h.filters.grouping, sets: [] } });
+    expect(await h.controller.update()).toBe(true);
+    expect(
+      h.disk?.presets.find((preset) => preset.id === copy)?.filters.grouping.sets,
+    ).toHaveLength(0);
+    expect(
+      h.disk?.presets.find((preset) => preset.id === "documents")?.filters.grouping.sets,
+    ).toHaveLength(1);
+    expect(await h.controller.apply("documents")).toBe(true);
+    expect(h.filters.grouping.mode).toBe("sets");
+  });
 
   it("ignores stale reads after retry or disposal and keeps unavailable stores read-only", async () => {
     const h = harness();

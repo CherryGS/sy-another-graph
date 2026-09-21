@@ -43,6 +43,7 @@ import { useGraphTabState } from "./use-graph-tab-state";
 import { buildSearchOrigins } from "../../modules/search/origins";
 import { contentExclusionRules } from "../../modules/content-exclusions/rules";
 import { useContentExclusions } from "../../modules/content-exclusions/use-content-exclusions";
+import { useLayoutGrouping } from "./use-layout-grouping";
 
 const NATIVE_ID = /^\d{14}-[a-z0-9]{7}$/;
 const CHANNEL = "sy-another-graph";
@@ -80,6 +81,7 @@ export function useWorkbenchState() {
   const [busy, setBusy] = useState(false);
   const requests = useRef(new ExplorationRequest());
   const { preferences, setPreferences } = useVisualPreferences();
+  const [legacyGrouping] = useState(() => preferences.legacyGrouping);
   const { showLabels, showLinks, pointSize, colorBy, graphSettings } = preferences;
   const setShowLabels = (showLabels: boolean) =>
     setPreferences((value) => ({ ...value, showLabels }));
@@ -131,7 +133,7 @@ export function useWorkbenchState() {
     window.location.hash = "#/";
   }, []);
   const { filters, setFilters, resetFilters, filterPresets, matchedIds, searchIds, searchScope } =
-    useWorkbenchFilters(data, dataRef, enterGraph, loading, load);
+    useWorkbenchFilters(data, dataRef, enterGraph, loading, load, legacyGrouping);
   const graphTabState = useGraphTabState(
     filters,
     data,
@@ -325,6 +327,7 @@ export function useWorkbenchState() {
     [viewProjector, backgroundIds, chosenSet, filters.hideIsolated],
   );
   const sourceLookups = useMemo(() => (data ? getGraphLookups(data) : null), [data]);
+  const layoutGrouping = useLayoutGrouping(currentGraph, view.nodes, filters.grouping);
   const currentLookups = useMemo(
     () => (currentGraph ? getGraphLookups(currentGraph) : null),
     [currentGraph],
@@ -482,6 +485,7 @@ export function useWorkbenchState() {
     filters,
     contentRules,
     contentExclusions,
+    layoutGrouping,
     setFilters,
     resetFilters,
     filterPresets,
@@ -515,7 +519,7 @@ export function useWorkbenchState() {
     setColorBy,
     graphSettings,
     setGraphSettings,
-    resetAppearance: () => setPreferences(normalizeVisualPreferences(null)),
+    resetAppearance: () => setPreferences(normalizeVisualPreferences({ legacyGrouping })),
     filtersOpen,
     setFiltersOpen,
     direction,

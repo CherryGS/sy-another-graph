@@ -8,6 +8,7 @@ import { getGraphLookups } from "../../core/graph/graph-lookups";
 import { PresetClient } from "./client";
 import { PresetController, initialPresetSnapshot } from "./controller";
 import { applyPresetFilters, samePresetFilters } from "./model";
+import type { LayoutGrouping } from "../layout-groups/model";
 
 export function useFilterPresets(
   filters: GraphFilters,
@@ -16,6 +17,7 @@ export function useFilterPresets(
   data: GraphDataset | null,
   dataRef: RefObject<GraphDataset | null>,
   setFilters: (action: SetStateAction<GraphFilters>) => void,
+  legacyGrouping: LayoutGrouping,
 ) {
   useLocale();
   const [snapshot, setSnapshot] = useState(initialPresetSnapshot);
@@ -25,6 +27,7 @@ export function useFilterPresets(
       new PresetClient(window),
       {
         defaultName: () => t("text.documentReferences"),
+        legacyGrouping: () => legacyGrouping,
         getFilters: () => filtersRef.current,
         applyFilters: (rules) => setFilters((previous) => applyPresetFilters(previous, rules)),
         ruleRevision: () => ruleRevisionRef.current,
@@ -50,7 +53,7 @@ export function useFilterPresets(
       current.dispose();
       controller.current = null;
     };
-  }, [dataRef, filtersRef, ruleRevisionRef, setFilters]);
+  }, [dataRef, filtersRef, ruleRevisionRef, setFilters, legacyGrouping]);
   useEffect(() => {
     if (data) controller.current?.hydrate();
   }, [data]);

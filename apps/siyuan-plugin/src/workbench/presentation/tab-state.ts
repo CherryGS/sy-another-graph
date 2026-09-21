@@ -94,6 +94,15 @@ export function graphTabState(
       t("contentExclusions.summary", {
         count: filters.excludeIds.length + filters.exclusionRules.length,
       }),
+      t("grouping.summary", {
+        mode: t(
+          filters.grouping.mode === "sets"
+            ? "grouping.sets"
+            : filters.grouping.mode === "community"
+              ? "grouping.community"
+              : "text.off",
+        ),
+      }),
       t("text.isolatedNodesValue", {
         p0: filters.hideIsolated ? t("text.hideUnselectedNodes") : t("text.shown"),
       }),

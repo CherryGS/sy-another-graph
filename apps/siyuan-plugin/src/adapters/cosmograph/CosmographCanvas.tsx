@@ -22,8 +22,7 @@ import { DragLabelGuard } from "./drag-label-guard";
 import { CanvasGestures } from "./canvas-gestures";
 import { ChosenLabels } from "./chosen-labels";
 import { CommunityBackground } from "./community-background";
-import { useCommunities } from "../../modules/communities/use-communities";
-import { communityLayoutConfig, renderCommunityPartition } from "./community-layout";
+import { layoutGroupingConfig, renderCommunityPartition } from "./community-layout";
 import { Badge } from "@/shared/ui/badge";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { beginCanvasGroupMotion } from "./position-adapter";
@@ -171,27 +170,22 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       props.relayoutRequest,
     ],
   );
-  const communityAnalysis = useCommunities(
-    props.analysisGraph,
-    settings.communityEnabled,
-    settings.communityResolution,
-  );
+  const grouping = props.grouping;
+  const groupingEnabled = !!grouping && grouping.mode !== "off";
+  const groupingGraph = grouping?.graph;
+  const groupingPartition = grouping?.partition;
   const communityPartition = useMemo(() => {
-    if (
-      !prepared ||
-      prepared.indexToNode !== nodes ||
-      communityAnalysis.graph !== props.analysisGraph ||
-      !communityAnalysis.partition
-    )
+    if (!prepared || prepared.indexToNode !== nodes || !groupingGraph || !groupingPartition)
       return undefined;
-    return renderCommunityPartition(props.analysisGraph, communityAnalysis.partition, prepared);
-  }, [prepared, nodes, props.analysisGraph, communityAnalysis.graph, communityAnalysis.partition]);
+    return renderCommunityPartition(groupingGraph, groupingPartition, prepared);
+  }, [prepared, nodes, groupingGraph, groupingPartition]);
   const communityConfig = useMemo(
-    () => communityLayoutConfig(communityPartition),
-    [communityPartition],
+    () => layoutGroupingConfig(communityPartition, grouping, settings.dimensions),
+    [communityPartition, grouping, settings.dimensions],
   );
   const communities = {
-    ...communityAnalysis,
+    pending: grouping?.pending,
+    error: grouping?.error,
     partition: communityPartition,
     config: communityConfig,
   };
@@ -566,7 +560,7 @@ export function CosmographCanvas(props: GraphCanvasProps) {
         communityBackground.current?.update(
           session.displayed,
           communities.partition,
-          settings.communityEnabled && settings.communityBackground && settings.dimensions === 2,
+          groupingEnabled && !!grouping?.background && settings.dimensions === 2,
         );
         communityBackground.current?.setActive(latestProps.current.active !== false);
         latestProps.current.onReady?.(stats);
@@ -592,6 +586,8 @@ export function CosmographCanvas(props: GraphCanvasProps) {
     settings,
     communities.config,
     communities.partition,
+    groupingEnabled,
+    grouping?.background,
     layered,
   ]);
 
@@ -631,12 +627,15 @@ export function CosmographCanvas(props: GraphCanvasProps) {
       data-rendered-nodes={counts.nodes}
       data-rendered-links={counts.links}
       data-layout-mode={settings.layoutMode}
-      data-community-enabled={settings.communityEnabled}
+      data-grouping-mode={grouping?.mode ?? "off"}
+      data-grouping-count={communities.partition?.count ?? 0}
+      data-grouping-pending={communities.pending ?? false}
+      data-community-enabled={grouping?.mode === "community"}
       data-community-pending={communities.pending}
       data-community-count={communities.partition?.count ?? 0}
       data-community-ms={communities.partition?.calculationMs ?? ""}
-      data-community-resolution={settings.communityResolution}
-      data-community-strength={settings.communityEnabled ? settings.communityStrength : 0}
+      data-community-resolution={grouping?.resolution ?? 1}
+      data-community-strength={groupingEnabled ? grouping?.strength : 0}
       data-active={diagnostics?.active ?? visible}
       data-renderer-id={diagnostics?.sessionId}
       data-configurations={diagnostics?.configurations ?? 0}
@@ -684,23 +683,23 @@ export function CosmographCanvas(props: GraphCanvasProps) {
           pointerEvents: loading || visibleError || !visible ? "none" : "auto",
         }}
       />
-      {settings.communityEnabled && nodes.length > 0 && !visibleError && (
+      {groupingEnabled && nodes.length > 0 && !visibleError && (
         <div className="ag-canvas__community-status" role="status">
           {communities.error ? (
             <Alert variant="destructive">
               <AlertDescription>
-                {t("community.failure", { detail: communities.error })}
+                {t("grouping.failure", { detail: communities.error })}
               </AlertDescription>
             </Alert>
           ) : (
             <Badge variant="secondary">
               {communities.pending
-                ? t("text.calculatingCommunities")
+                ? t(grouping?.mode === "sets" ? "grouping.matching" : "text.calculatingCommunities")
                 : communities.partition
                   ? communities.partition.count
-                    ? t("text.communitiesAvailableValue", { p0: communities.partition.count })
-                    : t("text.noCommunitiesToGroup")
-                  : t("text.preparingCommunities")}
+                    ? t("grouping.available", { count: communities.partition.count })
+                    : t("grouping.noGroups")
+                  : t("grouping.matching")}
             </Badge>
           )}
         </div>

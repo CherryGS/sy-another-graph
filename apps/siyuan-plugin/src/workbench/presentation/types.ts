@@ -4,6 +4,8 @@ import type { GraphSettings } from "./settings";
 import type { SearchOrigins } from "../../modules/search/origins";
 import type { GraphLike } from "../../core/graph/graph-lookups";
 import type { GraphLayers } from "../../modules/layout/layers";
+import type { CommunityPartition } from "../../modules/communities/community-client";
+import type { GroupingMode } from "../../modules/layout-groups/model";
 
 import type { CanvasNode } from "./present-nodes";
 export type { CanvasNode } from "./present-nodes";
@@ -32,6 +34,7 @@ export interface CanvasStats {
 export interface GraphCanvasProps {
   /** Semantic topology is independent of color, prepared rows and hidden isolates. */
   analysisGraph: GraphLike;
+  grouping?: GraphGrouping;
   layers?: GraphLayers;
   relayoutRequest?: number;
   nodes: readonly CanvasNode[];
@@ -61,4 +64,16 @@ export interface GraphCanvasProps {
   paused: boolean;
   fitRequest: number;
   onReady?: (stats: CanvasStats) => void;
+}
+
+/** Membership is revision-owned layout metadata, independent of graph topology. */
+export interface GraphGrouping {
+  mode: GroupingMode;
+  strength: number;
+  resolution: number;
+  background: boolean;
+  graph: GraphLike | null;
+  partition?: CommunityPartition;
+  pending: boolean;
+  error?: string;
 }

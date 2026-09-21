@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { communityLayoutConfig, renderCommunityPartition } from "./community-layout";
+import {
+  communityLayoutConfig,
+  layoutGroupingConfig,
+  renderCommunityPartition,
+} from "./community-layout";
+import { UNGROUPED } from "../../modules/layout-groups/matcher";
+import { defaultGrouping } from "../../modules/layout-groups/model";
 import type { GraphNode } from "../../core/graph/types";
 
 const node = (id: string, index: number): GraphNode => ({
@@ -10,6 +16,43 @@ const node = (id: string, index: number): GraphNode => ({
   path: "",
 });
 describe("community analysis and rendering indices", () => {
+  it("keeps unmatched set nodes free and maps sparse custom groups to the renderer", () => {
+    const nodes = [node("a", 10), node("b", 20), node("other", 30)];
+    const graph = { nodes, edges: [] };
+    const sizes = new Uint32Array(12);
+    sizes[11] = 2;
+    const source = {
+      membership: new Uint32Array([11, 11, UNGROUPED]),
+      sizes,
+      count: 1,
+      calculationMs: 1,
+    };
+    const partition = renderCommunityPartition(graph, source, {
+      indexToNode: [nodes[2], nodes[0], nodes[1]],
+    });
+    expect([...partition.membership]).toEqual([UNGROUPED, 11, 11]);
+    const grouping = {
+      ...defaultGrouping(),
+      mode: "sets" as const,
+      graph,
+      partition,
+      pending: false,
+      strength: 0.4,
+      background: true,
+    };
+    const config = layoutGroupingConfig(partition, grouping, 2);
+    expect(config.pointClusterByFn!(0)).toBeUndefined();
+    expect(config.pointClusterByFn!(1)).toBe(11);
+    expect(config.simulationCluster).toBe(0.4);
+    expect(config.backgroundColor).toBe("#11121a00");
+    expect(layoutGroupingConfig(partition, grouping, 3).backgroundColor).toBe("#11121a");
+    const off = layoutGroupingConfig(partition, { ...grouping, mode: "off" }, 2);
+    expect(off.pointClusterBy).toBeUndefined();
+    expect(off.simulationCluster).toBe(0);
+    expect(layoutGroupingConfig(undefined, grouping, 2).simulationCluster).toBe(0);
+    expect(config).not.toHaveProperty("enableSimulation");
+    expect(config).not.toHaveProperty("points");
+  });
   it("remaps reordered visible rows without changing semantic membership", () => {
     const nodes = [node("a", 80), node("b", 10), node("c", 50)];
     const graph = { nodes, edges: [] };

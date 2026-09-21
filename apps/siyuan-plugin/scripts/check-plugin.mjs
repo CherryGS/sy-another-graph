@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import { verifyMentionWorker } from "./check-mentions-worker.mjs";
 import { verifyPreparationWorker } from "./check-preparation-worker.mjs";
 import { verifyContentExclusionsWorker } from "./check-content-exclusions-worker.mjs";
+import { verifyLayoutGroupsWorker } from "./check-layout-groups-worker.mjs";
 
 const readJson = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const manifest = readJson("../public/plugin.json");
@@ -71,4 +72,5 @@ assert.ok(
 await verifyMentionWorker();
 await verifyPreparationWorker();
 await verifyContentExclusionsWorker();
+await verifyLayoutGroupsWorker();
 console.log("Plugin metadata, build assets, CommonJS entry, and bundled workers are valid.");

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type { GraphColorMode } from "../presentation/node-colors";
 import {
+  groupingFromLegacySettings,
+  readGrouping,
+  type LayoutGrouping,
+} from "../../modules/layout-groups/model";
+import {
   DEFAULT_GRAPH_SETTINGS,
   normalizeGraphSettings,
   type GraphSettings,
@@ -14,6 +19,8 @@ export interface VisualPreferences {
   showLabels: boolean;
   showLinks: boolean;
   graphSettings: GraphSettings;
+  /** Retained migration input until every old host-side preset has been saved as v2. */
+  legacyGrouping: LayoutGrouping;
 }
 
 export function normalizeVisualPreferences(value: unknown): VisualPreferences {
@@ -29,6 +36,8 @@ export function normalizeVisualPreferences(value: unknown): VisualPreferences {
     showLabels: typeof candidate.showLabels === "boolean" ? candidate.showLabels : true,
     showLinks: typeof candidate.showLinks === "boolean" ? candidate.showLinks : true,
     graphSettings: normalizeGraphSettings(candidate.graphSettings),
+    legacyGrouping:
+      readGrouping(candidate.legacyGrouping) ?? groupingFromLegacySettings(candidate.graphSettings),
   };
 }
 

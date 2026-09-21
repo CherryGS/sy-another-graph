@@ -17,10 +17,6 @@ export interface GraphSettings {
   layoutMode: "force" | "layered";
   dimensions: 2 | 3;
   labelDensity: LabelDensity;
-  communityEnabled: boolean;
-  communityStrength: number;
-  communityResolution: number;
-  communityBackground: boolean;
   linkWidth: number;
   linkOpacity: number;
   showArrows: boolean;
@@ -42,10 +38,6 @@ export const DEFAULT_GRAPH_SETTINGS: Readonly<GraphSettings> = {
   layoutMode: "force",
   dimensions: 2,
   labelDensity: "dense",
-  communityEnabled: false,
-  communityStrength: 0.15,
-  communityResolution: 1,
-  communityBackground: false,
   linkWidth: 1,
   linkOpacity: 0.88,
   showArrows: true,
@@ -65,8 +57,6 @@ export const DEFAULT_GRAPH_SETTINGS: Readonly<GraphSettings> = {
 
 /** UI ranges are also enforced at the renderer boundary. Space/GPU allocation limits stay fixed. */
 export const GRAPH_SETTING_RANGES = {
-  communityStrength: { min: 0, max: 1, step: 0.01 },
-  communityResolution: { min: 0.25, max: 4, step: 0.25 },
   linkWidth: { min: 0.25, max: 4, step: 0.05 },
   linkOpacity: { min: 0.05, max: 1, step: 0.05 },
   repulsion: { min: 0, max: 4, step: 0.05 },
@@ -91,14 +81,7 @@ export function normalizeGraphSettings(settings?: Partial<GraphSettings>): Graph
     settings.labelDensity === "high"
   )
     result.labelDensity = settings.labelDensity;
-  for (const key of [
-    "showArrows",
-    "curvedLinks",
-    "scalePointsOnZoom",
-    "sphereShading",
-    "communityEnabled",
-    "communityBackground",
-  ] as const)
+  for (const key of ["showArrows", "curvedLinks", "scalePointsOnZoom", "sphereShading"] as const)
     if (typeof settings[key] === "boolean") result[key] = settings[key];
   for (const key of Object.keys(GRAPH_SETTING_RANGES) as (keyof typeof GRAPH_SETTING_RANGES)[]) {
     const value = settings[key];
@@ -114,11 +97,6 @@ export function graphSettingsConfig(settings?: Partial<GraphSettings>): Cosmogra
   return {
     enableSimulation: value.layoutMode === "force",
     spaceDimensions: value.dimensions,
-    simulationCluster: value.communityEnabled ? value.communityStrength : 0,
-    backgroundColor:
-      value.communityEnabled && value.communityBackground && value.dimensions === 2
-        ? "#11121a00"
-        : "#11121a",
     ...LABEL_DENSITY_CONFIG[value.labelDensity],
     linkWidthScale: value.linkWidth,
     linkOpacity: value.linkOpacity,

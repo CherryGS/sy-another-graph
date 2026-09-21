@@ -4,6 +4,8 @@ import type { CommunityRequest, CommunityResponse } from "./protocol";
 import type { GraphLike } from "../../core/graph/graph-lookups";
 
 export interface CommunityPartition {
+  /** Optional stable keys for explicitly named layout sets. */
+  keys?: readonly string[];
   membership: Uint32Array;
   sizes: Uint32Array;
   count: number;

@@ -37,7 +37,7 @@ import { GRAPH_SETTING_RANGES } from "../../presentation/settings";
 import type { GraphColorMode } from "../../presentation/node-colors";
 import type { WorkbenchState } from "../../model/state";
 
-function SettingSlider({
+export function SettingSlider({
   name,
   value,
   range,
@@ -254,48 +254,6 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                   <FieldDescription>
                     {t("text.changesApplyWhenYouReleaseTheSliderIf")}
                   </FieldDescription>
-                  <FieldSet>
-                    <FieldLegend>{t("text.communityGrouping")}</FieldLegend>
-                    <FieldGroup>
-                      <SettingSwitch
-                        id="community-enabled"
-                        name={t("text.enableCommunityGrouping")}
-                        checked={settings.communityEnabled}
-                        onChange={(communityEnabled) =>
-                          state.setGraphSettings({ communityEnabled })
-                        }
-                      />
-                      <FieldDescription>
-                        {t("text.groupNodesByTheirCurrentConnectionsAndBring")}
-                      </FieldDescription>
-                      {settings.communityEnabled && (
-                        <>
-                          {parameter(
-                            "communityStrength",
-                            t("text.communityAttraction"),
-                            t("text.higherValuesBringGroupsCloserSetTo0"),
-                          )}
-                          {parameter(
-                            "communityResolution",
-                            t("text.communityResolution"),
-                            t("text.higherValuesUsuallyProduceFinerGroupsChangesRecalculate"),
-                          )}
-                          <SettingSwitch
-                            id="community-background"
-                            name={t("text.showCommunityRegions2d")}
-                            checked={settings.communityBackground}
-                            disabled={settings.dimensions === 3}
-                            onChange={(communityBackground) =>
-                              state.setGraphSettings({ communityBackground })
-                            }
-                          />
-                          <FieldDescription>
-                            {t("text.regionsFollowNodeMovementAndAreShownOnly")}
-                          </FieldDescription>
-                        </>
-                      )}
-                    </FieldGroup>
-                  </FieldSet>
                   {parameter(
                     "repulsion",
                     t("text.nodeRepulsion"),

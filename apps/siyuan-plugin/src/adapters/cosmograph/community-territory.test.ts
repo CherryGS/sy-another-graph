@@ -3,6 +3,19 @@ import { relativeTransform, territoryRaster, type Affine2D } from "./community-t
 
 const identity: Affine2D = [1, 0, 0, 1, 0, 0];
 describe("community territory geometry", () => {
+  it("leaves unmatched custom-set nodes outside all painted regions", () => {
+    const raster = territoryRaster(
+      new Float32Array([30, 30, 36, 30, 540, 30]),
+      new Uint32Array([0, 0, 0xffffffff]),
+      new Uint32Array([2]),
+      new Map([[0, [100, 200, 50]]]),
+      identity,
+      600,
+      120,
+    );
+    expect(raster.pixels[(5 * raster.width + 90) * 4 + 3]).toBe(0);
+    expect(raster.pixels[(5 * raster.width + 5) * 4 + 3]).toBeGreaterThan(0);
+  });
   it("leaves distant empty space and singleton points unpainted", () => {
     const raster = territoryRaster(
       new Float32Array([30, 30, 36, 30, 540, 30]),

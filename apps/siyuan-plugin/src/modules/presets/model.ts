@@ -1,6 +1,12 @@
 import { message as msg, MessageError } from "../../core/diagnostics/message";
 import { DEFAULT_FILTERS, type GraphFilters } from "./filters";
 import { isMentionMode } from "../mentions/types";
+import {
+  copyGrouping,
+  defaultGrouping,
+  readGrouping,
+  type LayoutGrouping,
+} from "../layout-groups/model";
 import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
 import { normalizeExcludedPatterns, readExcludedPatterns } from "../mentions/exclusions";
 import {
@@ -16,7 +22,7 @@ export interface FilterPreset {
   filters: PresetFilters;
 }
 export interface PresetStore {
-  version: 1;
+  version: 1 | 2;
   presets: FilterPreset[];
   activePresetId: string | null;
 }
@@ -61,6 +67,7 @@ export function presetFilters(filters: PresetFilters): PresetFilters {
     mentions: filters.mentions,
     excludedMentionPhrases: normalizeExcludedPhrases(filters.excludedMentionPhrases ?? []),
     excludedMentionPatterns: normalizeExcludedPatterns(filters.excludedMentionPatterns ?? []),
+    grouping: copyGrouping(filters.grouping),
   };
 }
 
@@ -78,6 +85,10 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
   return {
     ...next,
     query: previous.query,
+    grouping:
+      JSON.stringify(previous.grouping) === JSON.stringify(next.grouping)
+        ? previous.grouping
+        : next.grouping,
     excludeIds: sameValues(previous.excludeIds, next.excludeIds)
       ? previous.excludeIds
       : next.excludeIds,
@@ -100,16 +111,27 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
   };
 }
 
-export function createPresetStore(defaultName = "Document references"): PresetStore {
+export function createPresetStore(
+  defaultName = "Document references",
+  grouping = defaultGrouping(),
+): PresetStore {
   return {
-    version: 1,
-    presets: [{ id: "documents", name: defaultName, filters: presetFilters(DEFAULT_FILTERS) }],
+    version: 2,
+    presets: [
+      {
+        id: "documents",
+        name: defaultName,
+        filters: presetFilters({ ...DEFAULT_FILTERS, grouping }),
+      },
+    ],
     activePresetId: "documents",
   };
 }
 
-function readFilters(value: unknown): PresetFilters | null {
+function readFilters(value: unknown, version: 1 | 2): PresetFilters | null {
   if (!record(value)) return null;
+  const grouping = version === 1 ? defaultGrouping() : readGrouping(value.grouping);
+  if (!grouping) return null;
   for (const key of [
     "references",
     "hierarchy",
@@ -158,6 +180,7 @@ function readFilters(value: unknown): PresetFilters | null {
     excludedMentionPhrases,
     excludedMentionPatterns,
     exclusionRules,
+    grouping,
   } as unknown as PresetFilters);
 }
 
@@ -165,7 +188,7 @@ function readFilters(value: unknown): PresetFilters | null {
 export function readPresetStore(value: unknown): PresetStore | null {
   if (
     !record(value) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     !Array.isArray(value.presets) ||
     value.presets.length > PRESET_LIMIT ||
     (value.activePresetId !== null && typeof value.activePresetId !== "string")
@@ -182,7 +205,7 @@ export function readPresetStore(value: unknown): PresetStore | null {
       typeof item.name !== "string"
     )
       return null;
-    const filters = readFilters(item.filters);
+    const filters = readFilters(item.filters, value.version);
     if (!filters) return null;
     let name: string;
     try {
@@ -194,5 +217,19 @@ export function readPresetStore(value: unknown): PresetStore | null {
     presets.push({ id: item.id, name, filters });
   }
   if (value.activePresetId !== null && !ids.has(value.activePresetId)) return null;
-  return { version: 1, presets, activePresetId: value.activePresetId as string | null };
+  return { version: value.version, presets, activePresetId: value.activePresetId as string | null };
+}
+
+/** The old global community preference applied to every preset. Copy it once
+ * into each legacy preset; v2 never consults that browser preference again. */
+export function migratePresetGrouping(store: PresetStore, legacy: LayoutGrouping): PresetStore {
+  if (store.version === 2) return store;
+  return {
+    ...store,
+    version: 2,
+    presets: store.presets.map((preset) => ({
+      ...preset,
+      filters: { ...preset.filters, grouping: copyGrouping(legacy) },
+    })),
+  };
 }
