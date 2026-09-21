@@ -23,7 +23,7 @@
   "grouping.priorityHint": "Higher sets take priority. Each node belongs to the first enabled set it matches.",
   "grouping.ruleHelp": "About set matching",
   "grouping.syntax": "One node ID, title substring, or /regex/ per line. Matches are combined. Titles and regex ignore case; use ^ and $ for a full-title regex match. Escape a leading slash with a backslash for literal text.",
-  "grouping.independent": "Only nodes in the current graph are matched. Documents do not pass their membership to blocks or child documents. Update the preset to save your sets and their order.",
+  "grouping.independent": "IDs include themselves and all descendant blocks and documents; titles and regex match individual nodes. Only nodes in the current graph are grouped. Update the preset to save your sets and their order.",
   "grouping.reorder": "Reorder set: {{name}}",
   "grouping.reorderHint": "Drag the handle to reorder, or focus it and press Up / Down. Changes apply after dropping.",
   "grouping.editSet": "Edit set: {{name}}",

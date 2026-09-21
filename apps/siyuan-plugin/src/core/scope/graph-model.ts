@@ -108,6 +108,11 @@ export function containedIds(
   return expandContainment(containmentIndex(data), [rootId], includeChildDocuments);
 }
 
+/** Resolve native subtrees together, including document blocks with missing parents. */
+export function containedSubtreeIds(data: GraphLike, rootIds: readonly string[]): Set<string> {
+  return excludedContentIds(data, rootIds, []);
+}
+
 /** Resolve all roots together, including the document's own blocks while
  * stopping at child documents when requested. Shared by application and preview. */
 export function excludedContentIds(

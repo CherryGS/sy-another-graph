@@ -1,4 +1,6 @@
 import { normalizeKeyword } from "../mentions/keywords";
+import type { GraphLike } from "../../core/graph/graph-lookups";
+import { containedSubtreeIds } from "../../core/scope/graph-model";
 import type { LayoutSet } from "./model";
 
 export const UNGROUPED = 0xffff_ffff;
@@ -15,35 +17,37 @@ export interface SetMembership {
   calculationMs: number;
 }
 
-/** Worker-only regex execution. Each node is independent, even when IDs are ancestors. */
+/** ID rules include native descendants; title rules match visible nodes independently. */
 export function matchLayoutSets(
   nodes: readonly MatchNode[],
   sets: readonly LayoutSet[],
+  source?: GraphLike,
 ): SetMembership {
   const started = performance.now();
-  const compiled = sets.map((set) => ({
-    enabled: set.enabled,
-    ids: new Set(set.rules.filter((rule) => rule.kind === "id").map((rule) => rule.value)),
-    titles: set.rules
-      .filter((rule) => rule.kind === "text")
-      .map((rule) => normalizeKeyword(rule.value)),
-    patterns: set.rules
-      .filter((rule) => rule.kind === "regex")
-      .map((rule) => new RegExp(rule.value, "iu")),
-  }));
+  const normalizedTitles = nodes.map((node) => normalizeKeyword(node.title));
   const membership = new Uint32Array(nodes.length).fill(UNGROUPED);
   const sizes = new Uint32Array(sets.length);
   const matches = new Uint32Array(sets.length);
-  for (let index = 0; index < nodes.length; index++) {
-    const node = nodes[index],
-      title = normalizeKeyword(node.title);
-    for (let group = 0; group < compiled.length; group++) {
-      const rule = compiled[group];
-      if (!rule.enabled) continue;
+  for (let group = 0; group < sets.length; group++) {
+    const set = sets[group];
+    if (!set.enabled) continue;
+    const roots = set.rules.filter((rule) => rule.kind === "id").map((rule) => rule.value);
+    const ids = source ? containedSubtreeIds(source, roots) : new Set<string>();
+    // Logical database identities remain exact matches, with no native descendants.
+    for (const id of roots) ids.add(id);
+    const titles = set.rules
+      .filter((rule) => rule.kind === "text")
+      .map((rule) => normalizeKeyword(rule.value));
+    const patterns = set.rules
+      .filter((rule) => rule.kind === "regex")
+      .map((rule) => new RegExp(rule.value, "iu"));
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index],
+        title = normalizedTitles[index];
       if (
-        !rule.ids.has(node.id) &&
-        !rule.titles.some((text) => title.includes(text)) &&
-        !rule.patterns.some((pattern) => pattern.test(title))
+        !ids.has(node.id) &&
+        !titles.some((text) => title.includes(text)) &&
+        !patterns.some((pattern) => pattern.test(title))
       )
         continue;
       matches[group]++;

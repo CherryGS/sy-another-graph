@@ -33,10 +33,12 @@ colors and connections. Attraction works in 2D/3D force layout; layered mode
 offers a button to switch to force layout.
 
 Create a set, give it a name, and enter one node ID, title substring, or `/regex/`
-per line. Rules are combined with OR. IDs match exactly, including database and
-item IDs; title text and regex ignore case. Only nodes in the current displayed
-graph are matched, and documents do not automatically include their blocks or
-child documents. Use `^` and `$` to match a complete title with regex.
+per line. Rules are combined with OR. Native IDs include the target and all its
+descendant blocks and documents. Database and item IDs still match exactly.
+Title text and regex ignore case and match each node independently, without
+including descendants. ID expansion uses source containment even when an ancestor
+is hidden, but only groups nodes in the current displayed graph; filtered nodes
+are not restored. Use `^` and `$` to match a complete title with regex.
 
 Click **Apply set** after editing rules or the name. Drag a card's handle to change
 priority, or focus the handle and press Up/Down. Higher enabled sets take priority;

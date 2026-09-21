@@ -23,7 +23,7 @@
   "grouping.priorityHint": "越靠上越优先。节点归属第一个启用且匹配的集合。",
   "grouping.ruleHelp": "集合匹配说明",
   "grouping.syntax": "每行一个节点 ID、标题文本或 /正则/，匹配结果取并集。文本按标题包含匹配，正则忽略大小写；用 ^ 和 $ 限定完整标题。文本以斜杠开头时，可在前面加反斜杠转义。",
-  "grouping.independent": "仅独立匹配当前图中的节点。命中文档不会自动带入文内块或子文档。更新预设后保存集合及其顺序。",
+  "grouping.independent": "ID 包含自身及其下所有块和子文档；标题和正则仅匹配节点自身。仅对当前图中的节点分组。更新预设后保存集合及其顺序。",
   "grouping.reorder": "调整集合顺序：{{name}}",
   "grouping.reorderHint": "拖动手柄排序，或聚焦手柄后按上／下方向键。松手后更新分组。",
   "grouping.editSet": "编辑集合：{{name}}",

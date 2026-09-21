@@ -8,7 +8,7 @@ const worker = globalThis as unknown as {
 };
 worker.onmessage = ({ data }: MessageEvent<SetMatchRequest>) => {
   try {
-    const result = matchLayoutSets(data.nodes, data.sets);
+    const result = matchLayoutSets(data.nodes, data.sets, data.source);
     worker.postMessage({ kind: "result", result } satisfies SetMatchResponse, [
       result.membership.buffer,
       result.sizes.buffer,

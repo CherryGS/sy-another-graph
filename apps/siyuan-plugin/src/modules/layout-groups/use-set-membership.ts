@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { failureOf, type Failure } from "../../core/diagnostics/message";
 import type { GraphNode } from "../../core/graph/types";
+import type { GraphLike } from "../../core/graph/graph-lookups";
 import { useLocale } from "../../shared/i18n/react";
 import { text } from "../../shared/i18n/runtime";
 import type { LayoutSet } from "./model";
@@ -11,6 +12,7 @@ export function useSetMembership(
   nodes: readonly GraphNode[],
   sets: readonly LayoutSet[],
   enabled: boolean,
+  source: GraphLike | null,
 ) {
   useLocale();
   const [retry, setRetry] = useState(0);
@@ -20,8 +22,8 @@ export function useSetMembership(
     [sets],
   );
   const input = useMemo(
-    () => (enabled ? { nodes, sets: JSON.parse(signature) as LayoutSet[], retry } : null),
-    [nodes, signature, enabled, retry],
+    () => (enabled ? { nodes, source, sets: JSON.parse(signature) as LayoutSet[], retry } : null),
+    [nodes, source, signature, enabled, retry],
   );
   const [snapshot, setSnapshot] = useState<{
     input: typeof input;
@@ -40,6 +42,7 @@ export function useSetMembership(
       input.sets,
       controller.signal,
       () => new Worker(new URL("./layout-groups.worker.ts", import.meta.url), { type: "module" }),
+      input.source,
     ).then(
       (result) => {
         if (!controller.signal.aborted) setSnapshot({ input, result });

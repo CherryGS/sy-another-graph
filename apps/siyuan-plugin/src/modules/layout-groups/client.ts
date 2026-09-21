@@ -1,8 +1,10 @@
 import { message, MessageError } from "../../core/diagnostics/message";
 import type { GraphNode } from "../../core/graph/types";
+import type { GraphLike } from "../../core/graph/graph-lookups";
 import type { LayoutSet } from "./model";
 import { UNGROUPED, type MatchNode, type SetMembership } from "./matcher";
 import type { SetMatchRequest, SetMatchResponse } from "./protocol";
+import { compactSetSource } from "./source";
 
 export const SET_MATCH_TIMEOUT_MS = 10_000;
 export interface SetMatchWorker {
@@ -36,8 +38,13 @@ export async function resolveSetMembership(
   sets: readonly LayoutSet[],
   signal: AbortSignal,
   create: () => SetMatchWorker,
+  source?: GraphLike | null,
 ): Promise<SetMembership> {
   const compact = await compactSetNodes(nodes, signal);
+  const containment =
+    source && sets.some((set) => set.enabled && set.rules.some((rule) => rule.kind === "id"))
+      ? await compactSetSource(source, signal)
+      : undefined;
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const worker = create();
@@ -111,7 +118,7 @@ export async function resolveSetMembership(
     worker.addEventListener("error", onError);
     worker.addEventListener("messageerror", onError);
     try {
-      worker.postMessage({ nodes: compact, sets });
+      worker.postMessage({ nodes: compact, sets, source: containment });
     } catch (error) {
       fail(error);
     }

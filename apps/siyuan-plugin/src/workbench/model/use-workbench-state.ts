@@ -327,7 +327,7 @@ export function useWorkbenchState() {
     [viewProjector, backgroundIds, chosenSet, filters.hideIsolated],
   );
   const sourceLookups = useMemo(() => (data ? getGraphLookups(data) : null), [data]);
-  const layoutGrouping = useLayoutGrouping(currentGraph, view.nodes, filters.grouping);
+  const layoutGrouping = useLayoutGrouping(currentGraph, view.nodes, filters.grouping, data);
   const currentLookups = useMemo(
     () => (currentGraph ? getGraphLookups(currentGraph) : null),
     [currentGraph],

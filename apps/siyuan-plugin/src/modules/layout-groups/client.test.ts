@@ -22,7 +22,11 @@ class WorkerStub extends EventTarget implements SetMatchWorker {
   finish() {
     this.emit({
       kind: "result",
-      result: matchLayoutSets(this.messages[0].nodes, this.messages[0].sets),
+      result: matchLayoutSets(
+        this.messages[0].nodes,
+        this.messages[0].sets,
+        this.messages[0].source,
+      ),
     });
   }
 }
@@ -42,6 +46,28 @@ const sets: LayoutSet[] = [
 ];
 
 describe("bounded set matching tasks", () => {
+  it("sends hidden native ancestors without source bodies and returns only visible membership", async () => {
+    const visible = [{ ...nodes[0], id: "body", blockType: "p", parentId: "doc", rootId: "doc" }];
+    const source = {
+      nodes: [...nodes, ...visible, { ...nodes[0], id: "av:db", entity: "database" as const }],
+      edges: [],
+    };
+    const worker = new WorkerStub();
+    const pending = resolveSetMembership(
+      visible,
+      [{ ...sets[0], rules: [{ kind: "id", value: "doc" }] }],
+      new AbortController().signal,
+      () => worker,
+      source,
+    );
+    await vi.waitFor(() => expect(worker.messages).toHaveLength(1));
+    expect(worker.messages[0].source?.nodes.map((node) => node.id)).toEqual(["doc", "body"]);
+    expect(worker.messages[0].source?.nodes.every((node) => !node.content && !node.label)).toBe(
+      true,
+    );
+    worker.finish();
+    expect([...(await pending).membership]).toEqual([0]);
+  });
   it("sends full document titles and only each non-document node's own label, without source bodies", async () => {
     const source = [
       ...nodes,

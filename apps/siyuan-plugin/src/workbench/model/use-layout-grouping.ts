@@ -10,9 +10,10 @@ export function useLayoutGrouping(
   graph: GraphLike | null,
   nodes: readonly GraphNode[],
   rules: LayoutGrouping,
+  sourceData: GraphLike | null,
 ) {
   const communities = useCommunities(graph, rules.mode === "community", rules.resolution);
-  const sets = useSetMembership(nodes, rules.sets, rules.mode === "sets");
+  const sets = useSetMembership(nodes, rules.sets, rules.mode === "sets", sourceData);
   const setGraph = useMemo(() => ({ nodes, edges: [] }), [nodes]);
   const partition =
     rules.mode === "sets"
