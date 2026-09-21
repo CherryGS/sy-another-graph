@@ -3,8 +3,10 @@ import { isBlock, nodeType } from "../../core/scope/filter-types";
 import { excludedContentIds } from "../../core/scope/graph-model";
 import { normalizeKeyword } from "../mentions/keywords";
 import type { ContentExclusionRule } from "./rules";
+import type { ExclusionImpact } from "./pipeline";
 
 export interface ContentExclusionResult {
+  steps?: ExclusionImpact[];
   ids: string[];
   matchedRoots: number;
   documents: number;

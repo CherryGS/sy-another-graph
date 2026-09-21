@@ -31,6 +31,7 @@ import { t } from "../../../shared/i18n/runtime";
 import type { WorkbenchState } from "../../model/state";
 import { SettingSwitch } from "../appearance/SettingsPanel";
 import { MentionControls } from "../../../modules/mentions/ui/MentionControls";
+import { MentionRelationImpact } from "../../../modules/mentions/ui/MentionRelationImpact";
 import { ContentExclusions } from "../../../modules/content-exclusions/ui/ContentExclusions";
 import { splitContentExclusions } from "../../../modules/content-exclusions/rules";
 import { FilterExplanation } from "./FilterExplanation";
@@ -55,7 +56,14 @@ export function GraphFiltersPanel({
   const { filters, setFilters, data } = state;
   const backRef = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const [page, setPage] = useState(state.contentRules.length ? "exclusions" : "scope");
+  const [page, setPage] = useState(
+    state.contentRules.length || filters.exclusionPipeline.enabled.empty ? "exclusions" : "scope",
+  );
+  const activeExclusions = filters.exclusionPipeline.order.filter(
+    (kind) =>
+      filters.exclusionPipeline.enabled[kind] &&
+      (kind === "empty" || state.contentRules.some((rule) => rule.scope === kind)),
+  ).length;
   const [contentDraft, setContentDraft] = useState(false);
   const [mentionDraft, setMentionDraft] = useState(false);
   const [groupingDraft, setGroupingDraft] = useState(false);
@@ -104,21 +112,26 @@ export function GraphFiltersPanel({
       title: t("contentExclusions.title"),
       navLabel: t("filter.navExclusions"),
       icon: ListFilter,
-      summary: state.contentRules.length
-        ? t("filter.ruleCount", { count: state.contentRules.length })
+      summary: activeExclusions
+        ? t("contentExclusions.activeSteps", { count: activeExclusions })
         : t("filter.noExclusions"),
       draft: contentDraft,
       content: (
         <ContentExclusions
           key={editorKey}
-          hideTitle
           data={data}
           rules={state.contentRules}
+          context={state.exclusionContext}
           status={state.contentExclusions}
+          onPipelineChange={(exclusionPipeline) =>
+            setFilters((previous) => ({ ...previous, exclusionPipeline }))
+          }
           onApply={(rules) =>
             setFilters((previous) => ({ ...previous, ...splitContentExclusions(rules) }))
           }
           onOpen={state.openReadIssueSource}
+          onLocate={(id) => state.setSelectedId(id)}
+          canLocate={(id) => !!state.currentGraph?.eligibleIds.has(id)}
           onDraftChange={setContentDraft}
         />
       ),
@@ -167,28 +180,39 @@ export function GraphFiltersPanel({
         : mentionMode,
       draft: mentionDraft,
       content: (
-        <MentionControls
-          mode={filters.mentions}
-          phrases={filters.excludedMentionPhrases}
-          patterns={filters.excludedMentionPatterns}
-          previewSource={{
-            blocks: data?.mentionBlocks,
-            nodes: state.sourceLookups?.byId,
-            open: state.openReadIssueSource,
-          }}
-          chosenCount={state.chosenIds.length}
-          status={state.mentionState}
-          editorKey={editorKey}
-          onDraftChange={setMentionDraft}
-          onModeChange={(mentions) => setFilters((previous) => ({ ...previous, mentions }))}
-          onExclusionsChange={({ phrases, patterns }) =>
-            setFilters((previous) => ({
-              ...previous,
-              excludedMentionPhrases: phrases,
-              excludedMentionPatterns: patterns,
-            }))
-          }
-        />
+        <FieldGroup>
+          <MentionControls
+            mode={filters.mentions}
+            phrases={filters.excludedMentionPhrases}
+            patterns={filters.excludedMentionPatterns}
+            previewSource={{
+              blocks: data?.mentionBlocks,
+              nodes: state.sourceLookups?.byId,
+              open: state.openReadIssueSource,
+            }}
+            chosenCount={state.chosenIds.length}
+            status={state.mentionState}
+            editorKey={editorKey}
+            onDraftChange={setMentionDraft}
+            onModeChange={(mentions) => setFilters((previous) => ({ ...previous, mentions }))}
+            onExclusionsChange={({ phrases, patterns }) =>
+              setFilters((previous) => ({
+                ...previous,
+                excludedMentionPhrases: phrases,
+                excludedMentionPatterns: patterns,
+              }))
+            }
+          />
+          <MentionRelationImpact
+            data={data}
+            graph={state.baseGraph}
+            mode={filters.mentions}
+            chosenIds={state.chosenIds}
+            status={state.mentionState}
+            enabled={mentionRules > 0}
+            onOpen={state.openReadIssueSource}
+          />
+        </FieldGroup>
       ),
     },
     {

@@ -21,7 +21,7 @@ import { Switch } from "../../../shared/ui/switch";
 import { Badge } from "../../../shared/ui/badge";
 import { useLocale } from "../../../shared/i18n/react";
 import { t, text } from "../../../shared/i18n/runtime";
-import type { useSetSorting } from "./use-set-sorting";
+import type { usePrioritySorting } from "../../../shared/hooks/use-priority-sorting";
 import {
   formatSetDraft,
   normalizeSetName,
@@ -54,7 +54,7 @@ export function LayoutSetCard({
   onDelete: () => void;
   onMove: (direction: -1 | 1) => void;
   onDraftChange: (id: string, changed: boolean) => void;
-  sortHandle: ReturnType<typeof useSetSorting>["handle"];
+  sortHandle: ReturnType<typeof usePrioritySorting>["handle"];
 }) {
   useLocale();
   const id = useId();
@@ -78,14 +78,14 @@ export function LayoutSetCard({
   }, [set.id, changed, onDraftChange]);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card size="sm" role="listitem" aria-label={set.name} data-layout-set={set.id}>
+      <Card size="sm" role="listitem" aria-label={set.name} data-priority-item={set.id}>
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
               className="touch-none cursor-grab active:cursor-grabbing"
-              data-set-sort-id={set.id}
+              data-priority-id={set.id}
               aria-label={t("grouping.reorder", { name: set.name })}
               title={t("grouping.reorderHint")}
               {...sortHandle}

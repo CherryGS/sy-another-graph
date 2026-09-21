@@ -18,7 +18,7 @@ import {
   type LayoutGrouping,
 } from "../../../modules/layout-groups/model";
 import { LayoutSetCard } from "../../../modules/layout-groups/ui/LayoutSetCard";
-import { useSetSorting } from "../../../modules/layout-groups/ui/use-set-sorting";
+import { usePrioritySorting } from "../../../shared/hooks/use-priority-sorting";
 import type { WorkbenchState } from "../../model/state";
 import { SettingSlider, SettingSwitch } from "../appearance/SettingsPanel";
 
@@ -54,7 +54,7 @@ export function GroupingFilters({
   };
   const reorder = (id: string, destination: number) =>
     change({ ...value, sets: reorderSets(value.sets, id, destination) });
-  const { listRef, drop, handle } = useSetSorting(reorder);
+  const { listRef, drop, handle } = usePrioritySorting(reorder);
   return (
     <FieldGroup className="gap-4 [container-type:normal]">
       <Field>

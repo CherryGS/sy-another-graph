@@ -2,6 +2,7 @@ import { message as msg, MessageError } from "../../../core/diagnostics/message"
 import type { SourceProgress } from "../../../core/diagnostics/progress";
 import { api } from "./api";
 import { addDatabaseGraph } from "./database-source";
+import { emptyDocumentIds } from "./empty-documents";
 import { ReadIssueCollector } from "../../../core/diagnostics/read-issues";
 import { type GraphDataset, type GraphNode, type GraphEdge } from "../../../core/graph/types";
 export { api } from "./api";
@@ -149,6 +150,7 @@ export function normalizeGraph(
   blocks: BlockRow[],
   references: ReferenceRow[],
 ): Pick<GraphDataset, "nodes" | "edges" | "referenceCount" | "skippedReferences" | "warnings"> {
+  const emptyDocuments = emptyDocumentIds(blocks);
   const nodes: GraphNode[] = blocks
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -161,6 +163,7 @@ export function normalizeGraph(
       index,
       entity: "block",
       blockType: block.type || "d",
+      ...(!block.type || block.type === "d" ? { emptyDocument: emptyDocuments.has(block.id) } : {}),
       rootId: block.type && block.type !== "d" ? block.root_id : block.id,
       parentId: block.parent_id || undefined,
       content: block.content,

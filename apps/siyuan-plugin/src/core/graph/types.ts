@@ -10,6 +10,8 @@ export interface NodeFacts {
   /** Source blocks retain native IDs. Database and item IDs are namespaced. */
   entity?: "block" | "database" | "database-item";
   blockType?: string;
+  /** Known from the acquired document's own body, before any graph filtering. */
+  emptyDocument?: boolean;
   rootId?: string;
   parentId?: string;
   content?: string;

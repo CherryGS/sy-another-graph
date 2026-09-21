@@ -1,6 +1,7 @@
 import { DEFAULT_FILTERS, type GraphFilters } from "../../modules/presets/filters";
 import { samePresetFilters } from "../../modules/presets/model";
 import { defaultGrouping } from "../../modules/layout-groups/model";
+import { defaultExclusionPipeline } from "../../modules/content-exclusions/pipeline-model";
 import type { SearchGraphSnapshot } from "../../modules/search/model";
 
 type FilterAction = GraphFilters | ((previous: GraphFilters) => GraphFilters);
@@ -8,6 +9,7 @@ const defaults = (): GraphFilters => ({
   ...DEFAULT_FILTERS,
   excludeIds: [],
   exclusionRules: [],
+  exclusionPipeline: defaultExclusionPipeline(),
   hiddenTypes: [],
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],

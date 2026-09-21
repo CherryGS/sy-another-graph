@@ -12,6 +12,7 @@ export async function verifyContentExclusionsWorker() {
     workerData: new URL(bundles[0], assets).href,
   });
   let timer;
+  let pipeline = false;
   try {
     await new Promise((resolve, reject) => {
       timer = setTimeout(
@@ -50,13 +51,59 @@ export async function verifyContentExclusionsWorker() {
         } else if (message.kind === "error") reject(new Error(JSON.stringify(message.error)));
         else if (message.kind === "result") {
           try {
+            if (pipeline) {
+              assert.deepEqual(message.result.ids, ["y"]);
+              assert.deepEqual(message.result.steps[2].retainedIds, ["x"]);
+              assert.equal(message.result.steps[2].removedIds.length, 1);
+              resolve();
+              return;
+            }
             assert.deepEqual(message.result, {
               ids: ["category", "body", "archive", "removed"],
               matchedRoots: 2,
               documents: 3,
               blocks: 1,
             });
-            resolve();
+            pipeline = true;
+            worker.postMessage({
+              source: {
+                nodes: ["a", "b", "x", "y"].map((id, index) => ({
+                  id,
+                  index,
+                  label: id,
+                  blockType: "d",
+                  rootId: id,
+                  notebook: "",
+                  path: "",
+                  emptyDocument: index > 1,
+                })),
+                edges: [
+                  [0, 2],
+                  [2, 1],
+                  [0, 3],
+                  [3, 1],
+                ].map(([source, target]) => ({ source, target, kind: "reference", weight: 1 })),
+              },
+              rules: [],
+              context: {
+                pipeline: {
+                  order: ["subtree", "document", "empty"],
+                  enabled: { subtree: true, document: true, empty: true },
+                  preserveConnections: true,
+                },
+                projection: {
+                  notebook: "",
+                  scopeId: "",
+                  includeChildDocuments: true,
+                  excludeIds: [],
+                  references: true,
+                  hierarchy: false,
+                  databases: true,
+                  documentsOnly: true,
+                  hiddenTypes: [],
+                },
+              },
+            });
           } catch (error) {
             reject(error);
           }

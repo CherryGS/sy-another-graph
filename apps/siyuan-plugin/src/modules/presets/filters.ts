@@ -2,6 +2,10 @@ import { DEFAULT_PROJECTION_RULES, type GraphProjectionRules } from "../../core/
 import type { MentionMode } from "../mentions/types";
 import type { ContentExclusionRule } from "../content-exclusions/rules";
 import { defaultGrouping, type LayoutGrouping } from "../layout-groups/model";
+import {
+  defaultExclusionPipeline,
+  type ExclusionPipeline,
+} from "../content-exclusions/pipeline-model";
 
 export interface MentionRules {
   mentions: MentionMode;
@@ -20,6 +24,7 @@ export type GraphFilters = GraphProjectionRules &
   MentionRules &
   DisplayFilters & {
     exclusionRules: ContentExclusionRule[];
+    exclusionPipeline: ExclusionPipeline;
     grouping: LayoutGrouping;
   };
 
@@ -31,5 +36,6 @@ export const DEFAULT_FILTERS: GraphFilters = {
   excludedMentionPhrases: [],
   excludedMentionPatterns: [],
   exclusionRules: [],
+  exclusionPipeline: defaultExclusionPipeline(),
   grouping: defaultGrouping(),
 };

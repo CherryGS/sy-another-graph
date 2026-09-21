@@ -44,7 +44,7 @@ describe("translation coverage", () => {
       const visit = (node: ts.Node) => {
         if (
           ts.isStringLiteral(node) &&
-          /^(app|text|common|diagnostics|canvas|community|grouping|selection|preset|mentions|search|evidence|relations|report|graph)\./.test(
+          /^(app|text|common|diagnostics|canvas|community|grouping|contentExclusions|selection|preset|mentions|search|evidence|relations|report|graph)\./.test(
             node.text,
           )
         ) {

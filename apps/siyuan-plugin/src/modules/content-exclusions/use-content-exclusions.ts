@@ -6,6 +6,7 @@ import { text } from "../../shared/i18n/runtime";
 import { resolveContentExclusions } from "./client";
 import type { ContentExclusionRule } from "./rules";
 import type { ContentExclusionResult } from "./matcher";
+import type { ExclusionContext } from "./pipeline-model";
 
 const EMPTY_RESULT: ContentExclusionResult = { ids: [], matchedRoots: 0, documents: 0, blocks: 0 };
 
@@ -14,12 +15,16 @@ export function useContentExclusions(
   data: GraphDataset | null,
   rules: readonly ContentExclusionRule[] | null,
   delay = 0,
+  context?: ExclusionContext,
 ) {
   useLocale();
   const [retry, setRetry] = useState(0);
   const input = useMemo(
-    () => (data && rules?.length ? { data, rules, retry, token: {} } : null),
-    [data, rules, retry],
+    () =>
+      data && rules && (rules.length || context?.pipeline.enabled.empty)
+        ? { data, rules, context, retry, token: {} }
+        : null,
+    [data, rules, context, retry],
   );
   const [snapshot, setSnapshot] = useState<{
     token: object;
@@ -38,6 +43,7 @@ export function useContentExclusions(
           new Worker(new URL("./content-exclusions.worker.ts", import.meta.url), {
             type: "module",
           }),
+        input.context,
       ).then(
         (result) => {
           if (!controller.signal.aborted) setSnapshot({ token: input.token, result, error: "" });

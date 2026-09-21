@@ -5,6 +5,7 @@ import { isBlock, nodeType } from "../../core/scope/filter-types";
 import type { ContentExclusionRule } from "./rules";
 import type { ContentExclusionResult } from "./matcher";
 import type { ContentExclusionRequest, ContentExclusionResponse } from "./protocol";
+import type { ExclusionContext } from "./pipeline-model";
 
 export const CONTENT_EXCLUSION_TIMEOUT_MS = 10_000;
 export interface ContentExclusionWorker {
@@ -18,23 +19,25 @@ export interface ContentExclusionWorker {
 export async function compactExclusionSource(
   data: GraphLike,
   signal: AbortSignal,
+  topology = false,
 ): Promise<GraphLike> {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   for (let offset = 0; offset < data.nodes.length; offset += 8192) {
     signal.throwIfAborted();
     for (const node of data.nodes.slice(offset, offset + 8192)) {
-      if (!isBlock(node)) continue;
+      if (!topology && !isBlock(node)) continue;
       nodes.push({
         id: node.id,
         index: node.index,
-        entity: "block",
+        entity: topology ? node.entity : "block",
         blockType: node.blockType,
         label: nodeType(node) === "d" ? (node.content ?? node.label) : "",
         rootId: node.rootId,
         parentId: node.parentId,
-        notebook: "",
+        notebook: topology ? node.notebook : "",
         path: "",
+        ...(topology ? { emptyDocument: node.emptyDocument, boundBlockId: node.boundBlockId } : {}),
       });
     }
     if (offset + 8192 < data.nodes.length)
@@ -43,8 +46,13 @@ export async function compactExclusionSource(
   for (let offset = 0; offset < data.edges.length; offset += 16384) {
     signal.throwIfAborted();
     for (const edge of data.edges.slice(offset, offset + 16384))
-      if (edge.kind === "hierarchy")
-        edges.push({ source: edge.source, target: edge.target, kind: "hierarchy", weight: 1 });
+      if (topology || edge.kind === "hierarchy")
+        edges.push({
+          source: edge.source,
+          target: edge.target,
+          kind: edge.kind,
+          weight: topology ? edge.weight : 1,
+        });
     if (offset + 16384 < data.edges.length)
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
@@ -58,8 +66,9 @@ export async function resolveContentExclusions(
   rules: readonly ContentExclusionRule[],
   signal: AbortSignal,
   create: () => ContentExclusionWorker,
+  context?: ExclusionContext,
 ): Promise<ContentExclusionResult> {
-  const compact = await compactExclusionSource(source, signal);
+  const compact = await compactExclusionSource(source, signal, !!context);
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const worker = create();
@@ -100,7 +109,7 @@ export async function resolveContentExclusions(
     worker.addEventListener("error", onError);
     worker.addEventListener("messageerror", onError);
     try {
-      worker.postMessage({ source: compact, rules });
+      worker.postMessage({ source: compact, rules, context });
     } catch (error) {
       fail(error);
     }

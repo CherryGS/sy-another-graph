@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Copy, LocateFixed } from "lucide-react";
+import { toast } from "sonner";
 import type { GraphDataset } from "../../../core/graph/types";
 import { getGraphLookups } from "../../../core/graph/graph-lookups";
 import { nodeType } from "../../../core/scope/filter-types";
@@ -25,31 +26,42 @@ import {
   TableRow,
 } from "../../../shared/ui/table";
 import { normalizeKeyword } from "../../mentions/keywords";
-import { useContentExclusions } from "../use-content-exclusions";
-import type { ContentExclusionRule } from "../rules";
+import type { ExclusionImpact } from "../pipeline";
+import { ToggleGroup, ToggleGroupItem } from "../../../shared/ui/toggle-group";
 
 const PAGE_SIZE = 50;
 
 export function ContentExclusionPreview({
   data,
-  rules,
+  impact,
+  pending,
+  title,
   onOpen,
+  onLocate,
+  canLocate,
 }: {
   data: GraphDataset | null;
-  rules: readonly ContentExclusionRule[] | null;
+  impact?: ExclusionImpact;
+  pending: boolean;
+  title: string;
   onOpen: (id: string) => void;
+  onLocate: (id: string) => void;
+  canLocate: (id: string) => boolean;
 }) {
   useLocale();
-  const preview = useContentExclusions(data, rules, 400);
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<
+    "removedIds" | "previousIds" | "retainedIds" | "matchedIds"
+  >("removedIds");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const searchId = useId();
   const source = useMemo(() => (data ? getGraphLookups(data).byId : null), [data]);
-  const result = preview.result;
+  const result = pending ? undefined : impact;
   const ids = useMemo(() => {
     const search = normalizeKeyword(query);
     return (
-      result?.ids.filter((id) => {
+      result?.[category].filter((id) => {
         const node = source?.get(id);
         return (
           !search ||
@@ -66,50 +78,58 @@ export function ContentExclusionPreview({
         );
       }) ?? []
     );
-  }, [query, result, source]);
-  if (!data || !rules?.length) return null;
+  }, [query, result, source, category]);
+  if (!data) return null;
   const offset = Math.min(page, Math.max(0, Math.ceil(ids.length / PAGE_SIZE) - 1)) * PAGE_SIZE;
   const summary = result
-    ? t("contentExclusions.previewSummary", {
-        roots: result.matchedRoots,
-        documents: result.documents,
-        blocks: result.blocks,
+    ? t("contentExclusions.stepSummary", {
+        matched: result.matchedIds.length,
+        previous: result.previousIds.length,
+        removed: result.removedIds.length,
+        retained: result.retainedIds.length,
       })
     : "";
   return (
-    <Dialog>
-      <div className="flex flex-wrap items-center justify-between gap-3" aria-live="polite">
-        <FieldDescription>
-          {preview.error ||
-            (preview.pending
-              ? t("contentExclusions.previewPending")
-              : result
-                ? t("contentExclusions.previewCompact", {
-                    documents: result.documents,
-                    blocks: result.blocks,
-                  })
-                : "")}
-        </FieldDescription>
-        {preview.error ? (
-          <Button size="sm" variant="ghost" onClick={preview.retry}>
-            {t("mentions.previewRetry")}
-          </Button>
-        ) : (
-          <DialogTrigger asChild>
-            <Button size="sm" variant="ghost" disabled={!result || preview.pending}>
-              {t("mentions.previewDetails")}
-            </Button>
-          </DialogTrigger>
-        )}
-      </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" disabled={!result || pending}>
+          {t("mentions.previewDetails")}
+        </Button>
+      </DialogTrigger>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-4xl" data-filter-dialog>
         <DialogHeader>
-          <DialogTitle>{t("contentExclusions.previewTitle")}</DialogTitle>
-          <DialogDescription>{t("contentExclusions.previewDescription")}</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{t("contentExclusions.countScope")}</DialogDescription>
         </DialogHeader>
         <FieldDescription aria-live="polite">
-          {preview.error || (preview.pending ? t("contentExclusions.previewPending") : summary)}
+          {pending ? t("contentExclusions.previewPending") : summary}
         </FieldDescription>
+        <ToggleGroup
+          type="single"
+          value={category}
+          onValueChange={(value) => {
+            if (value) {
+              setCategory(value as typeof category);
+              setPage(0);
+            }
+          }}
+          className="flex-wrap"
+          aria-label={t("contentExclusions.detailCategory")}
+        >
+          {(["removedIds", "previousIds", "retainedIds", "matchedIds"] as const).map((value) => (
+            <ToggleGroupItem key={value} value={value}>
+              {t(
+                value === "removedIds"
+                  ? "contentExclusions.removed"
+                  : value === "previousIds"
+                    ? "contentExclusions.previous"
+                    : value === "retainedIds"
+                      ? "contentExclusions.retained"
+                      : "contentExclusions.matched",
+              )}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor={searchId}>{t("contentExclusions.previewSearch")}</FieldLabel>
@@ -124,7 +144,7 @@ export function ContentExclusionPreview({
             />
           </Field>
         </FieldGroup>
-        <div className="min-h-0 overflow-auto" data-scroll-panel aria-busy={preview.pending}>
+        <div className="min-h-0 overflow-auto" data-scroll-panel aria-busy={pending}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -152,6 +172,37 @@ export function ContentExclusionPreview({
                           : node?.label) || id}
                       </Button>
                       <FieldDescription>{id}</FieldDescription>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label={t("graph.copyNodeId")}
+                          title={t("graph.copyNodeId")}
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(id);
+                              toast.success(t("graph.nodeIdCopied"));
+                            } catch {
+                              toast.error(t("graph.nodeIdCopyFailed"));
+                            }
+                          }}
+                        >
+                          <Copy />
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          disabled={!canLocate(id)}
+                          aria-label={t("contentExclusions.locate")}
+                          title={t("contentExclusions.locate")}
+                          onClick={() => {
+                            onLocate(id);
+                            setOpen(false);
+                          }}
+                        >
+                          <LocateFixed />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-80 whitespace-normal break-words">
                       {node?.humanPath || node?.documentLabel || node?.path}
@@ -184,7 +235,7 @@ export function ContentExclusionPreview({
             <Button
               size="sm"
               variant="outline"
-              disabled={offset === 0 || preview.pending}
+              disabled={offset === 0 || pending}
               onClick={() => setPage(offset / PAGE_SIZE - 1)}
             >
               <ChevronLeft data-icon="inline-start" />
@@ -193,7 +244,7 @@ export function ContentExclusionPreview({
             <Button
               size="sm"
               variant="outline"
-              disabled={offset + PAGE_SIZE >= ids.length || preview.pending}
+              disabled={offset + PAGE_SIZE >= ids.length || pending}
               onClick={() => setPage(offset / PAGE_SIZE + 1)}
             >
               {t("mentions.previewNext")}

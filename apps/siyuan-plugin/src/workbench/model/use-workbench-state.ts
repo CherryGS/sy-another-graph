@@ -158,7 +158,36 @@ export function useWorkbenchState() {
     () => contentExclusionRules(excludeIds, exclusionRules),
     [excludeIds, exclusionRules],
   );
-  const contentExclusions = useContentExclusions(data, contentRules);
+  const exclusionContext = useMemo(
+    () => ({
+      pipeline: filters.exclusionPipeline,
+      projection: {
+        notebook,
+        references,
+        hierarchy,
+        excludeIds: [],
+        hiddenTypes,
+        documentsOnly,
+        databases,
+        scopeId,
+        includeChildDocuments,
+      },
+      searchIds: searchIds ? [...searchIds] : undefined,
+    }),
+    [
+      filters.exclusionPipeline,
+      notebook,
+      references,
+      hierarchy,
+      hiddenTypes,
+      documentsOnly,
+      databases,
+      scopeId,
+      includeChildDocuments,
+      searchIds,
+    ],
+  );
+  const contentExclusions = useContentExclusions(data, contentRules, 0, exclusionContext);
   const baseGraph = useMemo(
     () =>
       data && contentExclusions.excludedIds
@@ -453,6 +482,7 @@ export function useWorkbenchState() {
 
   return {
     data,
+    baseGraph,
     currentGraph,
     layeredLayout,
     discovery,
@@ -484,6 +514,7 @@ export function useWorkbenchState() {
     load,
     filters,
     contentRules,
+    exclusionContext,
     contentExclusions,
     layoutGrouping,
     setFilters,

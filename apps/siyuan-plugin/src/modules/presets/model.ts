@@ -8,6 +8,7 @@ import {
   type LayoutGrouping,
 } from "../layout-groups/model";
 import { normalizeExcludedPhrases, readExcludedPhrases } from "../mentions/keywords";
+import { copyExclusionPipeline, readExclusionPipeline } from "../content-exclusions/pipeline-model";
 import { normalizeExcludedPatterns, readExcludedPatterns } from "../mentions/exclusions";
 import {
   contentExclusionRules,
@@ -68,6 +69,7 @@ export function presetFilters(filters: PresetFilters): PresetFilters {
     excludedMentionPhrases: normalizeExcludedPhrases(filters.excludedMentionPhrases ?? []),
     excludedMentionPatterns: normalizeExcludedPatterns(filters.excludedMentionPatterns ?? []),
     grouping: copyGrouping(filters.grouping),
+    exclusionPipeline: copyExclusionPipeline(filters.exclusionPipeline),
   };
 }
 
@@ -85,6 +87,10 @@ export function applyPresetFilters(previous: GraphFilters, rules: PresetFilters)
   return {
     ...next,
     query: previous.query,
+    exclusionPipeline:
+      JSON.stringify(previous.exclusionPipeline) === JSON.stringify(next.exclusionPipeline)
+        ? previous.exclusionPipeline
+        : next.exclusionPipeline,
     grouping:
       JSON.stringify(previous.grouping) === JSON.stringify(next.grouping)
         ? previous.grouping
@@ -131,6 +137,8 @@ export function createPresetStore(
 function readFilters(value: unknown, version: 1 | 2): PresetFilters | null {
   if (!record(value)) return null;
   const grouping = version === 1 ? defaultGrouping() : readGrouping(value.grouping);
+  const exclusionPipeline = readExclusionPipeline(value.exclusionPipeline);
+  if (!exclusionPipeline) return null;
   if (!grouping) return null;
   for (const key of [
     "references",
@@ -180,6 +188,7 @@ function readFilters(value: unknown, version: 1 | 2): PresetFilters | null {
     excludedMentionPhrases,
     excludedMentionPatterns,
     exclusionRules,
+    exclusionPipeline,
     grouping,
   } as unknown as PresetFilters);
 }

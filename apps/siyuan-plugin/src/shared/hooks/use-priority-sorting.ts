@@ -2,7 +2,7 @@ import { useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
 
 /** Pointer capture keeps sorting inside the plugin iframe and also supports touch.
  * Only dropping commits an order; pointer motion changes the insertion marker. */
-export function useSetSorting(onMove: (id: string, destination: number) => void) {
+export function usePrioritySorting(onMove: (id: string, destination: number) => void) {
   const listRef = useRef<HTMLDivElement>(null);
   const active = useRef<{ id: string; pointer: number; startY: number; moved: boolean } | null>(
     null,
@@ -18,8 +18,8 @@ export function useSetSorting(onMove: (id: string, destination: number) => void)
     if (!list || !drag) return null;
     const bounds = list.getBoundingClientRect();
     if (x < bounds.left || x > bounds.right) return null;
-    const cards = [...list.querySelectorAll<HTMLElement>("[data-layout-set]")];
-    const source = cards.findIndex((card) => card.dataset.layoutSet === drag.id);
+    const cards = [...list.querySelectorAll<HTMLElement>("[data-priority-item]")];
+    const source = cards.findIndex((card) => card.dataset.priorityItem === drag.id);
     if (source < 0) return null;
     let slot = cards.findIndex((card) => {
       const rect = card.getBoundingClientRect();
@@ -29,14 +29,14 @@ export function useSetSorting(onMove: (id: string, destination: number) => void)
     const destination = slot - Number(source < slot);
     if (destination === source) return null;
     const card = cards[Math.min(slot, cards.length - 1)];
-    return { id: card.dataset.layoutSet!, after: slot === cards.length, destination };
+    return { id: card.dataset.priorityItem!, after: slot === cards.length, destination };
   };
   return {
     listRef,
     drop,
     handle: {
       onPointerDown(event: PointerEvent<HTMLButtonElement>) {
-        const id = event.currentTarget.dataset.setSortId;
+        const id = event.currentTarget.dataset.priorityId;
         if (event.button !== 0 || !id) return;
         event.preventDefault();
         event.currentTarget.focus();

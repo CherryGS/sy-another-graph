@@ -1,21 +1,18 @@
-import { Fragment, useEffect, useId, useMemo, useState } from "react";
-import { cn } from "cn";
+import { useEffect, useMemo, useState } from "react";
 import type { GraphDataset } from "../../../core/graph/types";
 import { useLocale } from "../../../shared/i18n/react";
-import { t, text } from "../../../shared/i18n/runtime";
+import { t } from "../../../shared/i18n/runtime";
 import { Button } from "../../../shared/ui/button";
 import {
-  Field,
   FieldDescription,
   FieldError,
   FieldGroup,
-  FieldLabel,
   FieldLegend,
   FieldSet,
 } from "../../../shared/ui/field";
-import { Textarea } from "../../../shared/ui/textarea";
-import { Separator } from "../../../shared/ui/separator";
 import { FieldHelp } from "../../../shared/ui/field-help";
+import { Separator } from "../../../shared/ui/separator";
+import { usePrioritySorting } from "../../../shared/hooks/use-priority-sorting";
 import {
   CONTENT_EXCLUSION_LIMIT,
   formatContentExclusionDraft,
@@ -23,11 +20,15 @@ import {
   parseContentExclusionDraft,
   readContentExclusions,
   type ContentExclusionRule,
-  type ExclusionScope,
 } from "../rules";
-import { ContentExclusionPreview } from "./ContentExclusionPreview";
+import {
+  moveExclusionStep,
+  type ExclusionContext,
+  type ExclusionPipeline,
+} from "../pipeline-model";
+import { useContentExclusions } from "../use-content-exclusions";
+import { ExclusionStepCard } from "./ExclusionStepCard";
 
-const SCOPES: ExclusionScope[] = ["document", "subtree"];
 const draftsFor = (rules: readonly ContentExclusionRule[]) => ({
   document: formatContentExclusionDraft(rules, "document"),
   subtree: formatContentExclusionDraft(rules, "subtree"),
@@ -36,27 +37,33 @@ const draftsFor = (rules: readonly ContentExclusionRule[]) => ({
 export function ContentExclusions({
   data,
   rules,
+  context,
   status,
   onApply,
+  onPipelineChange,
   onOpen,
-  hideTitle = false,
+  onLocate,
+  canLocate,
   onDraftChange,
 }: {
   data: GraphDataset | null;
   rules: readonly ContentExclusionRule[];
-  status: { error: string; retry: () => void };
+  context: ExclusionContext;
+  status: ReturnType<typeof useContentExclusions>;
   onApply: (rules: ContentExclusionRule[]) => void;
+  onPipelineChange: (pipeline: ExclusionPipeline) => void;
   onOpen: (id: string) => void;
-  hideTitle?: boolean;
+  onLocate: (id: string) => void;
+  canLocate: (id: string) => boolean;
   onDraftChange?: (changed: boolean) => void;
 }) {
   useLocale();
-  const id = useId();
   const [drafts, setDrafts] = useState(() => draftsFor(rules));
+  const appliedKey = JSON.stringify(rules);
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- Preset application/reset replaces editable drafts.
-    setDrafts(draftsFor(rules));
-  }, [rules]);
+    // eslint-disable-next-line react/set-state-in-effect -- Applied rules/reset replace drafts; ordering does not.
+    setDrafts(draftsFor(JSON.parse(appliedKey) as ContentExclusionRule[]));
+  }, [appliedKey]);
   const parsed = useMemo(
     () => ({
       document: parseContentExclusionDraft(drafts.document, "document"),
@@ -71,77 +78,77 @@ export function ContentExclusions({
         : null,
     [parsed],
   );
-  const limitError = parsed.document.value && parsed.subtree.value && !combined;
   const changed =
     combined !== null &&
     JSON.stringify(combined) !== JSON.stringify(normalizeContentExclusions(rules));
   useEffect(() => {
     onDraftChange?.(changed || combined === null);
   }, [changed, combined, onDraftChange]);
+  const draftPreview = useContentExclusions(data, changed ? combined : null, 400, context);
+  const preview = changed ? draftPreview : status;
+  const result = combined ? preview.result : null;
+  const move = (id: string, destination: number) =>
+    onPipelineChange(moveExclusionStep(context.pipeline, id, destination));
+  const { listRef, drop, handle } = usePrioritySorting(move);
   return (
     <FieldSet className="gap-4">
-      <FieldLegend className={cn(hideTitle && "sr-only")}>
-        {t("contentExclusions.title")}
-      </FieldLegend>
-      <div className="flex items-start justify-between gap-4">
-        <FieldDescription>{t("contentExclusions.syntaxShort")}</FieldDescription>
+      <FieldLegend className="sr-only">{t("contentExclusions.title")}</FieldLegend>
+      <div className="flex items-start justify-between gap-3">
+        <FieldDescription>{t("contentExclusions.orderHint")}</FieldDescription>
         <FieldHelp label={t("contentExclusions.ruleHelp")}>
           <FieldDescription>{t("contentExclusions.syntax")}</FieldDescription>
-          <FieldDescription>{t("contentExclusions.documentDescription")}</FieldDescription>
-          <FieldDescription>{t("contentExclusions.subtreeDescription")}</FieldDescription>
+          <FieldDescription>{t("contentExclusions.countScope")}</FieldDescription>
+          <FieldDescription>{t("contentExclusions.emptyDescription")}</FieldDescription>
         </FieldHelp>
       </div>
-      {/* Vertical fields do not need size queries; Chromium can otherwise lose
-          their layout inside a fieldset when asynchronous preview rows appear. */}
-      <FieldGroup className="gap-5 [container-type:normal]">
-        {SCOPES.map((scope) => (
-          <Fragment key={scope}>
-            {scope === "subtree" && <Separator />}
-            <Field data-invalid={!!parsed[scope].error} className="min-w-0 gap-3">
-              <FieldLabel htmlFor={`${id}-${scope}`}>
-                {t(
-                  scope === "document"
-                    ? "contentExclusions.documentLabelShort"
-                    : "contentExclusions.subtreeLabelShort",
-                )}
-              </FieldLabel>
-              <FieldDescription id={`${id}-${scope}-description`}>
-                {t(
-                  scope === "document"
-                    ? "contentExclusions.documentHint"
-                    : "contentExclusions.subtreeHint",
-                )}
-              </FieldDescription>
-              <Textarea
-                id={`${id}-${scope}`}
-                rows={4}
-                className="min-h-24 max-h-80"
-                value={drafts[scope]}
-                placeholder={t(
-                  scope === "document"
-                    ? "contentExclusions.documentPlaceholder"
-                    : "contentExclusions.subtreePlaceholder",
-                )}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setDrafts((previous) => ({ ...previous, [scope]: value }));
-                }}
-                aria-invalid={!!parsed[scope].error}
-                aria-describedby={`${id}-${scope}-description${parsed[scope].error ? ` ${id}-${scope}-error` : ""}`}
-              />
-              {parsed[scope].error && (
-                <FieldError id={`${id}-${scope}-error`}>{text(parsed[scope].error)}</FieldError>
-              )}
-            </Field>
-          </Fragment>
+      <div
+        ref={listRef}
+        role="list"
+        aria-label={t("contentExclusions.order")}
+        className="flex flex-col gap-3"
+      >
+        {context.pipeline.order.map((kind, index) => (
+          <ExclusionStepCard
+            key={kind}
+            kind={kind}
+            index={index}
+            pipeline={context.pipeline}
+            onPipelineChange={onPipelineChange}
+            move={move}
+            sortHandle={handle}
+            drop={drop?.id === kind ? drop : null}
+            draft={kind === "empty" ? "" : drafts[kind]}
+            error={kind === "empty" ? null : parsed[kind].error}
+            onDraft={(value) => {
+              if (kind !== "empty") setDrafts((previous) => ({ ...previous, [kind]: value }));
+            }}
+            data={data}
+            impact={result?.steps?.find((step) => step.kind === kind)}
+            pending={preview.pending}
+            valid={!!combined && !preview.error}
+            onOpen={onOpen}
+            onLocate={onLocate}
+            canLocate={canLocate}
+          />
         ))}
-      </FieldGroup>
-      {limitError && (
+      </div>
+      {parsed.document.value && parsed.subtree.value && !combined && (
         <FieldError>{t("contentExclusions.limit", { count: CONTENT_EXCLUSION_LIMIT })}</FieldError>
       )}
       <Separator />
       <FieldGroup className="gap-3 [container-type:normal]">
-        <ContentExclusionPreview data={data} rules={combined} onOpen={onOpen} />
+        <FieldDescription aria-live="polite">
+          {preview.pending
+            ? t("contentExclusions.previewPending")
+            : result
+              ? t("contentExclusions.total", {
+                  count: (result.steps ?? []).reduce(
+                    (sum, step) => sum + step.removedIds.length,
+                    0,
+                  ),
+                })
+              : ""}
+        </FieldDescription>
         <Button
           variant="outline"
           className="w-full"
@@ -152,11 +159,11 @@ export function ContentExclusions({
         >
           {t("text.applyExclusions")}
         </Button>
-        {changed && <FieldDescription>{t("filter.unappliedHint")}</FieldDescription>}
-        {status.error && (
+        {changed && <FieldDescription>{t("contentExclusions.draftCounts")}</FieldDescription>}
+        {preview.error && (
           <>
-            <FieldError>{status.error}</FieldError>
-            <Button variant="outline" size="sm" className="w-full" onClick={status.retry}>
+            <FieldError>{preview.error}</FieldError>
+            <Button variant="outline" size="sm" className="w-full" onClick={preview.retry}>
               {t("contentExclusions.retry")}
             </Button>
           </>

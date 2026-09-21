@@ -38,6 +38,7 @@ _SolidJS cites both Graph Theory and Rust WASM, providing the evidence for this 
 ## Filter your scope or start from search
 
 Filter by notebook, document or block, node type, and excluded subtrees; keep frequently used configurations as **named presets**.
+Reorder fixed exclusion steps, inspect each step's affected nodes, and hide empty documents while optionally retaining the ones needed for connections.
 Use **Grouping** to switch between automatic communities and custom sets. Combine ID, title, and regex rules; drag sets to set overlap priority. Each preset saves its own grouping configuration.
 Turn all results from native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search) into a graph, with ancestor context and rings identifying matches.
 

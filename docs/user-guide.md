@@ -59,16 +59,21 @@ disable a problematic set and retry if it times out.
 
 ## Exclude documents
 
-The filter panel has two groups that can be used together:
+The filter panel has three fixed steps that can be enabled and reordered:
 
 - **Document content only** removes matched documents and their own blocks while retaining child documents and their relationships. Use it to hide date-based category documents.
 - **Entire subtrees** removes matched documents/blocks and every descendant, including child documents. Use it for archive folders.
+- **Empty documents** hides documents without body content, retaining child documents. Titles and child documents do not count as body content. Blank paragraphs are empty; media, attachments, code, formulas, databases and unknown content are kept.
+
+Drag a handle, or focus it and press Up/Down. Steps execute top to bottom; a drag commits on drop. Empty-document exclusion starts disabled and last, preserving old preset behavior. **Keep empty documents needed for connections** defaults on: compute a stable undirected 0/1 minimum spanning forest using enabled native relationships, then repeatedly prune empty leaves. Keep all original edges among surviving nodes, and preserve native anchors needed by logical database entities. This does not minimize the number of retained empty documents. Later exclusions can still break connectivity; mentions are generated after node exclusions and do not participate in this calculation.
 
 Enter one document/block ID, title substring, or `/regex/` per line. Text and JavaScript regex rules match full document titles after width, case, and whitespace normalization; they do not search bodies or aliases. Regex uses fixed case-insensitive Unicode flags. For example, `/^\d{4}-\d{2}$/` in the first group hides a `2026-09` category while keeping its child documents. `Archive` in the second group removes matching documents and their descendants. Subtree rules still apply where both groups overlap. Block IDs remove that block and its nested blocks in either group. Escape literal leading `/` or `\` with another `\`.
 
-After typing pauses, the preview counts affected documents and content blocks across both drafts, counting overlaps once. **View details** provides searchable, paginated affected identities. It covers the acquired workspace, including content outside the active scope, and does not change the applied graph. **Apply exclusions** removes the corresponding sources and incident relationships from the computation graph without creating replacement reference edges or deleting notes. Excluded category nodes no longer mediate containment or paths.
+Each step reports newly removed nodes in the current scope and type projection, before isolated-node hiding. Overlaps count once. **View details** separates all matches, earlier removals, new removals and retained connectors, with search, pagination, Copy ID, native opening and location for nodes still in the graph. A shared draft preview runs after typing pauses; **Apply exclusions** applies text rules. Toggles and completed reordering apply immediately. Update the preset to save all configuration. No replacement reference edges are created and no notes are deleted. Excluded category nodes no longer mediate containment or paths.
 
 Both groups allow up to 2,000 rules combined, including 128 regex rules, with at most 256 characters per rule. Invalid patterns show a line number. Matching runs in a cancellable background task with a 10-second deadline; edit or clear rules to recover. Update or save a preset to persist applied rules. Temporary search filters remain independent. Existing ID exclusions retain their behavior in the subtree group.
+
+Mention exclusions retain separate name/node statistics. **Applied exclusions: relation impact** compares the applied rules with no exclusions in the current scope, mode and selection. It lists both removed and added directed relations, since removing one name can expose another match. The baseline runs only while the dialog is open, with explicit notices when indexing or output limits make the comparison incomplete.
 
 ## Turn a search into a graph
 
