@@ -36,14 +36,14 @@
   /* The sheet is portaled into the stage, while inspection is its sibling.
      Coordinate presentation across that boundary without changing mounted state. */
   @variant max-compact {
-    .explore-layout:has([data-slot="sheet-content"][data-open] [data-filter-expanded="true"])
+    .explore-layout:has([data-slot="sheet-content"][data-open][data-filter-expanded="true"])
       .inspector-panel {
       @apply pointer-events-none invisible;
     }
   }
 
   @variant max-narrow {
-    .explore-layout:has([data-slot="sheet-content"][data-open] [data-filter-expanded="false"])
+    .explore-layout:has([data-slot="sheet-content"][data-open][data-filter-expanded="false"])
       .inspector-panel {
       @apply left-14 w-[calc(100%-4.25rem)];
     }

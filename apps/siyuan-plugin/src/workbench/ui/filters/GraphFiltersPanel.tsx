@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   Boxes,
+  ChevronDown,
   FolderOpen,
   Link2,
   ListFilter,
@@ -330,12 +331,16 @@ export function GraphFiltersPanel({
       <div className={cn("min-h-0 min-w-0 flex-1 flex-col", collapsed ? "hidden" : "flex")}>
         <SheetHeader className="gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <h2
-              className="min-w-0 flex-1 truncate font-medium"
+            <Button
+              variant="ghost"
+              className="min-w-0 flex-1 justify-start"
               title={state.filterPresets.activeName}
+              aria-label={t("preset.manage")}
+              onClick={onBack}
             >
-              {state.filterPresets.activeName}
-            </h2>
+              <span className="truncate">{state.filterPresets.activeName}</span>
+              <ChevronDown data-icon="inline-end" />
+            </Button>
             {state.filterPresets.modified && (
               <Badge variant="outline">{t("filter.presetUnsaved")}</Badge>
             )}

@@ -46,6 +46,13 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-overlay: var(--overlay-surface);
+  --color-switch-on: var(--switch-on);
+  --color-switch-on-hover: var(--switch-on-hover);
+  --color-switch-off: var(--switch-off);
+  --color-switch-off-hover: var(--switch-off-hover);
+  --color-switch-border: var(--switch-border);
+  --color-switch-thumb-on: var(--switch-thumb-on);
+  --color-switch-thumb-off: var(--switch-thumb-off);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --radius-xs: calc(var(--radius) * 0.4);
@@ -69,6 +76,13 @@
   --overlay-opacity: 98%;
   --overlay-backdrop: none;
   --overlay-muted-foreground: oklch(0.5 0 0);
+  --switch-on: oklch(0.205 0 0);
+  --switch-on-hover: oklch(0.269 0 0);
+  --switch-off: oklch(0.922 0 0);
+  --switch-off-hover: oklch(0.87 0 0);
+  --switch-border: oklch(0.556 0 0);
+  --switch-thumb-on: oklch(0.985 0 0);
+  --switch-thumb-off: oklch(0.556 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
@@ -98,6 +112,11 @@
 }
 
 .dark {
+  --switch-on: oklch(0.58 0 0);
+  --switch-on-hover: oklch(0.64 0 0);
+  --switch-off: oklch(0.269 0 0);
+  --switch-off-hover: oklch(0.32 0 0);
+  --switch-thumb-off: oklch(0.66 0 0);
   --overlay-opacity: 94%;
   --overlay-muted-foreground: oklch(0.708 0 0);
   --background: oklch(0.145 0 0);

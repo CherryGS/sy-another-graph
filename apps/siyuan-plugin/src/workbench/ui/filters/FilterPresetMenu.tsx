@@ -1,9 +1,10 @@
 import { useLocale } from "../../../shared/i18n/react";
 import { t } from "../../../shared/i18n/runtime";
-import { useRef, useState, type FormEvent, type Ref, type RefObject } from "react";
+import { useId, useRef, useState, type FormEvent, type Ref, type RefObject } from "react";
 import { cn } from "@/shared/lib/utils";
 import {
   Check,
+  ChevronDown,
   Copy,
   Pencil,
   Plus,
@@ -15,6 +16,8 @@ import {
 import { Alert, AlertAction, AlertDescription } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { ButtonGroup } from "@/shared/ui/button-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +28,6 @@ import {
 } from "@/shared/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
-import { PopoverContent } from "@/shared/ui/popover";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Separator } from "@/shared/ui/separator";
 import { Spinner } from "@/shared/ui/spinner";
@@ -56,11 +58,11 @@ const NAMING_TITLES = {
 export function FilterPresetMenu({
   state,
   editorHost,
-  anchorRef,
+  presetAnchor,
 }: {
   state: WorkbenchState;
   editorHost: RefObject<HTMLElement | null>;
-  anchorRef: RefObject<HTMLElement | null>;
+  presetAnchor: RefObject<HTMLElement | null>;
 }) {
   useLocale();
   const presets = state.filterPresets;
@@ -72,6 +74,8 @@ export function FilterPresetMenu({
   const [editorSession, setEditorSession] = useState(0);
   const exitTrigger = useRef<HTMLElement | null>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
+  const editorTriggerRef = useRef<HTMLButtonElement>(null);
+  const editorId = useId();
   const editRequest = useRef(0);
   const editorOpen = useRef(false);
   const namingTrigger = useRef<HTMLElement | null>(null);
@@ -223,12 +227,83 @@ export function FilterPresetMenu({
   );
 
   return (
-    <>
+    <Popover
+      open={state.filtersOpen}
+      onOpenChange={(open, eventDetails) => {
+        if (open && editorOpen.current) {
+          eventDetails.cancel();
+          requestExit("back");
+        } else state.setFiltersOpen(open);
+      }}
+    >
+      <ButtonGroup className="min-w-0 max-w-full" aria-label={t("text.graphFilters")}>
+        <Tooltip disabled={details || state.filtersOpen}>
+          <TooltipTrigger
+            render={
+              <Button
+                ref={editorTriggerRef}
+                data-filter-editor-trigger
+                variant="outline"
+                className="min-w-0 max-w-[min(14rem,100%)]"
+                aria-label={t("text.graphFilterValueValue", {
+                  p0: presets.activeName,
+                  p1: presets.modified
+                    ? t(presets.temporaryActive ? "text.modified" : "filter.presetUnsaved")
+                    : "",
+                })}
+                aria-haspopup="dialog"
+                aria-expanded={details}
+                aria-controls={details ? editorId : undefined}
+                onClick={() => {
+                  if (!details) openEditor();
+                  else if (collapsed) setCollapsed(false);
+                  else requestExit("close");
+                }}
+              />
+            }
+          >
+            <SlidersHorizontal data-icon="inline-start" />
+            <span className="truncate">
+              {t("preset.filterLabel", { name: presets.activeName })}
+            </span>
+            {presets.modified && !presets.temporaryActive && (
+              <Badge variant="outline">{t("filter.presetUnsaved")}</Badge>
+            )}
+            {presets.temporaryActive && (
+              <Badge
+                variant={
+                  presets.missingSearchIds.length && !state.loading ? "destructive" : "secondary"
+                }
+              >
+                {presets.missingSearchIds.length && !state.loading
+                  ? t("text.missingValue", {
+                      p0: presets.missingSearchIds.length,
+                    })
+                  : t("text.temporary")}
+              </Badge>
+            )}
+          </TooltipTrigger>
+          <TooltipContent>{state.graphTabState.description}</TooltipContent>
+        </Tooltip>
+        <PopoverTrigger
+          render={
+            <Button
+              data-filter-presets-trigger
+              variant="outline"
+              size="icon"
+              aria-label={t("text.filterPresets")}
+              title={t("text.filterPresets")}
+            />
+          }
+        >
+          <ChevronDown />
+        </PopoverTrigger>
+      </ButtonGroup>
       <PopoverContent
-        anchor={anchorRef}
+        anchor={presetAnchor}
         align="start"
-        className="filter-popover w-[min(22.5rem,calc(100vw-1.5rem))] gap-0 p-0"
         aria-label={t("text.filterPresets")}
+        className="filter-popover w-[min(22.5rem,calc(100vw-1.5rem))] gap-0 p-0"
         finalFocus={() => {
           if (naming || editorOpen.current) return false;
           editRequest.current++;
@@ -384,8 +459,12 @@ export function FilterPresetMenu({
         }}
       >
         <SheetContent
+          id={editorId}
+          data-filter-expanded={!collapsed}
           side="left"
           surface="overlay"
+          // This nonmodal editor leaves the toolbar and graph available for interaction.
+          showBackdrop={false}
           container={editorHost}
           showCloseButton={false}
           className={cn(
@@ -393,8 +472,7 @@ export function FilterPresetMenu({
             collapsed ? "data-[side=left]:w-11" : "data-[side=left]:w-[min(360px,100%)]",
           )}
           finalFocus={() => {
-            if (!state.filtersOpen && !naming)
-              document.querySelector<HTMLButtonElement>("[data-filter-presets-trigger]")?.focus();
+            if (!state.filtersOpen && !naming) editorTriggerRef.current?.focus();
             return false;
           }}
         >
@@ -455,7 +533,7 @@ export function FilterPresetMenu({
           onRestoreFocus={restoreNamingFocus}
         />
       )}
-    </>
+    </Popover>
   );
 }
 

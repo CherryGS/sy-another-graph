@@ -3,13 +3,11 @@ import { t } from "../../shared/i18n/runtime";
 import { presentNodes } from "../presentation/present-nodes";
 import { useMemo, useRef, useState } from "react";
 import type { CanvasContextTarget, CanvasNode } from "../presentation/types";
-import { ChevronDown, Focus, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Focus, Pause, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field";
-import { Popover, PopoverTrigger } from "@/shared/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/shared/ui/empty";
@@ -40,6 +38,7 @@ export function ExplorePage({ active }: { active: boolean }) {
   const { Renderer } = useWorkbenchServices();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const filterHostRef = useRef<HTMLElement>(null);
+  const presetAnchorRef = useRef<HTMLSpanElement>(null);
   const [nodeMenu, setNodeMenu] = useState<{
     target: CanvasContextTarget;
     nodes: readonly CanvasNode[];
@@ -72,162 +71,115 @@ export function ExplorePage({ active }: { active: boolean }) {
   }, [state.spotlightIds, state.discovery.candidate, state.discovery.index]);
   return (
     <div className="explore-page flex size-full min-w-0 flex-col">
-      <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
+      <div
+        ref={toolbarRef}
+        className="exploration-toolbar flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-border bg-background px-3 py-2.5 max-compact:gap-2 max-narrow:p-2"
+        aria-label={t("text.graphActions")}
+      >
+        <div className="search-tools flex min-w-0 flex-[1_1_270px] flex-wrap items-center gap-2 max-narrow:basis-full">
+          <GraphSearch state={state} anchorRef={toolbarRef} />
+          <FilterPresetMenu
+            state={state}
+            editorHost={filterHostRef}
+            presetAnchor={presetAnchorRef}
+          />
+          <GraphLegend
+            nodes={view.nodes}
+            searchOrigins={state.searchOrigins}
+            anchorRef={toolbarRef}
+          />
+        </div>
         <div
-          ref={toolbarRef}
-          className="exploration-toolbar flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-border bg-background px-3 py-2.5 max-compact:gap-2 max-narrow:p-2"
-          aria-label={t("text.graphActions")}
+          className="neighborhood-tools flex min-w-0 flex-wrap items-center gap-2 max-narrow:gap-1.5"
+          aria-label={t("text.neighborhoodSettings")}
         >
-          <div className="search-tools flex min-w-0 flex-[1_1_270px] flex-wrap items-center gap-2 max-narrow:basis-full">
-            <GraphSearch state={state} anchorRef={toolbarRef} />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        data-filter-presets-trigger
-                        variant={state.filtersOpen ? "secondary" : "outline"}
-                        className="max-w-[min(14rem,100%)]"
-                        aria-label={t("text.graphFilterValueValue", {
-                          p0: state.filterPresets.activeName,
-                          p1: state.filterPresets.modified
-                            ? t(
-                                state.filterPresets.temporaryActive
-                                  ? "text.modified"
-                                  : "filter.presetUnsaved",
-                              )
-                            : "",
-                        })}
-                      />
-                    }
-                  />
-                }
+          <div className="flex shrink-0 items-center gap-1">
+            <Badge variant="secondary">
+              {t("selection.count", { count: state.chosenIds.length })}
+            </Badge>
+            {!!state.chosenIds.length && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("text.clearSelection")}
+                title={t("text.clearSelectionShiftDoubleClickTheBackground")}
+                onClick={state.clearChosen}
               >
-                <span className="truncate">
-                  {t("preset.filterLabel", { name: state.filterPresets.activeName })}
-                </span>
-                {state.filterPresets.modified && !state.filterPresets.temporaryActive && (
-                  <Badge variant="outline">{t("filter.presetUnsaved")}</Badge>
-                )}
-                {state.filterPresets.temporaryActive && (
-                  <Badge
-                    variant={
-                      state.filterPresets.missingSearchIds.length && !state.loading
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {state.filterPresets.missingSearchIds.length && !state.loading
-                      ? t("text.missingValue", {
-                          p0: state.filterPresets.missingSearchIds.length,
-                        })
-                      : t("text.temporary")}
-                  </Badge>
-                )}
-                <ChevronDown data-icon="inline-end" />
-              </TooltipTrigger>
-              <TooltipContent>{state.graphTabState.description}</TooltipContent>
-            </Tooltip>
-            <GraphLegend
-              nodes={view.nodes}
-              searchOrigins={state.searchOrigins}
-              anchorRef={toolbarRef}
-            />
-          </div>
-          <div
-            className="neighborhood-tools flex min-w-0 flex-wrap items-center gap-2 max-narrow:gap-1.5"
-            aria-label={t("text.neighborhoodSettings")}
-          >
-            <div className="flex shrink-0 items-center gap-1">
-              <Badge variant="secondary">
-                {t("selection.count", { count: state.chosenIds.length })}
-              </Badge>
-              {!!state.chosenIds.length && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("text.clearSelection")}
-                  title={t("text.clearSelectionShiftDoubleClickTheBackground")}
-                  onClick={state.clearChosen}
-                >
-                  <X />
-                </Button>
-              )}
-            </div>
-            {/* Inline-size containment would hide the translated label's intrinsic width. */}
-            <FieldGroup className="w-max shrink-0 [container-type:normal]">
-              <Field orientation="horizontal" className="w-auto items-center">
-                <FieldLabel htmlFor="graph-depth" className="whitespace-nowrap">
-                  {t("text.neighborhood")}
-                </FieldLabel>
-                <Input
-                  id="graph-depth"
-                  className="w-16 shrink-0"
-                  aria-label={t("text.neighborhoodDepth")}
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={state.depth}
-                  onChange={(event) => state.setDepth(Number(event.target.value))}
-                />
-                <span className="text-xs text-muted-foreground">{t("text.hops")}</span>
-              </Field>
-            </FieldGroup>
-            <ToggleGroup
-              variant="outline"
-              className="max-w-full flex-wrap"
-              aria-label={t("text.traversalDirection")}
-              value={[state.direction]}
-              onValueChange={([value]) => {
-                if (value) state.setDirection(value as GraphDirection);
-              }}
-            >
-              <ToggleGroupItem value="both">{t("text.bothWays")}</ToggleGroupItem>
-              <ToggleGroupItem value="out">{t("text.alongArrows")}</ToggleGroupItem>
-              <ToggleGroupItem value="in">{t("text.againstArrows")}</ToggleGroupItem>
-            </ToggleGroup>
-            {state.busy && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
-                <Spinner />
-                {t("text.updateNeighborhood")}
-              </span>
+                <X />
+              </Button>
             )}
           </div>
-          <div className="display-tools ml-auto flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3 max-compact:ml-0">
-            <ToggleGroup
-              variant="default"
-              aria-label={t("layout.mode")}
-              value={[state.graphSettings.layoutMode]}
-              onValueChange={([layoutMode]) => {
-                if (layoutMode === "force" || layoutMode === "layered")
-                  state.setGraphSettings({ layoutMode });
-              }}
-            >
-              <ToggleGroupItem value="force">{t("layout.force")}</ToggleGroupItem>
-              <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
-            </ToggleGroup>
-            <ToggleGroup
-              variant="default"
-              aria-label={t("text.graphDimension")}
-              value={[String(state.graphSettings.dimensions)]}
-              onValueChange={([value]) => {
-                if (value === "2" || value === "3")
-                  state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
-              }}
-            >
-              <ToggleGroupItem value="2" aria-label={t("text.2dMode")}>
-                2D
-              </ToggleGroupItem>
-              <ToggleGroupItem value="3" aria-label={t("text.3dMode")}>
-                3D
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <GraphActions state={state} />
-          </div>
+          {/* Inline-size containment would hide the translated label's intrinsic width. */}
+          <FieldGroup className="w-max shrink-0 [container-type:normal]">
+            <Field orientation="horizontal" className="w-auto items-center">
+              <FieldLabel htmlFor="graph-depth" className="whitespace-nowrap">
+                {t("text.neighborhood")}
+              </FieldLabel>
+              <Input
+                id="graph-depth"
+                className="w-16 shrink-0"
+                aria-label={t("text.neighborhoodDepth")}
+                type="number"
+                min="0"
+                max="100"
+                value={state.depth}
+                onChange={(event) => state.setDepth(Number(event.target.value))}
+              />
+              <span className="text-xs text-muted-foreground">{t("text.hops")}</span>
+            </Field>
+          </FieldGroup>
+          <ToggleGroup
+            variant="outline"
+            className="max-w-full flex-wrap"
+            aria-label={t("text.traversalDirection")}
+            value={[state.direction]}
+            onValueChange={([value]) => {
+              if (value) state.setDirection(value as GraphDirection);
+            }}
+          >
+            <ToggleGroupItem value="both">{t("text.bothWays")}</ToggleGroupItem>
+            <ToggleGroupItem value="out">{t("text.alongArrows")}</ToggleGroupItem>
+            <ToggleGroupItem value="in">{t("text.againstArrows")}</ToggleGroupItem>
+          </ToggleGroup>
+          {state.busy && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
+              <Spinner />
+              {t("text.updateNeighborhood")}
+            </span>
+          )}
         </div>
-        <FilterPresetMenu state={state} editorHost={filterHostRef} anchorRef={toolbarRef} />
-      </Popover>
+        <div className="display-tools ml-auto flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3 max-compact:ml-0">
+          <ToggleGroup
+            variant="default"
+            aria-label={t("layout.mode")}
+            value={[state.graphSettings.layoutMode]}
+            onValueChange={([layoutMode]) => {
+              if (layoutMode === "force" || layoutMode === "layered")
+                state.setGraphSettings({ layoutMode });
+            }}
+          >
+            <ToggleGroupItem value="force">{t("layout.force")}</ToggleGroupItem>
+            <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
+          </ToggleGroup>
+          <ToggleGroup
+            variant="default"
+            aria-label={t("text.graphDimension")}
+            value={[String(state.graphSettings.dimensions)]}
+            onValueChange={([value]) => {
+              if (value === "2" || value === "3")
+                state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
+            }}
+          >
+            <ToggleGroupItem value="2" aria-label={t("text.2dMode")}>
+              2D
+            </ToggleGroupItem>
+            <ToggleGroupItem value="3" aria-label={t("text.3dMode")}>
+              3D
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <GraphActions state={state} />
+        </div>
+      </div>
       <GraphNotices state={state} />
       <MentionNotice mode={filters.mentions} status={state.mentionState} />
       <LayeredLayoutNotice state={state} />
@@ -247,6 +199,13 @@ export function ExplorePage({ active }: { active: boolean }) {
           className="graph-stage relative isolate size-full min-h-0 min-w-0 overflow-hidden"
           aria-label={t("text.graphCanvas")}
         >
+          {/* The preset dropdown anchors to the canvas's left edge, independently of toolbar wrapping. */}
+          <span
+            ref={presetAnchorRef}
+            data-filter-presets-anchor
+            aria-hidden
+            className="absolute top-0 left-0 size-0"
+          />
           <ReadDiagnostics state={state} />
           {data && (
             <Renderer

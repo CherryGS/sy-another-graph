@@ -2,7 +2,7 @@ import { useLocale } from "../../shared/i18n/react";
 import { t } from "../../shared/i18n/runtime";
 import { presentNode } from "../presentation/present-nodes";
 import { useId, useMemo, useRef, useState, type RefObject } from "react";
-import { Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
 import { Popover, PopoverContent } from "@/shared/ui/popover";
 import {
   InputGroup,
@@ -18,7 +18,9 @@ import { nodeColor } from "../presentation/node-colors";
 import { nodeType } from "../../core/scope/graph-model";
 import { NODE_TYPE_LABELS } from "../presentation/graph-labels";
 import { SearchOriginBadge } from "./inspector/SearchOriginBadge";
-import { GRAPH_SEARCH_RESULT_LIMIT } from "../../core/graph/graph-lookups";
+
+// Bound mounted rows, not the matches available to search.
+const SEARCH_PAGE_SIZE = 50;
 
 export function GraphSearch({
   state,
@@ -30,6 +32,7 @@ export function GraphSearch({
   useLocale();
   const { filters, setFilters } = state;
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const resultsId = useId();
   const input = useRef<HTMLInputElement>(null);
   const firstResult = useRef<HTMLButtonElement>(null);
@@ -40,6 +43,10 @@ export function GraphSearch({
     () => new Map(state.data?.notebooks.map((book) => [book.id, book.name]) ?? []),
     [state.data?.notebooks],
   );
+  const lastPage = Math.max(0, Math.ceil(state.results.length / SEARCH_PAGE_SIZE) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const start = currentPage * SEARCH_PAGE_SIZE;
+  const visibleResults = state.results.slice(start, start + SEARCH_PAGE_SIZE);
   return (
     <Popover
       open={open && !!filters.query.trim()}
@@ -70,6 +77,7 @@ export function GraphSearch({
             }
           }}
           onChange={(event) => {
+            setPage(0);
             setOpen(true);
             setFilters((previous) => ({
               ...previous,
@@ -85,7 +93,10 @@ export function GraphSearch({
             <InputGroupButton
               size="icon-xs"
               aria-label={t("text.clearSearch")}
-              onClick={() => setFilters((previous) => ({ ...previous, query: "" }))}
+              onClick={() => {
+                setPage(0);
+                setFilters((previous) => ({ ...previous, query: "" }));
+              }}
             >
               <X />
             </InputGroupButton>
@@ -110,12 +121,11 @@ export function GraphSearch({
       >
         {state.results.length > 0 && (
           <p className="shrink-0 px-2 py-1 text-xs text-muted-foreground" role="status">
-            {state.results.length === GRAPH_SEARCH_RESULT_LIMIT
-              ? t("search.resultLimit", { limit: GRAPH_SEARCH_RESULT_LIMIT })
-              : t("search.resultCount", { count: state.results.length })}
+            {t("search.resultCount", { count: state.results.length })}
           </p>
         )}
         <ScrollArea
+          key={`${currentPage}:${filters.query}`}
           id={resultsId}
           aria-label={t("text.nodeSearchResults")}
           className="search-results h-[min(26.25rem,var(--available-height))] min-h-0 shrink"
@@ -123,7 +133,7 @@ export function GraphSearch({
         >
           {state.results.length ? (
             <div className="flex flex-col gap-1">
-              {state.results.map((node, index) => (
+              {visibleResults.map((node, index) => (
                 <Button
                   ref={index === 0 ? firstResult : undefined}
                   key={node.id}
@@ -150,7 +160,7 @@ export function GraphSearch({
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate">{node.label}</span>
                       <SearchOriginBadge id={node.id} origins={state.searchOrigins} />
-                    </span>
+                    </span>{" "}
                     <span className="block truncate text-xs text-muted-foreground">
                       {[
                         NODE_TYPE_LABELS[nodeType(node)] ?? nodeType(node),
@@ -174,6 +184,38 @@ export function GraphSearch({
             </Empty>
           )}
         </ScrollArea>
+        {lastPage > 0 && (
+          <nav
+            className="flex shrink-0 items-center justify-between gap-2 p-1"
+            aria-label={t("search.pages")}
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("search.previous")}
+              disabled={currentPage === 0}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <ArrowLeft />
+            </Button>
+            <span className="text-xs tabular-nums text-muted-foreground" role="status">
+              {t("search.range", {
+                start: start + 1,
+                end: start + visibleResults.length,
+                total: state.results.length,
+              })}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("search.next")}
+              disabled={currentPage === lastPage}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              <ArrowRight />
+            </Button>
+          </nav>
+        )}
       </PopoverContent>
     </Popover>
   );

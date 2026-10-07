@@ -1,7 +1,5 @@
 import type { GraphEdge, GraphNode } from "./types";
 
-export const GRAPH_SEARCH_RESULT_LIMIT = 30;
-
 /** Published graph arrays and the facts they contain are immutable. */
 export interface GraphLike {
   readonly nodes: readonly GraphNode[];
@@ -77,11 +75,11 @@ export function getGraphLookups(graph: GraphLike): GraphLookups {
   return result;
 }
 
-/** Match the existing title/ID search order without allocating every match. */
+/** Match titles and IDs in source order; callers may request a bounded subset. */
 export function searchGraphNodes(
   graph: Pick<GraphLike, "nodes">,
   query: string,
-  limit = GRAPH_SEARCH_RESULT_LIMIT,
+  limit = Number.MAX_SAFE_INTEGER,
 ): GraphNode[] {
   if (!Number.isSafeInteger(limit) || limit < 0)
     throw new RangeError("Search limit must be a non-negative safe integer");

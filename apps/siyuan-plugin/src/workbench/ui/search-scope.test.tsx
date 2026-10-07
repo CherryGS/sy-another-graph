@@ -2,9 +2,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DEFAULT_FILTERS, type GraphFilters } from "../../modules/presets/filters";
-import { getGraphLookups, GRAPH_SEARCH_RESULT_LIMIT } from "../../core/graph/graph-lookups";
+import { getGraphLookups, searchGraphNodes } from "../../core/graph/graph-lookups";
 import type { GraphNode } from "../../core/graph/types";
 import type { WorkbenchState } from "../model/state";
 import { GraphSearch } from "./GraphSearch";
@@ -107,17 +107,22 @@ function SearchExample({
 }) {
   const anchor = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({ ...structuredClone(DEFAULT_FILTERS), query: "" });
+  const nodes = useMemo(
+    () =>
+      Array.from({ length: count }, (_, index) => ({
+        ...source,
+        id: `node-${index}`,
+        index,
+        label: `Match ${index}`,
+      })),
+    [count],
+  );
   const state = {
     filters,
     setFilters,
     chosenIds: [],
     data: { notebooks: [] },
-    results: Array.from({ length: count }, (_, index) => ({
-      ...source,
-      id: `node-${index}`,
-      index,
-      label: `Match ${index}`,
-    })),
+    results: searchGraphNodes({ nodes }, filters.query),
     setSelectedId: onSelect,
     openDocument: vi.fn(),
     colorBy: "type",
@@ -129,16 +134,35 @@ function SearchExample({
   );
 }
 
-it("discloses the cap without claiming there are additional matches", async () => {
+it("makes matches beyond thirty reachable while bounding mounted rows per page", async () => {
+  const onSelect = vi.fn();
   const user = userEvent.setup();
-  render(<SearchExample count={GRAPH_SEARCH_RESULT_LIMIT} />);
+  render(<SearchExample count={125} onSelect={onSelect} />);
   await user.type(screen.getByRole("textbox", { name: t("text.searchGraphNodes") }), "Match");
-  expect(
-    await screen.findByText(t("search.resultLimit", { limit: GRAPH_SEARCH_RESULT_LIMIT })),
-  ).toBeTruthy();
-  expect(screen.getAllByRole("button", { name: /^Match / })).toHaveLength(
-    GRAPH_SEARCH_RESULT_LIMIT,
-  );
+  expect(await screen.findByText(t("search.resultCount", { count: 125 }))).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /^Match / })).toHaveLength(50);
+  await user.click(screen.getByRole("button", { name: t("search.next") }));
+  expect(screen.getByText(t("search.range", { start: 51, end: 100, total: 125 }))).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /^Match / })).toHaveLength(50);
+  await user.click(screen.getByRole("button", { name: t("search.next") }));
+  expect(screen.getAllByRole("button", { name: /^Match / })).toHaveLength(25);
+  await user.click(screen.getByRole("button", { name: /^Match 124\b/ }));
+  expect(onSelect.mock.calls[0][0]).toBe("node-124");
+  await user.click(screen.getByRole("button", { name: t("search.previous") }));
+  expect(screen.getByText(t("search.range", { start: 51, end: 100, total: 125 }))).toBeTruthy();
+});
+
+it("returns to the first page when the query changes", async () => {
+  const user = userEvent.setup();
+  render(<SearchExample count={125} />);
+  const input = screen.getByRole("textbox", { name: t("text.searchGraphNodes") });
+  await user.type(input, "Match");
+  await user.click(screen.getByRole("button", { name: t("search.next") }));
+  await user.clear(input);
+  await user.type(input, "Match 2");
+  expect(await screen.findByText(t("search.resultCount", { count: 11 }))).toBeTruthy();
+  expect(screen.queryByRole("button", { name: t("search.next") })).toBeNull();
+  expect(screen.getByRole("button", { name: /^Match 2\b/ })).toBeTruthy();
 });
 
 it("reports the uncapped count and preserves Down/Enter selection and Escape focus", async () => {

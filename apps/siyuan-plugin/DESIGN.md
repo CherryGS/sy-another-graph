@@ -12,6 +12,9 @@ colors:
   raised-ink: "oklch(0.269 0 0)"
   overlay-muted-paper: "oklch(0.708 0 0)"
   overlay-muted-ink: "oklch(0.5 0 0)"
+  switch-active-ink: "oklch(0.58 0 0)"
+  switch-active-hover-ink: "oklch(0.64 0 0)"
+  switch-inactive-thumb-ink: "oklch(0.66 0 0)"
   paper-border: "oklch(0.922 0 0)"
   ink-border: "oklch(1 0 0 / 10%)"
   ink-input: "oklch(1 0 0 / 15%)"
@@ -214,7 +217,8 @@ workload; they do not establish universal graph-capacity or GPU guarantees.
 
 Moderate rounding unifies controls. The frontmatter radius scale derives from
 the current 10px base radius at the default 16px root size. Cards use the larger
-step; badges and switch tracks use the 4px extra-small step, with 3px switch thumbs.
+step; badges and switch tracks use the 4px extra-small step. Switch thumbs have
+2px corners and an even 2px inset from their track's outer edge.
 Avoid full capsule shapes for labels and controls, as requested by the owner.
 Inspectors use the base radius plus 4px. Ordinary
 graph labels, chosen labels and canvas tooltips have smaller role-specific
@@ -231,14 +235,34 @@ sizing, with 16px ordinary and 14px compact icons. Focus uses the existing
 semantic ring, disabled states lower opacity, and primary hover lowers fill
 opacity. An active toggle changes its tonal surface.
 
+Filter editing and preset selection are independent actions joined in a button
+group, with one shared outline and moderate outer corners. The main action opens
+the current editor at the left of the canvas; its chevron opens the compact preset
+dropdown at the canvas's left edge below the toolbar, independently of the group's
+toolbar position. The editor has no viewport backdrop, so the toolbar remains
+operable. Switching to presets uses the unapplied-draft exit guard; reopening
+collapsed editor content preserves drafts.
+
+### Switches
+
+Switches use a 36×20px track and 16px thumb; the small size uses 28×16px and
+12px. Checked switches use a solid active track and a light thumb. Disabled-state
+controls keep the existing reduced opacity; unchecked switches use a neutral
+track, visible border and quieter gray thumb. Thumb position and surface both
+communicate state. Dedicated semantic switch tokens retain the neutral palette
+in light and dark themes. Thumb movement takes 150ms and respects reduced motion;
+color changes are immediate, including theme changes.
+
 ### Inputs
 
 Inputs share the ordinary control height and radius, a semantic outline and
 compact padding. Focus changes the border and adds a ring. Invalid states use
 the destructive role; disabled fields preserve a visible surface distinction.
 Search composes the existing input-group primitives.
-Its bounded result list reports counts and its 30-item cap without asserting
-that additional matches exist. Scope keeps native-ID entry and adds an explicit
+Its result list reports the full matching count and presents 50 rows per page,
+with previous/next controls and the visible range. Matching nodes have no fixed
+result cap; paging bounds mounted controls for large graphs. Changing the query
+returns to the first page. Scope keeps native-ID entry and adds an explicit
 shortcut from an acquired, inspected native node, with the active source name
 beside the field; synthetic source-opening fallbacks are not scope identities.
 

@@ -66,7 +66,7 @@ describe("immutable graph lookup indexes", () => {
   });
 });
 
-describe("bounded title and ID search", () => {
+describe("title and ID search", () => {
   it("retains source order, trimmed locale-folded titles, original ID matching, and title-only scope", () => {
     const nodes = [
       node("first", 8, "A CASE title"),
@@ -85,7 +85,7 @@ describe("bounded title and ID search", () => {
     expect(searchGraphNodes({ nodes }, "case", 0)).toEqual([]);
   });
 
-  it("stops at thirty matches in a 100,000-node corpus and reuses computed lowercase titles", () => {
+  it("supports a caller limit and makes every match available by default, reusing cached titles", () => {
     let reads = 0;
     const label = () => {
       reads++;
@@ -96,12 +96,18 @@ describe("bounded title and ID search", () => {
       Object.defineProperty(value, "label", { get: label });
       return value;
     });
-    const first = searchGraphNodes({ nodes }, "repeated");
+    const first = searchGraphNodes({ nodes }, "repeated", 30);
     expect(first).toHaveLength(30);
     expect(first[29]).toBe(nodes[29]);
     expect(reads).toBe(30);
+    const all = searchGraphNodes({ nodes }, "repeated");
+    expect(all).toHaveLength(100_000);
+    expect(all[99_999]).toBe(nodes[99_999]);
+    expect(reads).toBe(100_000);
+    expect(searchGraphNodes({ nodes }, "PASSAGE")).toEqual(all);
+    expect(reads).toBe(100_000);
     expect(searchGraphNodes({ nodes }, "PASSAGE", 10)).toEqual(nodes.slice(0, 10));
-    expect(reads).toBe(30);
+    expect(reads).toBe(100_000);
   });
 
   it("refreshes cached labels for a new published node array", () => {

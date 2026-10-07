@@ -3,9 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState } from "react";
-import { Popover, PopoverTrigger } from "../../../shared/ui/popover";
 import { TooltipProvider } from "../../../shared/ui/tooltip";
-import { Button } from "../../../shared/ui/button";
 import { DEFAULT_FILTERS, type GraphFilters } from "../../../modules/presets/filters";
 import { FilterPresetMenu } from "./FilterPresetMenu";
 import type { WorkbenchState } from "../../model/state";
@@ -16,12 +14,13 @@ afterEach(cleanup);
 function Workbench({ modified = false }: { modified?: boolean }) {
   const host = useRef<HTMLElement>(null);
   const anchor = useRef<HTMLDivElement>(null);
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<GraphFilters>(() => structuredClone(DEFAULT_FILTERS));
   // This fixture supplies the real editor's UI dependencies, leaving acquisition and rendering out of the interaction test.
   const state = {
     filtersOpen,
     setFiltersOpen,
+    graphTabState: { description: "Current graph scope" },
     filters,
     setFilters,
     data: null,
@@ -52,15 +51,10 @@ function Workbench({ modified = false }: { modified?: boolean }) {
   return (
     <TooltipProvider>
       <style>{".hidden{display:none}"}</style>
-      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <div ref={anchor}>
-          <PopoverTrigger data-filter-presets-trigger render={<Button />}>
-            Presets
-          </PopoverTrigger>
-        </div>
-        <section ref={host} data-testid="graph-stage" />
-        <FilterPresetMenu state={state} editorHost={host} anchorRef={anchor} />
-      </Popover>
+      <div ref={anchor}>
+        <FilterPresetMenu state={state} editorHost={host} presetAnchor={anchor} />
+      </div>
+      <section ref={host} data-testid="graph-stage" />
       <output data-testid="applied">{JSON.stringify(filters)}</output>
     </TooltipProvider>
   );
@@ -69,7 +63,14 @@ function Workbench({ modified = false }: { modified?: boolean }) {
 async function openEditor(modified = false) {
   const user = userEvent.setup();
   render(<Workbench modified={modified} />);
-  await user.click(await screen.findByRole("button", { name: t("text.editFilterCustom") }));
+  await user.click(
+    await screen.findByRole("button", {
+      name: t("text.graphFilterValueValue", {
+        p0: "Custom",
+        p1: modified ? t("filter.presetUnsaved") : "",
+      }),
+    }),
+  );
   await screen.findByRole("button", { name: t("text.backToFilterPresets") });
   return user;
 }
@@ -80,6 +81,57 @@ async function mentionDraft(user: ReturnType<typeof userEvent.setup>) {
   await user.type(input, "Archive");
   return input;
 }
+
+it("opens the current editor directly and restores focus to its toolbar entry", async () => {
+  const user = await openEditor();
+  expect(screen.queryByRole("dialog", { name: t("text.filterPresets") })).toBeNull();
+  await user.click(screen.getByRole("button", { name: t("filter.close") }));
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", {
+        name: t("text.graphFilterValueValue", { p0: "Custom", p1: "" }),
+      }),
+    ),
+  );
+});
+
+it("groups independent editor and preset actions without opening the editor for preset selection", async () => {
+  const user = userEvent.setup();
+  render(<Workbench />);
+  const group = screen.getByRole("group", { name: t("text.graphFilters") });
+  expect(within(group).getAllByRole("button")).toHaveLength(2);
+  await user.click(within(group).getByRole("button", { name: t("text.filterPresets") }));
+  expect(await screen.findByRole("dialog", { name: t("text.filterPresets") })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: t("text.backToFilterPresets") })).toBeNull();
+  await user.click(
+    within(group).getByRole("button", {
+      name: t("text.graphFilterValueValue", { p0: "Custom", p1: "" }),
+    }),
+  );
+  expect(await screen.findByRole("button", { name: t("text.backToFilterPresets") })).toBeTruthy();
+  expect(screen.queryByRole("dialog", { name: t("text.filterPresets") })).toBeNull();
+});
+
+it("guards the grouped preset action while retaining a collapsed editor's draft", async () => {
+  const user = await openEditor();
+  const input = await mentionDraft(user);
+  await user.click(screen.getByRole("button", { name: t("filter.collapse") }));
+  await user.click(
+    screen.getByRole("button", {
+      name: t("text.graphFilterValueValue", { p0: "Custom", p1: "" }),
+    }),
+  );
+  expect(screen.getByRole("textbox", { name: t("text.excludedMentionPhrases") })).toBe(input);
+  expect((input as HTMLTextAreaElement).value).toBe("Archive");
+  await user.click(screen.getByRole("button", { name: t("text.filterPresets") }));
+  await screen.findByRole("heading", { name: t("filter.discardTitle") });
+  expect(screen.queryByRole("dialog", { name: t("text.filterPresets") })).toBeNull();
+  await user.click(screen.getByRole("button", { name: t("filter.continueEditing") }));
+  expect((input as HTMLTextAreaElement).value).toBe("Archive");
+  await user.click(screen.getByRole("button", { name: t("text.filterPresets") }));
+  await user.click(await screen.findByRole("button", { name: t("filter.discardAndExit") }));
+  expect(await screen.findByRole("dialog", { name: t("text.filterPresets") })).toBeTruthy();
+});
 
 it("keeps a draft mounted through category, collapse, and canceled Back", async () => {
   const user = await openEditor();
@@ -165,6 +217,7 @@ it("exits without prompting when a draft returns to applied values, despite an u
 it("mounts the nonmodal editor inside the graph stage and ignores outside presses", async () => {
   const user = await openEditor();
   const stage = screen.getByTestId("graph-stage");
+  expect(stage.querySelector('[data-slot="sheet-overlay"]')).toBeNull();
   expect(within(stage).getByRole("button", { name: t("text.backToFilterPresets") })).toBeTruthy();
   await user.click(screen.getByTestId("applied"));
   expect(within(stage).getByRole("button", { name: t("text.backToFilterPresets") })).toBeTruthy();
