@@ -78,12 +78,7 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
       <Dialog open={readIssuesOpen} onOpenChange={setReadIssuesOpen}>
         <DialogContent
           className="flex max-h-[85vh] flex-col sm:max-w-3xl"
-          onCloseAutoFocus={(event) => {
-            if (trigger.current) {
-              event.preventDefault();
-              trigger.current.focus();
-            }
-          }}
+          finalFocus={() => trigger.current ?? true}
         >
           <DialogHeader>
             <DialogTitle>{t("text.graphReadDetails")}</DialogTitle>
@@ -110,14 +105,12 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
                   <p>{t("diagnostics.impact", { detail: issue.impact })}</p>
                   <p>{t("diagnostics.suggestion", { detail: issue.suggestion })}</p>
                   <Collapsible defaultOpen={issue.detailCount <= 3} className="w-full min-w-0">
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        {t("diagnostics.detailCount", {
-                          shown: issue.details.length,
-                          total: issue.detailCount,
-                        })}
-                        <ChevronDown data-icon="inline-end" />
-                      </Button>
+                    <CollapsibleTrigger render={<Button variant="ghost" size="sm" />}>
+                      {t("diagnostics.detailCount", {
+                        shown: issue.details.length,
+                        total: issue.detailCount,
+                      })}
+                      <ChevronDown data-icon="inline-end" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="flex flex-col gap-4 pt-2">
                       {issue.details.map((detail, index) => (

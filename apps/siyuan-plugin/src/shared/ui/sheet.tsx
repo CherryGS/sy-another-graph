@@ -2,7 +2,7 @@ import { useLocale } from "../i18n/react";
 import { t } from "../i18n/runtime";
 import * as React from "react";
 import { cn } from "cn";
-import { Dialog as SheetPrimitive } from "radix-ui";
+import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 
 import { Button } from "@/shared/ui/button";
 import { XIcon } from "lucide-react";
@@ -30,10 +30,10 @@ function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Po
 function SheetOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+}: React.ComponentProps<typeof SheetPrimitive.Backdrop>) {
   useLocale();
   return (
-    <SheetPrimitive.Overlay
+    <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
         "fixed inset-0 z-50 bg-black/10 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
@@ -51,7 +51,7 @@ function SheetContent({
   showCloseButton = true,
   container,
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & {
+}: React.ComponentProps<typeof SheetPrimitive.Popup> & {
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
   container?: React.ComponentProps<typeof SheetPrimitive.Portal>["container"];
@@ -60,7 +60,7 @@ function SheetContent({
   return (
     <SheetPortal container={container}>
       <SheetOverlay />
-      <SheetPrimitive.Content
+      <SheetPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}
         className={cn(
@@ -71,14 +71,15 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close data-slot="sheet-close" asChild>
-            <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm">
-              <XIcon />
-              <span className="sr-only">{t("common.close")}</span>
-            </Button>
+          <SheetPrimitive.Close
+            data-slot="sheet-close"
+            render={<Button variant="ghost" className="absolute top-3 right-3" size="icon-sm" />}
+          >
+            <XIcon />
+            <span className="sr-only">{t("common.close")}</span>
           </SheetPrimitive.Close>
         )}
-      </SheetPrimitive.Content>
+      </SheetPrimitive.Popup>
     </SheetPortal>
   );
 }

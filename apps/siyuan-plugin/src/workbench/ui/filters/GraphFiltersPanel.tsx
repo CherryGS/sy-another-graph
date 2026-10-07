@@ -44,12 +44,14 @@ export function GraphFiltersPanel({
   collapsed,
   onCollapsedChange,
   onBack,
+  onDraftChange,
   footer,
 }: {
   state: WorkbenchState;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onBack: () => void;
+  onDraftChange: (hasDraft: boolean) => void;
   footer: ReactNode;
 }) {
   useLocale();
@@ -67,6 +69,9 @@ export function GraphFiltersPanel({
   const [contentDraft, setContentDraft] = useState(false);
   const [mentionDraft, setMentionDraft] = useState(false);
   const [groupingDraft, setGroupingDraft] = useState(false);
+  useEffect(() => {
+    onDraftChange(contentDraft || mentionDraft || groupingDraft);
+  }, [contentDraft, mentionDraft, groupingDraft, onDraftChange]);
   useEffect(() => {
     backRef.current?.focus();
   }, []);
@@ -240,7 +245,11 @@ export function GraphFiltersPanel({
   ];
   const currentPage = pages.find(({ value }) => value === page)!;
   return (
-    <section className="filter-panel" aria-label={t("text.graphFilters")}>
+    <section
+      className="filter-panel"
+      data-filter-expanded={!collapsed}
+      aria-label={t("text.graphFilters")}
+    >
       <SheetTitle className="sr-only">{state.filterPresets.activeName}</SheetTitle>
       <SheetDescription className="sr-only">{t("filter.editorDescription")}</SheetDescription>
       <div className="flex min-h-0 w-11 shrink-0 flex-col items-center gap-2 py-2">
@@ -257,39 +266,40 @@ export function GraphFiltersPanel({
         </Button>
         <ScrollArea className="min-h-0 w-full flex-1" data-scroll-panel>
           <ToggleGroup
-            type="single"
             orientation="vertical"
             size="sm"
             spacing={1}
             className="w-full px-1"
-            value={collapsed ? "" : page}
+            value={collapsed ? [] : [page]}
             aria-label={t("filter.categories")}
-            onValueChange={(value) => {
+            onValueChange={([value]) => {
               if (value) setPage(value);
               onCollapsedChange(!value);
             }}
           >
             {pages.map(({ value, title, navLabel, icon: Icon, summary, draft }) => (
               <Tooltip key={value}>
-                <TooltipTrigger asChild>
-                  <ToggleGroupItem
-                    id={id + "-" + value + "-trigger"}
-                    value={value}
-                    aria-label={title}
-                    aria-controls={id + "-" + value}
-                    aria-expanded={!collapsed && page === value}
-                    className="relative h-auto w-full px-2 py-2"
-                  >
-                    <span className="flex rotate-180 items-center gap-1.5 [text-orientation:sideways] [writing-mode:vertical-rl]">
-                      <Icon className="rotate-90" />
-                      <span>{navLabel}</span>
-                    </span>
-                    {draft && (
-                      <Badge className="absolute top-1 right-1 size-1.5 p-0">
-                        <span className="sr-only">{t("filter.unapplied")}</span>
-                      </Badge>
-                    )}
-                  </ToggleGroupItem>
+                <TooltipTrigger
+                  render={
+                    <ToggleGroupItem
+                      id={id + "-" + value + "-trigger"}
+                      value={value}
+                      aria-label={title}
+                      aria-controls={id + "-" + value}
+                      aria-expanded={!collapsed && page === value}
+                      className="relative h-auto w-full px-2 py-2"
+                    />
+                  }
+                >
+                  <span className="flex rotate-180 items-center gap-1.5 [text-orientation:sideways] [writing-mode:vertical-rl]">
+                    <Icon className="rotate-90" />
+                    <span>{navLabel}</span>
+                  </span>
+                  {draft && (
+                    <Badge className="absolute top-1 right-1 size-1.5 p-0">
+                      <span className="sr-only">{t("filter.unapplied")}</span>
+                    </Badge>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p>{title}</p>
@@ -300,15 +310,17 @@ export function GraphFiltersPanel({
             ))}
           </ToggleGroup>
         </ScrollArea>
-        <SheetClose asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("filter.close")}
-            title={t("filter.close")}
-          >
-            <X />
-          </Button>
+        <SheetClose
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("filter.close")}
+              title={t("filter.close")}
+            />
+          }
+        >
+          <X />
         </SheetClose>
       </div>
       {!collapsed && <Separator orientation="vertical" />}

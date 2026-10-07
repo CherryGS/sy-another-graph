@@ -111,7 +111,7 @@ The owner confirmed this language on 2026-10-07. This document records the incum
 
 Source authority for this extraction is `src/workbench/styles/theme.css`,
 `src/workbench/styles/styles.css`, `src/adapters/cosmograph/canvas.css` and
-the existing primitives under `src/shared/ui/`. The component preset is Radix
+the existing primitives under `src/shared/ui/`. The component preset is Base UI
 Nova with neutral semantic tokens and Lucide icons. Product and logical behavior
 remain governed by the sources linked in PRODUCT.md.
 
@@ -172,14 +172,20 @@ Inspectors overlay the upper-right graph area with 12px outer offsets, a
 320px width and 80px lower clearance. The narrow-width rules reduce inspector
 width and move it into a bottom overlay below 440px. The neighborhood group
 moves onto its own row below 1100px. These are existing layout mechanisms;
-their narrow-host usability must be assessed before they are prescribed for
-new surfaces.
+toolbar groups also wrap to preserve control reachability in narrow hosts. Below
+760px, expanded filter content temporarily hides the mounted inspector; collapse
+or close restores it without changing the graph viewport or inspection state.
+Below 440px, bottom inspection leaves clearance for an open collapsed category rail.
 
 The filter editor overlays the left of the graph below the toolbar. Its
 category rail combines icons with vertical labels, retains drafts while
 switching categories and supports collapse. Fixed actions accompany a
 scrollable content area. Search, legend and preset popovers size against the
-available viewport.
+available viewport and anchor to the toolbar through Base UI positioners. The
+filter sheet portals into the graph stage. Close, Back and Escape with unapplied
+exclusion or grouping drafts open a consequence prompt; cancel retains the editor
+and focus, while discard completes the requested destination. Applied filters and
+unsaved preset changes are retained.
 
 ## Elevation & Depth
 

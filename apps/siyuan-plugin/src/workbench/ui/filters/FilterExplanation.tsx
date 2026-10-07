@@ -104,17 +104,19 @@ export function FilterExplanation({
   );
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!data || !currentGraph}
-          aria-label={t("graph.traceTrigger")}
-          title={t("graph.traceTrigger")}
-        >
-          <ScanSearch data-icon="inline-start" />
-          {t(compact ? "filter.inspectShort" : "graph.traceTrigger")}
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!data || !currentGraph}
+            aria-label={t("graph.traceTrigger")}
+            title={t("graph.traceTrigger")}
+          />
+        }
+      >
+        <ScanSearch data-icon="inline-start" />
+        {t(compact ? "filter.inspectShort" : "graph.traceTrigger")}
       </DialogTrigger>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-3xl" data-filter-dialog>
         <DialogHeader>

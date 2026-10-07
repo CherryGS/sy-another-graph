@@ -48,7 +48,9 @@ export function usePrioritySorting(onMove: (id: string, destination: number) => 
         if (!drag || drag.pointer !== event.pointerId) return;
         if (Math.abs(event.clientY - drag.startY) > 4) drag.moved = true;
         if (!drag.moved) return;
-        const viewport = listRef.current?.closest<HTMLElement>("[data-radix-scroll-area-viewport]");
+        const viewport = listRef.current?.closest<HTMLElement>(
+          "[data-slot='scroll-area-viewport']",
+        );
         if (viewport) {
           const rect = viewport.getBoundingClientRect();
           if (event.clientY < rect.top + 24) viewport.scrollTop -= 12;

@@ -6,7 +6,6 @@ import { List } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
   Popover,
-  PopoverAnchor,
   PopoverContent,
   PopoverHeader,
   PopoverTitle,
@@ -56,14 +55,16 @@ export function GraphLegend({
 
   return (
     <Popover>
-      <PopoverAnchor virtualRef={anchorRef} />
-      <PopoverTrigger asChild>
-        <Button variant="outline" disabled={!nodes.length}>
-          <List data-icon="inline-start" />
-          {t("text.legend")}
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" disabled={!nodes.length} />}>
+        <List data-icon="inline-start" />
+        {t("text.legend")}
       </PopoverTrigger>
-      <PopoverContent align="start" aria-labelledby={titleId} className="legend-popover gap-0 p-0">
+      <PopoverContent
+        anchor={anchorRef}
+        align="start"
+        aria-labelledby={titleId}
+        className="legend-popover gap-0 p-0"
+      >
         <PopoverHeader className="px-3 py-3">
           <PopoverTitle id={titleId}>{t("text.legend")}</PopoverTitle>
         </PopoverHeader>

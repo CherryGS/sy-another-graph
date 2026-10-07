@@ -33,13 +33,16 @@ export function GraphContextMenu({
   };
   return (
     <DropdownMenu open={!!target} modal={false} onOpenChange={(open) => !open && onClose()}>
-      <DropdownMenuTrigger asChild>
-        <span
-          aria-hidden="true"
-          className="pointer-events-none fixed size-0"
-          style={{ left: target?.x ?? 0, top: target?.y ?? 0 }}
-        />
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <span
+            aria-hidden="true"
+            className="pointer-events-none fixed size-0"
+            style={{ left: target?.x ?? 0, top: target?.y ?? 0 }}
+          />
+        }
+        nativeButton={false}
+      ></DropdownMenuTrigger>
       <DropdownMenuContent
         aria-label={t("graph.nodeContextMenu")}
         className="w-56 max-w-[calc(100vw-1rem)]"
@@ -47,14 +50,14 @@ export function GraphContextMenu({
         align="start"
         sideOffset={0}
         collisionPadding={8}
-        onCloseAutoFocus={(event) => event.preventDefault()}
+        finalFocus={false}
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="truncate" title={target?.label || target?.id}>
             {target?.label || target?.id}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => void copyId()}>
+          <DropdownMenuItem onClick={() => void copyId()}>
             <Copy />
             {t("graph.copyNodeId")}
           </DropdownMenuItem>

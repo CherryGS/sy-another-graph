@@ -59,10 +59,10 @@ export function ExclusionPreview({
             {t("mentions.previewRetry")}
           </Button>
         ) : (
-          <DialogTrigger asChild>
-            <Button size="sm" variant="ghost" disabled={!page || preview.pending}>
-              {t("mentions.previewDetails")}
-            </Button>
+          <DialogTrigger
+            render={<Button size="sm" variant="ghost" disabled={!page || preview.pending} />}
+          >
+            {t("mentions.previewDetails")}
           </DialogTrigger>
         )}
       </div>

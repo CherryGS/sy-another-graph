@@ -58,7 +58,7 @@ must remain tied to measured workloads, hardware and settings.
   and text mentions off; search graphs use an independent temporary preset.
 - Insights and browser-local Saved Views are excluded. Additional discovery,
   folding and multi-view ideas are not automatically authorized features.
-- Existing implementation uses React, TanStack Router, Tailwind CSS, Radix/shadcn
+- Existing implementation uses React, TanStack Router, Tailwind CSS, Base UI/shadcn
   primitives, Cosmograph, local DuckDB and a Rust graph-core crate.
 
 ## Brand Commitments

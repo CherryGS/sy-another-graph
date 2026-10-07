@@ -66,16 +66,16 @@ function RelationGroup({
   const Icon = group.icon;
   return (
     <Collapsible defaultOpen>
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="group w-full justify-start gap-2">
-          <Icon data-icon="inline-start" />
-          {group.label}
-          <Badge variant="secondary">{edges.length.toLocaleString(locale())}</Badge>
-          <ChevronDown
-            data-icon="inline-end"
-            className="ml-auto transition-transform group-data-[state=open]:rotate-180"
-          />
-        </Button>
+      <CollapsibleTrigger
+        render={<Button variant="ghost" className="group w-full justify-start gap-2" />}
+      >
+        <Icon data-icon="inline-start" />
+        {group.label}
+        <Badge variant="secondary">{edges.length.toLocaleString(locale())}</Badge>
+        <ChevronDown
+          data-icon="inline-end"
+          className="ml-auto transition-transform group-data-open:rotate-180"
+        />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="flex flex-col gap-1 pt-1">

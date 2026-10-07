@@ -34,14 +34,13 @@ export function NodeDisplayFilters({ state }: { state: WorkbenchState }) {
       <FieldSet className="gap-3">
         <FieldLegend variant="label">{t("text.nodeTypes")}</FieldLegend>
         <ToggleGroup
-          type="single"
           variant="outline"
           size="sm"
           spacing={0}
           className="w-full"
           aria-label={t("text.nodeTypes")}
-          value={filters.documentsOnly ? "documents" : filters.hiddenTypes.length ? "" : "all"}
-          onValueChange={(value) => {
+          value={[filters.documentsOnly ? "documents" : filters.hiddenTypes.length ? "" : "all"]}
+          onValueChange={([value]) => {
             if (value === "documents" || value === "all")
               setFilters((previous) => ({
                 ...previous,

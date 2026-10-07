@@ -91,10 +91,8 @@ export function ContentExclusionPreview({
     : "";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" disabled={!result || pending}>
-          {t("mentions.previewDetails")}
-        </Button>
+      <DialogTrigger render={<Button size="sm" variant="ghost" disabled={!result || pending} />}>
+        {t("mentions.previewDetails")}
       </DialogTrigger>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-4xl" data-filter-dialog>
         <DialogHeader>
@@ -105,9 +103,8 @@ export function ContentExclusionPreview({
           {pending ? t("contentExclusions.previewPending") : summary}
         </FieldDescription>
         <ToggleGroup
-          type="single"
-          value={category}
-          onValueChange={(value) => {
+          value={[category]}
+          onValueChange={([value]) => {
             if (value) {
               setCategory(value as typeof category);
               setPage(0);

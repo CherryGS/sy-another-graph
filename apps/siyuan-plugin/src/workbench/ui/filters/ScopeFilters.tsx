@@ -29,10 +29,15 @@ export function ScopeFilters({ state }: { state: WorkbenchState }) {
       <Field>
         <FieldLabel htmlFor="notebook-filter">{t("text.notebook")}</FieldLabel>
         <Select
+          items={[
+            { value: "all", label: t("text.allNotebooks") },
+            ...(data?.notebooks.map((book) => ({ value: book.id, label: book.name })) ?? []),
+          ]}
           value={filters.notebook || "all"}
-          onValueChange={(value) =>
-            setFilters((previous) => ({ ...previous, notebook: value === "all" ? "" : value }))
-          }
+          onValueChange={(value) => {
+            if (value !== null)
+              setFilters((previous) => ({ ...previous, notebook: value === "all" ? "" : value }));
+          }}
         >
           <SelectTrigger id="notebook-filter" className="w-full">
             <SelectValue />

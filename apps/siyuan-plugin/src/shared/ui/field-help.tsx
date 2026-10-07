@@ -6,10 +6,12 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "./popover
 export function FieldHelp({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={label} title={label}>
-          <CircleHelp />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={label} title={label} />
+        }
+      >
+        <CircleHelp />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4">
         <PopoverTitle>{label}</PopoverTitle>

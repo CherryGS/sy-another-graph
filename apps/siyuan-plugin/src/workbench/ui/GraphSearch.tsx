@@ -3,7 +3,7 @@ import { t } from "../../shared/i18n/runtime";
 import { presentNode } from "../presentation/present-nodes";
 import { useId, useMemo, useRef, useState, type RefObject } from "react";
 import { Search, X } from "lucide-react";
-import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
+import { Popover, PopoverContent } from "@/shared/ui/popover";
 import {
   InputGroup,
   InputGroupAddon,
@@ -40,8 +40,13 @@ export function GraphSearch({
     [state.data?.notebooks],
   );
   return (
-    <Popover open={open && !!filters.query.trim()} onOpenChange={setOpen}>
-      <PopoverAnchor virtualRef={anchorRef} />
+    <Popover
+      open={open && !!filters.query.trim()}
+      onOpenChange={(next, details) => {
+        if (details.reason === "escape-key") restoreInputAfterEscape.current = true;
+        setOpen(next);
+      }}
+    >
       <InputGroup className="search-group">
         <InputGroupInput
           ref={input}
@@ -89,19 +94,17 @@ export function GraphSearch({
       <PopoverContent
         aria-label={t("text.searchResults")}
         align="start"
+        anchor={anchorRef}
         className="search-popover p-1"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          if (focusFirstOnOpen.current) firstResult.current?.focus();
+        initialFocus={() => {
+          const target = focusFirstOnOpen.current ? firstResult.current : false;
           focusFirstOnOpen.current = false;
+          return target;
         }}
-        onEscapeKeyDown={() => {
-          restoreInputAfterEscape.current = true;
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
+        finalFocus={() => {
           if (restoreInputAfterEscape.current) input.current?.focus();
           restoreInputAfterEscape.current = false;
+          return false;
         }}
       >
         <ScrollArea

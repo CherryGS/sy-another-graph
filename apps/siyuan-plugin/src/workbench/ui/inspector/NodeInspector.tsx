@@ -74,15 +74,17 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
           </CardTitle>
           <CardAction>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("text.closeNodeDetails")}
-                  onClick={state.closeInspector}
-                >
-                  <X />
-                </Button>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("text.closeNodeDetails")}
+                    onClick={state.closeInspector}
+                  />
+                }
+              >
+                <X />
               </TooltipTrigger>
               <TooltipContent>{t("text.closeNodeDetails")}</TooltipContent>
             </Tooltip>
@@ -129,14 +131,14 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
             <Separator />
             <NodeRelations node={node} state={state} />
             <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="group w-full justify-between">
-                  {t("text.nodeInformation")}
-                  <ChevronDown
-                    data-icon="inline-end"
-                    className="transition-transform group-data-[state=open]:rotate-180"
-                  />
-                </Button>
+              <CollapsibleTrigger
+                render={<Button variant="ghost" className="group w-full justify-between" />}
+              >
+                {t("text.nodeInformation")}
+                <ChevronDown
+                  data-icon="inline-end"
+                  className="transition-transform group-data-open:rotate-180"
+                />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">
@@ -158,14 +160,14 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
               </CollapsibleContent>
             </Collapsible>
             <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="group w-full justify-between">
-                  {t("text.pathFinder")}
-                  <ChevronDown
-                    data-icon="inline-end"
-                    className="transition-transform group-data-[state=open]:rotate-180"
-                  />
-                </Button>
+              <CollapsibleTrigger
+                render={<Button variant="ghost" className="group w-full justify-between" />}
+              >
+                {t("text.pathFinder")}
+                <ChevronDown
+                  data-icon="inline-end"
+                  className="transition-transform group-data-open:rotate-180"
+                />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <form

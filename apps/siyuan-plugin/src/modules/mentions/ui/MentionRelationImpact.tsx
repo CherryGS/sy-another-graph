@@ -31,14 +31,16 @@ export function MentionRelationImpact(props: Props) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          className="w-full"
-          variant="outline"
-          disabled={!props.enabled || props.mode === "off" || !props.graph}
-        >
-          {t("mentions.relationImpact")}
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={!props.enabled || props.mode === "off" || !props.graph}
+          />
+        }
+      >
+        {t("mentions.relationImpact")}
       </DialogTrigger>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-3xl" data-filter-dialog>
         <DialogHeader>
@@ -100,9 +102,8 @@ function ImpactBody({ data, graph, mode, chosenIds, status, onOpen }: Props) {
       )}
       {partial && <FieldDescription>{t("mentions.relationImpactPartial")}</FieldDescription>}
       <ToggleGroup
-        type="single"
-        value={category}
-        onValueChange={(value) => {
+        value={[category]}
+        onValueChange={([value]) => {
           if (value === "removed" || value === "added") {
             setCategory(value);
             setPage(0);

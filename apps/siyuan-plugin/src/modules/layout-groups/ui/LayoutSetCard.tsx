@@ -99,19 +99,21 @@ export function LayoutSetCard({
             >
               <GripVertical />
             </Button>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="min-w-0 flex-1 justify-start px-1"
-                aria-label={t("grouping.editSet", { name: set.name })}
-                title={set.name}
-              >
-                <span className="truncate">
-                  {priority}. {set.name}
-                </span>
-                <ChevronDown className={open ? "rotate-180" : undefined} data-icon="inline-end" />
-              </Button>
+            <CollapsibleTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-w-0 flex-1 justify-start px-1"
+                  aria-label={t("grouping.editSet", { name: set.name })}
+                  title={set.name}
+                />
+              }
+            >
+              <span className="truncate">
+                {priority}. {set.name}
+              </span>
+              <ChevronDown className={open ? "rotate-180" : undefined} data-icon="inline-end" />
             </CollapsibleTrigger>
             <Switch
               checked={set.enabled}

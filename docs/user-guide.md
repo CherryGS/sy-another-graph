@@ -18,6 +18,10 @@ scope, block types, and relations, or save a named preset.
 
 The compact preset menu provides quick switching. Editing opens a narrow panel at the left of the canvas, below the toolbar. Icons and sideways labels select **Scope, Document exclusions, Relationships, Text mentions, Grouping, and Node display**. Clicking the active category collapses the content to a slim rail; reopening it restores the draft. The graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields stack with a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching categories retains inputs; dots and **Draft** badges identify unapplied changes. Apply the rules, then use the fixed footer to update or save a preset.
 
+Close, Back and Escape ask before discarding unapplied document exclusions, mention exclusions or grouping drafts. **Continue editing** (or Escape in the prompt) keeps every draft and returns focus to the editor. **Discard drafts and exit** completes the requested destination: Close leaves the sidebar closed; Back returns to presets. Applied filters and unsaved preset changes are kept. Changing categories or collapsing the content never prompts. Opening a save-name dialog keeps drafts, without applying or saving them.
+
+In a narrow window, toolbar groups wrap to keep their controls reachable. Expanded filter content temporarily hides the inspector; closing or collapsing it restores the same inspected node or edge. The graph viewport and selection stay intact.
+
 See the [mouse and keyboard reference (简体中文)](mouse-keyboard_zh_CN.md) for canvas gestures, search, sidebar navigation, and keyboard controls.
 
 The interface follows SiYuan's language. Chinese variants use Simplified Chinese;

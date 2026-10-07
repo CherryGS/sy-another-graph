@@ -98,15 +98,17 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
           <CardTitle>{EDGE_KIND_LABELS[edge.kind]}</CardTitle>
           <CardAction>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("text.closeRelationshipEvidence")}
-                  onClick={state.closeEdge}
-                >
-                  <X />
-                </Button>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("text.closeRelationshipEvidence")}
+                    onClick={state.closeEdge}
+                  />
+                }
+              >
+                <X />
               </TooltipTrigger>
               <TooltipContent>{t("text.closeRelationshipEvidence")}</TooltipContent>
             </Tooltip>
@@ -213,14 +215,14 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                   )}
                   {occurrence.databaseId && (
                     <Collapsible>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" className="group w-full justify-between">
-                          {t("text.databaseSource")}
-                          <ChevronDown
-                            data-icon="inline-end"
-                            className="transition-transform group-data-[state=open]:rotate-180"
-                          />
-                        </Button>
+                      <CollapsibleTrigger
+                        render={<Button variant="ghost" className="group w-full justify-between" />}
+                      >
+                        {t("text.databaseSource")}
+                        <ChevronDown
+                          data-icon="inline-end"
+                          className="transition-transform group-data-open:rotate-180"
+                        />
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="flex flex-col gap-2 px-2 pb-2 text-xs text-muted-foreground">

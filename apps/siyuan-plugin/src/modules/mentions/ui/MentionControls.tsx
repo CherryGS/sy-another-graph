@@ -36,13 +36,12 @@ export function MentionControls({
           </FieldHelp>
         </div>
         <ToggleGroup
-          type="single"
           size="sm"
           variant="outline"
           aria-label={t("text.textMentionMode")}
-          value={mode}
+          value={[mode]}
           className="w-full"
-          onValueChange={(value) => {
+          onValueChange={([value]) => {
             if (isMentionMode(value)) onModeChange(value);
           }}
         >

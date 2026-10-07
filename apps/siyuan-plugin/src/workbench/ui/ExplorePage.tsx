@@ -8,7 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field";
-import { Popover, PopoverAnchor, PopoverTrigger } from "@/shared/ui/popover";
+import { Popover, PopoverTrigger } from "@/shared/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -70,44 +70,47 @@ export function ExplorePage({ active }: { active: boolean }) {
   return (
     <div className="explore-page">
       <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
-        <PopoverAnchor virtualRef={toolbarRef} />
         <div ref={toolbarRef} className="exploration-toolbar" aria-label={t("text.graphActions")}>
           <div className="search-tools">
             <GraphSearch state={state} anchorRef={toolbarRef} />
             <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button
-                    data-filter-presets-trigger
-                    variant={state.filtersOpen ? "secondary" : "outline"}
-                    className="max-w-[min(14rem,100%)]"
-                    aria-label={t("text.graphFilterValueValue", {
-                      p0: state.filterPresets.activeName,
-                      p1: state.filterPresets.modified ? t("text.modified") : "",
-                    })}
+              <TooltipTrigger
+                render={
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        data-filter-presets-trigger
+                        variant={state.filtersOpen ? "secondary" : "outline"}
+                        className="max-w-[min(14rem,100%)]"
+                        aria-label={t("text.graphFilterValueValue", {
+                          p0: state.filterPresets.activeName,
+                          p1: state.filterPresets.modified ? t("text.modified") : "",
+                        })}
+                      />
+                    }
+                  />
+                }
+              >
+                <span className="truncate">
+                  {t("preset.filterLabel", { name: state.filterPresets.activeName })}
+                </span>
+                {state.filterPresets.modified && <span aria-hidden="true">*</span>}
+                {state.filterPresets.temporaryActive && (
+                  <Badge
+                    variant={
+                      state.filterPresets.missingSearchIds.length && !state.loading
+                        ? "destructive"
+                        : "secondary"
+                    }
                   >
-                    <span className="truncate">
-                      {t("preset.filterLabel", { name: state.filterPresets.activeName })}
-                    </span>
-                    {state.filterPresets.modified && <span aria-hidden="true">*</span>}
-                    {state.filterPresets.temporaryActive && (
-                      <Badge
-                        variant={
-                          state.filterPresets.missingSearchIds.length && !state.loading
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {state.filterPresets.missingSearchIds.length && !state.loading
-                          ? t("text.missingValue", {
-                              p0: state.filterPresets.missingSearchIds.length,
-                            })
-                          : t("text.temporary")}
-                      </Badge>
-                    )}
-                    <ChevronDown data-icon="inline-end" />
-                  </Button>
-                </PopoverTrigger>
+                    {state.filterPresets.missingSearchIds.length && !state.loading
+                      ? t("text.missingValue", {
+                          p0: state.filterPresets.missingSearchIds.length,
+                        })
+                      : t("text.temporary")}
+                  </Badge>
+                )}
+                <ChevronDown data-icon="inline-end" />
               </TooltipTrigger>
               <TooltipContent>{state.graphTabState.description}</TooltipContent>
             </Tooltip>
@@ -154,12 +157,11 @@ export function ExplorePage({ active }: { active: boolean }) {
               </Field>
             </FieldGroup>
             <ToggleGroup
-              type="single"
               variant="outline"
               className="max-w-full flex-wrap"
               aria-label={t("text.traversalDirection")}
-              value={state.direction}
-              onValueChange={(value) => {
+              value={[state.direction]}
+              onValueChange={([value]) => {
                 if (value) state.setDirection(value as GraphDirection);
               }}
             >
@@ -176,11 +178,10 @@ export function ExplorePage({ active }: { active: boolean }) {
           </div>
           <div className="display-tools">
             <ToggleGroup
-              type="single"
               variant="outline"
               aria-label={t("layout.mode")}
-              value={state.graphSettings.layoutMode}
-              onValueChange={(layoutMode) => {
+              value={[state.graphSettings.layoutMode]}
+              onValueChange={([layoutMode]) => {
                 if (layoutMode === "force" || layoutMode === "layered")
                   state.setGraphSettings({ layoutMode });
               }}
@@ -189,11 +190,10 @@ export function ExplorePage({ active }: { active: boolean }) {
               <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
             </ToggleGroup>
             <ToggleGroup
-              type="single"
               variant="outline"
               aria-label={t("text.graphDimension")}
-              value={String(state.graphSettings.dimensions)}
-              onValueChange={(value) => {
+              value={[String(state.graphSettings.dimensions)]}
+              onValueChange={([value]) => {
                 if (value === "2" || value === "3")
                   state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
               }}
@@ -208,7 +208,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             <GraphActions state={state} />
           </div>
         </div>
-        <FilterPresetMenu state={state} editorHost={filterHostRef} />
+        <FilterPresetMenu state={state} editorHost={filterHostRef} anchorRef={toolbarRef} />
       </Popover>
       <GraphNotices state={state} />
       <MentionNotice mode={filters.mentions} status={state.mentionState} />

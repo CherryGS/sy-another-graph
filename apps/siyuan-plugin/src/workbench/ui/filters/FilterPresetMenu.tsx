@@ -56,15 +56,21 @@ const NAMING_TITLES = {
 export function FilterPresetMenu({
   state,
   editorHost,
+  anchorRef,
 }: {
   state: WorkbenchState;
   editorHost: RefObject<HTMLElement | null>;
+  anchorRef: RefObject<HTMLElement | null>;
 }) {
   useLocale();
   const presets = state.filterPresets;
   const [details, setDetails] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [naming, setNaming] = useState<NamingAction | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [pendingExit, setPendingExit] = useState<"close" | "back" | null>(null);
+  const [editorSession, setEditorSession] = useState(0);
+  const exitTrigger = useRef<HTMLElement | null>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const editRequest = useRef(0);
   const editorOpen = useRef(false);
@@ -73,7 +79,27 @@ export function FilterPresetMenu({
   const disabled = busy || !presets.available;
   const full = presets.presets.length >= 50;
 
+  function finishExit(destination: "close" | "back") {
+    editorOpen.current = false;
+    setDetails(false);
+    setPendingExit(null);
+    setHasDraft(false);
+    if (destination === "back") {
+      state.setFiltersOpen(true);
+      requestAnimationFrame(() => editButtonRef.current?.focus());
+    }
+  }
+
+  function requestExit(destination: "close" | "back") {
+    if (hasDraft) {
+      exitTrigger.current = document.activeElement as HTMLElement | null;
+      setPendingExit(destination);
+    } else finishExit(destination);
+  }
+
   function openEditor() {
+    // A new session also resets drafts if the previous portal is still playing its exit animation.
+    setEditorSession((session) => session + 1);
     editorOpen.current = true;
     setCollapsed(false);
     setDetails(true);
@@ -198,12 +224,14 @@ export function FilterPresetMenu({
   return (
     <>
       <PopoverContent
+        anchor={anchorRef}
         align="start"
         className="filter-popover gap-0 p-0"
         aria-label={t("text.filterPresets")}
-        onCloseAutoFocus={(event) => {
-          if (naming || editorOpen.current) event.preventDefault();
-          else editRequest.current++;
+        finalFocus={() => {
+          if (naming || editorOpen.current) return false;
+          editRequest.current++;
+          return true;
         }}
       >
         <ScrollArea className="filter-preset-scroll" data-scroll-panel>
@@ -342,37 +370,36 @@ export function FilterPresetMenu({
       </PopoverContent>
       <Sheet
         modal={false}
+        disablePointerDismissal
         open={details}
-        onOpenChange={(open) => {
-          editorOpen.current = open;
-          setDetails(open);
+        onOpenChange={(open, eventDetails) => {
+          if (!open) {
+            eventDetails.cancel();
+            requestExit("close");
+          }
         }}
       >
         <SheetContent
           side="left"
-          container={editorHost.current}
+          container={editorHost}
           showCloseButton={false}
           className={cn(
             "absolute gap-0 data-[side=left]:sm:max-w-none",
             collapsed ? "data-[side=left]:w-11" : "data-[side=left]:w-[min(360px,100%)]",
           )}
-          onInteractOutside={(event) => event.preventDefault()}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
+          finalFocus={() => {
             if (!state.filtersOpen && !naming)
               document.querySelector<HTMLButtonElement>("[data-filter-presets-trigger]")?.focus();
+            return false;
           }}
         >
           <GraphFiltersPanel
+            key={editorSession}
             state={state}
             collapsed={collapsed}
             onCollapsedChange={setCollapsed}
-            onBack={() => {
-              editorOpen.current = false;
-              setDetails(false);
-              state.setFiltersOpen(true);
-              requestAnimationFrame(() => editButtonRef.current?.focus());
-            }}
+            onDraftChange={setHasDraft}
+            onBack={() => requestExit("back")}
             footer={
               <>
                 {saveActions}
@@ -380,6 +407,39 @@ export function FilterPresetMenu({
               </>
             }
           />
+          <Dialog
+            open={pendingExit !== null}
+            disablePointerDismissal
+            onOpenChange={(open) => {
+              if (!open) setPendingExit(null);
+            }}
+          >
+            <DialogContent
+              showCloseButton={false}
+              finalFocus={() => {
+                if (!editorOpen.current) return false;
+                return exitTrigger.current?.isConnected
+                  ? exitTrigger.current
+                  : document.querySelector<HTMLElement>("[data-filter-editor-back]");
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>{t("filter.discardTitle")}</DialogTitle>
+                <DialogDescription>{t("filter.discardDescription")}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPendingExit(null)}>
+                  {t("filter.continueEditing")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => pendingExit && finishExit(pendingExit)}
+                >
+                  {t("filter.discardAndExit")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </SheetContent>
       </Sheet>
       {naming && (
@@ -412,17 +472,19 @@ function PresetAction({
   useLocale();
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          ref={buttonRef}
-          variant="ghost"
-          size="icon-sm"
-          aria-label={label}
-          disabled={disabled}
-          onClick={onClick}
-        >
-          <Icon />
-        </Button>
+      <TooltipTrigger
+        render={
+          <Button
+            ref={buttonRef}
+            variant="ghost"
+            size="icon-sm"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+          />
+        }
+      >
+        <Icon />
       </TooltipTrigger>
       <TooltipContent>{hint}</TooltipContent>
     </Tooltip>
@@ -472,26 +534,20 @@ function PresetNameDialog({
   return (
     <Dialog
       open
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+      onOpenChange={(open, details) => {
+        if (!open && busy) details.cancel();
+        else if (!open) onClose();
       }}
     >
       <DialogContent
         showCloseButton={!busy}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          inputRef.current?.focus();
+        initialFocus={() => {
           inputRef.current?.select();
+          return inputRef.current;
         }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
+        finalFocus={() => {
           onRestoreFocus();
-        }}
-        onEscapeKeyDown={(event) => {
-          if (busy) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (busy) event.preventDefault();
+          return false;
         }}
       >
         <DialogHeader>

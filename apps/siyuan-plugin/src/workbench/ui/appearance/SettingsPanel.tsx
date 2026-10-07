@@ -65,9 +65,9 @@ export function SettingSlider({
       <Slider
         aria-label={name}
         {...range}
-        value={[draft]}
-        onValueChange={([next]) => setDraft(next)}
-        onValueCommit={([next]) => onCommit(next)}
+        value={draft}
+        onValueChange={setDraft}
+        onValueCommitted={(next) => onCommit(next)}
       />
       {description && <FieldDescription>{description}</FieldDescription>}
     </Field>
@@ -115,15 +115,17 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
   );
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t("text.graphSettings")}
-          title={t("text.graphSettings")}
-        >
-          <Settings2 />
-        </Button>
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("text.graphSettings")}
+            title={t("text.graphSettings")}
+          />
+        }
+      >
+        <Settings2 />
       </SheetTrigger>
       <SheetContent className="settings-sheet gap-0">
         <SheetHeader>
@@ -133,7 +135,7 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
           </SheetDescription>
         </SheetHeader>
         <Tabs defaultValue="appearance" className="flex min-h-0 flex-1 flex-col gap-0">
-          <TabsList className="mx-4 mb-4">
+          <TabsList activateOnFocus className="mx-4 mb-4">
             <TabsTrigger value="appearance">{t("settings.display")}</TabsTrigger>
             <TabsTrigger value="simulation">{t("text.forces")}</TabsTrigger>
             <TabsTrigger value="spatial">{t("text.3d")}</TabsTrigger>
@@ -147,8 +149,16 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                     <Field>
                       <FieldLabel htmlFor="node-colors">{t("text.nodeColor")}</FieldLabel>
                       <Select
+                        items={[
+                          { value: "type", label: t("text.byNodeType") },
+                          { value: "branch", label: t("text.byDocumentBranch") },
+                          { value: "notebook", label: t("text.byNotebook") },
+                          { value: "degree", label: t("text.byDegree") },
+                        ]}
                         value={state.colorBy}
-                        onValueChange={(value) => state.setColorBy(value as GraphColorMode)}
+                        onValueChange={(value) => {
+                          if (value !== null) state.setColorBy(value as GraphColorMode);
+                        }}
                       >
                         <SelectTrigger id="node-colors" className="w-full">
                           <SelectValue />
@@ -178,14 +188,13 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
                     <Field data-disabled={!state.showLabels}>
                       <FieldLabel id="label-density-label">{t("text.labelDensity")}</FieldLabel>
                       <ToggleGroup
-                        type="single"
                         variant="outline"
                         className="w-full"
                         aria-labelledby="label-density-label"
                         aria-describedby="label-density-description"
                         disabled={!state.showLabels}
-                        value={settings.labelDensity}
-                        onValueChange={(labelDensity) => {
+                        value={[settings.labelDensity]}
+                        onValueChange={([labelDensity]) => {
                           if (
                             labelDensity === "standard" ||
                             labelDensity === "dense" ||

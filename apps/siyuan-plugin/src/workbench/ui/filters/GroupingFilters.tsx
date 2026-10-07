@@ -60,12 +60,11 @@ export function GroupingFilters({
       <Field>
         <FieldLabel id="grouping-mode-label">{t("grouping.mode")}</FieldLabel>
         <ToggleGroup
-          type="single"
           variant="outline"
           className="w-full"
           aria-labelledby="grouping-mode-label"
-          value={value.mode}
-          onValueChange={(mode) => {
+          value={[value.mode]}
+          onValueChange={([mode]) => {
             if (mode === "off" || mode === "community" || mode === "sets")
               change({ ...value, mode });
           }}

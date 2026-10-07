@@ -77,13 +77,18 @@ function EvidenceGroup({
   const page = Math.min(requestedPage, Math.max(0, Math.ceil(edges.length / 10) - 1));
   return (
     <Collapsible>
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="h-auto w-full justify-between gap-2 whitespace-normal">
-          <span>
-            {label} · {t("discovery.connections", { count: edges.length })}
-          </span>
-          <ChevronDown data-icon="inline-end" />
-        </Button>
+      <CollapsibleTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="h-auto w-full justify-between gap-2 whitespace-normal"
+          />
+        }
+      >
+        <span>
+          {label} · {t("discovery.connections", { count: edges.length })}
+        </span>
+        <ChevronDown data-icon="inline-end" />
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-2">
         {edges.slice(page * 10, (page + 1) * 10).map((edge, i) => (
@@ -200,23 +205,26 @@ export function DiscoveryPanel({ state }: { state: WorkbenchState }) {
   const candidateNode =
     index && discovery.candidate !== undefined ? index.documents[discovery.candidate] : undefined;
   return (
-    <Sheet modal={false} open={discovery.open} onOpenChange={discovery.setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={!state.data}
-          aria-label={t("discovery.title")}
-          title={t("discovery.title")}
-        >
-          <Compass />
-        </Button>
-      </SheetTrigger>
-      <SheetContent
-        side="left"
-        className="w-[min(24rem,90vw)]"
-        onInteractOutside={(event) => event.preventDefault()}
+    <Sheet
+      modal={false}
+      disablePointerDismissal
+      open={discovery.open}
+      onOpenChange={discovery.setOpen}
+    >
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!state.data}
+            aria-label={t("discovery.title")}
+            title={t("discovery.title")}
+          />
+        }
       >
+        <Compass />
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[min(24rem,90vw)]">
         <SheetHeader>
           <SheetTitle>{t("discovery.title")}</SheetTitle>
           <SheetDescription>{t("discovery.description")}</SheetDescription>
@@ -227,12 +235,11 @@ export function DiscoveryPanel({ state }: { state: WorkbenchState }) {
               <Field>
                 <FieldLabel id="discovery-rule-label">{t("discovery.rule")}</FieldLabel>
                 <ToggleGroup
-                  type="single"
                   variant="outline"
                   className="w-full"
                   aria-labelledby="discovery-rule-label"
-                  value={discovery.rule}
-                  onValueChange={(value) => {
+                  value={[discovery.rule]}
+                  onValueChange={([value]) => {
                     if (value === "shared-targets" || value === "shared-sources")
                       discovery.setRule(value);
                   }}
