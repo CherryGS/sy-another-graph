@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
+import { Focus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,6 +26,14 @@ export function ScopeFilters({ state }: { state: WorkbenchState }) {
     setDraft(filters.scopeId);
   }, [filters.scopeId]);
   const valid = !draft || NATIVE_ID.test(draft);
+  const inspected = !state.inspectedEdge ? state.selected : null;
+  // A synthetic node's open-source fallback is not the inspected node itself.
+  // The shortcut requires the inspected node's own acquired native identity.
+  const inspectedId =
+    inspected && NATIVE_ID.test(inspected.id) && state.sourceLookups?.byId.has(inspected.id)
+      ? inspected.id
+      : null;
+  const scopeNode = filters.scopeId ? state.sourceLookups?.byId.get(filters.scopeId) : null;
   return (
     <FieldGroup className="gap-4 [container-type:normal]">
       <Field>
@@ -57,6 +67,22 @@ export function ScopeFilters({ state }: { state: WorkbenchState }) {
       <Separator />
       <Field data-invalid={!valid}>
         <FieldLabel htmlFor="graph-scope">{t("text.initialScopeDocumentOrBlockId")}</FieldLabel>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={!inspectedId}
+          title={inspectedId ? inspected?.label : undefined}
+          onClick={() => {
+            if (inspectedId) {
+              setDraft(inspectedId);
+              setFilters((previous) => ({ ...previous, scopeId: inspectedId }));
+            }
+          }}
+        >
+          <Focus data-icon="inline-start" />
+          {t("scope.useInspectedNode")}
+        </Button>
         <Input
           id="graph-scope"
           placeholder={t("text.leaveEmptyToViewEverything")}
@@ -71,7 +97,13 @@ export function ScopeFilters({ state }: { state: WorkbenchState }) {
           }}
         />
         <FieldDescription id="graph-scope-description">
-          {t("text.traversalStaysWithinTheInitialScopeNodesOutside")}
+          {scopeNode && (
+            <span className="block break-words">
+              {t("scope.activeNode", { name: scopeNode.label })}
+            </span>
+          )}
+          <span className="block">{t("scope.nativeHint")}</span>
+          <span className="block">{t("text.traversalStaysWithinTheInitialScopeNodesOutside")}</span>
         </FieldDescription>
         {!valid && (
           <FieldError id="graph-scope-error">

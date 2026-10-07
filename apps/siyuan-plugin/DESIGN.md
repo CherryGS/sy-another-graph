@@ -232,6 +232,10 @@ Inputs share the ordinary control height and radius, a semantic outline and
 compact padding. Focus changes the border and adds a ring. Invalid states use
 the destructive role; disabled fields preserve a visible surface distinction.
 Search composes the existing input-group primitives.
+Its bounded result list reports counts and its 30-item cap without asserting
+that additional matches exist. Scope keeps native-ID entry and adds an explicit
+shortcut from an acquired, inspected native node, with the active source name
+beside the field; synthetic source-opening fallbacks are not scope identities.
 
 ### Cards, inspectors and evidence
 

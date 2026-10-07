@@ -18,6 +18,7 @@ import { nodeColor } from "../presentation/node-colors";
 import { nodeType } from "../../core/scope/graph-model";
 import { NODE_TYPE_LABELS } from "../presentation/graph-labels";
 import { SearchOriginBadge } from "./inspector/SearchOriginBadge";
+import { GRAPH_SEARCH_RESULT_LIMIT } from "../../core/graph/graph-lookups";
 
 export function GraphSearch({
   state,
@@ -95,7 +96,7 @@ export function GraphSearch({
         aria-label={t("text.searchResults")}
         align="start"
         anchor={anchorRef}
-        className="search-popover w-[min(25rem,calc(100vw-1.5rem))] p-1"
+        className="search-popover max-h-[min(28rem,var(--available-height))] w-[min(25rem,calc(100vw-1.5rem))] gap-1 p-1"
         initialFocus={() => {
           const target = focusFirstOnOpen.current ? firstResult.current : false;
           focusFirstOnOpen.current = false;
@@ -107,10 +108,17 @@ export function GraphSearch({
           return false;
         }}
       >
+        {state.results.length > 0 && (
+          <p className="shrink-0 px-2 py-1 text-xs text-muted-foreground" role="status">
+            {state.results.length === GRAPH_SEARCH_RESULT_LIMIT
+              ? t("search.resultLimit", { limit: GRAPH_SEARCH_RESULT_LIMIT })
+              : t("search.resultCount", { count: state.results.length })}
+          </p>
+        )}
         <ScrollArea
           id={resultsId}
           aria-label={t("text.nodeSearchResults")}
-          className="search-results h-[min(26.25rem,var(--available-height))]"
+          className="search-results h-[min(26.25rem,var(--available-height))] min-h-0 shrink"
           data-scroll-panel
         >
           {state.results.length ? (

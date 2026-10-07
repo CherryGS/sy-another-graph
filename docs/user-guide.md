@@ -16,6 +16,15 @@ update SiYuan or the browser; older engines without EH are unsupported.
 The default view shows documents and references. Open **Filter** to adjust the
 scope, block types, and relations, or save a named preset.
 
+Node search reports the displayed match count. It shows up to 30 matches in the
+existing order; at the cap, refine the title or ID to narrow the search.
+
+In **Scope**, **Use inspected node as scope** uses the currently inspected native
+document or block ID. The active scope name appears beside the ID guidance.
+Notebook and child-document options keep their current values. Direct ID entry
+and clearing the field remain available; synthetic nodes and relationship
+inspection do not provide a native scope shortcut.
+
 The compact preset menu provides quick switching. Editing opens a narrow panel at the left of the canvas, below the toolbar. Icons and sideways labels select **Scope, Document exclusions, Relationships, Text mentions, Grouping, and Node display**. Clicking the active category collapses the content to a slim rail; reopening it restores the draft. The graph remains interactive. Notebook and document/block scope controls stay together; node types and isolated-node visibility share Node display. The two document exclusion fields stack with a divider. Open **Rule help** for the full syntax. Both exclusion editors use full-width **Apply exclusions** buttons. Switching categories retains inputs; dots and **Not applied** badges identify unapplied changes. **Preset not saved** marks applied filter changes awaiting Update preset or Save as preset; saving includes only applied filters. Apply the rules, then use the fixed footer to update or save a preset.
 
 Close, Back and Escape ask before discarding unapplied document exclusions, mention exclusions or grouping drafts. **Continue editing** (or Escape in the prompt) keeps every draft and returns focus to the editor. **Discard drafts and exit** completes the requested destination: Close leaves the sidebar closed; Back returns to presets. Applied filters and unsaved preset changes are kept. Changing categories or collapsing the content never prompts. Opening a save-name dialog keeps drafts, without applying or saving them.

@@ -1,5 +1,7 @@
 import type { GraphEdge, GraphNode } from "./types";
 
+export const GRAPH_SEARCH_RESULT_LIMIT = 30;
+
 /** Published graph arrays and the facts they contain are immutable. */
 export interface GraphLike {
   readonly nodes: readonly GraphNode[];
@@ -79,7 +81,7 @@ export function getGraphLookups(graph: GraphLike): GraphLookups {
 export function searchGraphNodes(
   graph: Pick<GraphLike, "nodes">,
   query: string,
-  limit = 30,
+  limit = GRAPH_SEARCH_RESULT_LIMIT,
 ): GraphNode[] {
   if (!Number.isSafeInteger(limit) || limit < 0)
     throw new RangeError("Search limit must be a non-negative safe integer");
