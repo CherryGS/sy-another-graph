@@ -81,7 +81,15 @@ export function ExclusionStepCard({
       <Collapsible
         open={open}
         onOpenChange={setOpen}
-        render={<Card size="sm" role="listitem" aria-label={title} data-priority-item={kind} />}
+        render={
+          <Card
+            variant="plain"
+            size="sm"
+            role="listitem"
+            aria-label={title}
+            data-priority-item={kind}
+          />
+        }
       >
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-1">
@@ -194,6 +202,7 @@ export function ExclusionStepCard({
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+      {index < pipeline.order.length - 1 && <Separator className="mx-3 w-auto" />}
       {drop?.after && <Separator />}
     </>
   );

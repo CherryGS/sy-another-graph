@@ -105,7 +105,7 @@ export function ContentExclusions({
         ref={listRef}
         role="list"
         aria-label={t("contentExclusions.order")}
-        className="flex flex-col gap-3"
+        className="flex flex-col"
       >
         {context.pipeline.order.map((kind, index) => (
           <ExclusionStepCard

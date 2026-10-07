@@ -1,19 +1,35 @@
 import * as React from "react";
 import { cn } from "cn";
+import { cva, type VariantProps } from "class-variance-authority";
+
+const cardVariants = cva(
+  "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl py-(--card-spacing) text-sm text-card-foreground [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+  {
+    variants: {
+      variant: {
+        default: "bg-card ring-1 ring-foreground/10",
+        plain: "bg-transparent",
+        overlay:
+          "bg-overlay ring-1 ring-foreground/10 [backdrop-filter:var(--overlay-backdrop)] [--muted-foreground:var(--overlay-muted-foreground)]",
+      },
+    },
+    defaultVariants: { variant: "default" },
+  },
+);
 
 function Card({
   className,
   size = "default",
+  variant = "default",
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm" } & VariantProps<typeof cardVariants>) {
   return (
     <div
       data-slot="card"
       data-size={size}
-      className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-        className,
-      )}
+      data-variant={variant}
+      data-surface={variant === "overlay" ? "overlay" : undefined}
+      className={cn(cardVariants({ variant }), className)}
       {...props}
     />
   );

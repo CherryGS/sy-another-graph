@@ -45,6 +45,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-overlay: var(--overlay-surface);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --radius-xs: calc(var(--radius) * 0.4);
@@ -64,6 +65,10 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+  --overlay-surface: var(--popover);
+  --overlay-opacity: 98%;
+  --overlay-backdrop: none;
+  --overlay-muted-foreground: oklch(0.5 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
@@ -93,6 +98,8 @@
 }
 
 .dark {
+  --overlay-opacity: 94%;
+  --overlay-muted-foreground: oklch(0.708 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -135,5 +142,20 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Only outer workbench overlays opt in. Unsupported engines retain solid surfaces. */
+@supports (backdrop-filter: blur(1px)) {
+  :root {
+    --overlay-surface: color-mix(in oklab, var(--popover) var(--overlay-opacity), transparent);
+    --overlay-backdrop: blur(6px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --overlay-surface: var(--popover);
+    --overlay-backdrop: none;
   }
 }

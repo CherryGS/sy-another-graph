@@ -42,7 +42,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
 
   return (
     <InspectorPanel aria-label={t("text.nodeDetails")}>
-      <Card className="h-full min-h-0">
+      <Card variant="overlay" className="h-full min-h-0">
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-2">
             <span

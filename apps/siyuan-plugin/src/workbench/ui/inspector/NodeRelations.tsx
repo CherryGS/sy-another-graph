@@ -114,7 +114,7 @@ function RelationGroup({
                   </span>
                 )}
                 <span className="flex w-full flex-wrap items-center gap-1.5">
-                  <Badge variant="outline">{EDGE_KIND_LABELS[edge.kind]}</Badge>
+                  <Badge variant="secondary">{EDGE_KIND_LABELS[edge.kind]}</Badge>
                   {edge.ambiguous && (
                     <Badge variant="secondary">{t("text.sameNameCandidate")}</Badge>
                   )}
@@ -161,7 +161,7 @@ export function NodeRelations({ node, state }: { node: GraphNode; state: Workben
     <section aria-label={t("text.visibleRelationships")} className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium">{t("text.visibleRelationships")}</h3>
-        <Badge variant="outline">{incident.length.toLocaleString(locale())}</Badge>
+        <Badge variant="secondary">{incident.length.toLocaleString(locale())}</Badge>
       </div>
       {incident.length > 0 ? (
         <>

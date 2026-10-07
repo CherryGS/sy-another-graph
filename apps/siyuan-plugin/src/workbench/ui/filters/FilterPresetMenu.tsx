@@ -385,6 +385,7 @@ export function FilterPresetMenu({
       >
         <SheetContent
           side="left"
+          surface="overlay"
           container={editorHost}
           showCloseButton={false}
           className={cn(

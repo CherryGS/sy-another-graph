@@ -94,7 +94,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
 
   return (
     <InspectorPanel className="edge-inspector" aria-label={t("text.relationshipEvidence")}>
-      <Card className="h-full min-h-0">
+      <Card variant="overlay" className="h-full min-h-0">
         <CardHeader>
           <CardTitle>{EDGE_KIND_LABELS[edge.kind]}</CardTitle>
           <CardAction>
@@ -133,7 +133,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                     : t("text.theseRelationshipsComeFromActualDatabaseMembershipsBindings")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">
+              <Badge variant="secondary">
                 {occurrences.length.toLocaleString(locale())} {t("text.evidenceGroups")}
               </Badge>
               <Badge variant="secondary">
@@ -207,7 +207,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
                     nativeId={state.nativeBlockId(occurrence.targetId)}
                   />
                   {occurrence.weight > 1 && (
-                    <Badge variant="outline">
+                    <Badge variant="secondary">
                       {occurrence.weight}{" "}
                       {occurrence.kind === "text-mention"
                         ? t("text.textMatches")

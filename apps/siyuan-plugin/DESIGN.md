@@ -10,6 +10,8 @@ colors:
   muted-ink: "oklch(0.556 0 0)"
   muted-paper: "oklch(0.708 0 0)"
   raised-ink: "oklch(0.269 0 0)"
+  overlay-muted-paper: "oklch(0.708 0 0)"
+  overlay-muted-ink: "oklch(0.5 0 0)"
   paper-border: "oklch(0.922 0 0)"
   ink-border: "oklch(1 0 0 / 10%)"
   ink-input: "oklch(1 0 0 / 15%)"
@@ -101,7 +103,7 @@ components:
 
 The Graph Workbench keeps the graph central and its tools compact and restrained. Controls support exploration rather than competing with the graph. Paper White and Ink Gray name the existing neutral interface palette; Night Blue names the separate canvas surface.
 
-The owner confirmed this language on 2026-10-07. This document records the incumbent implementation, not a redesign. The owner wants to explore translucent overlay materials in a later refinement; current inspector and canvas-control surfaces remain opaque.
+The owner confirmed this language on 2026-10-07. This document records the incumbent implementation and its approved refinements. Inspectors and the filter sheet use restrained translucent outer surfaces; canvas controls retain their solid surface.
 
 **Key Characteristics:**
 
@@ -200,10 +202,13 @@ dimmed overlays. Exact non-schema shadow values live in the sidecar.
 **The Context Rule.** An inspector stays above the graph without reallocating
 the graph viewport.
 
-The owner selected a future exploration of translucent materials. Opacity,
-blur and fallback behavior are unresolved implementation choices; this record
-does not claim that glass surfaces already ship or prescribe an unmeasured
-blur cost for a moving graph.
+Inspector cards and the filter sheet opt into a shared overlay surface: 94%
+opacity in dark mode and 98% in light mode, with one 6px backdrop blur per outer
+panel. Text retains full opacity; secondary text has a scoped semantic token.
+Unsupported backdrop-filter engines and reduced-transparency preferences use
+solid surfaces with no backdrop filter. Renderer styles retain their own roles.
+Moving-canvas frame interval samples evaluate this material on the actual test
+workload; they do not establish universal graph-capacity or GPU guarantees.
 
 ## Shapes
 
@@ -240,7 +245,8 @@ beside the field; synthetic source-opening fallbacks are not scope identities.
 ### Cards, inspectors and evidence
 
 Cards use the semantic card surface, a fine foreground ring and 16px spacing;
-compact cards use 12px spacing. Titles, descriptions and actions form distinct
+compact cards use 12px spacing. The plain variant removes the enclosing fill and
+ring for pipeline steps, which use separators instead. Titles, descriptions and actions form distinct
 header roles. The inspector hosts scrolling node/edge details and source
 preview actions. Nested evidence cards exist today, but their nesting is not
 a reusable design rule.
@@ -284,6 +290,6 @@ labels use their separate amber roles. Keep label drag behavior intact.
 ### Don't
 
 - Don't use graph node colors as a new interface brand palette.
-- Don't treat the requested translucent-material experiment as already implemented.
+- Don't stack backdrop filters or translucent cards inside an overlay surface.
 - Don't copy note titles or private workspace content into public design examples.
 - Don't turn current layout defects or nested evidence cards into prescribed reusable patterns.
