@@ -31,6 +31,9 @@ import { EdgeInspector } from "./inspector/EdgeInspector";
 import { MentionNotice } from "../../modules/mentions/ui/MentionNotice";
 import { LayeredLayoutNotice } from "./appearance/LayeredLayoutNotice";
 
+const stageMessageClassName =
+  "stage-message absolute top-1/2 left-1/2 flex w-[min(22.5rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-lg border border-border bg-popover p-6 text-center text-popover-foreground";
+
 export function ExplorePage({ active }: { active: boolean }) {
   useLocale();
   const state = useWorkbench();
@@ -68,10 +71,14 @@ export function ExplorePage({ active }: { active: boolean }) {
       : state.spotlightIds;
   }, [state.spotlightIds, state.discovery.candidate, state.discovery.index]);
   return (
-    <div className="explore-page">
+    <div className="explore-page flex size-full min-w-0 flex-col">
       <Popover open={state.filtersOpen} onOpenChange={state.setFiltersOpen}>
-        <div ref={toolbarRef} className="exploration-toolbar" aria-label={t("text.graphActions")}>
-          <div className="search-tools">
+        <div
+          ref={toolbarRef}
+          className="exploration-toolbar flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-border bg-background px-3 py-2.5 max-compact:gap-2 max-narrow:p-2"
+          aria-label={t("text.graphActions")}
+        >
+          <div className="search-tools flex min-w-0 flex-[1_1_270px] flex-wrap items-center gap-2 max-narrow:basis-full">
             <GraphSearch state={state} anchorRef={toolbarRef} />
             <Tooltip>
               <TooltipTrigger
@@ -84,7 +91,13 @@ export function ExplorePage({ active }: { active: boolean }) {
                         className="max-w-[min(14rem,100%)]"
                         aria-label={t("text.graphFilterValueValue", {
                           p0: state.filterPresets.activeName,
-                          p1: state.filterPresets.modified ? t("text.modified") : "",
+                          p1: state.filterPresets.modified
+                            ? t(
+                                state.filterPresets.temporaryActive
+                                  ? "text.modified"
+                                  : "filter.presetUnsaved",
+                              )
+                            : "",
                         })}
                       />
                     }
@@ -94,7 +107,9 @@ export function ExplorePage({ active }: { active: boolean }) {
                 <span className="truncate">
                   {t("preset.filterLabel", { name: state.filterPresets.activeName })}
                 </span>
-                {state.filterPresets.modified && <span aria-hidden="true">*</span>}
+                {state.filterPresets.modified && !state.filterPresets.temporaryActive && (
+                  <Badge variant="outline">{t("filter.presetUnsaved")}</Badge>
+                )}
                 {state.filterPresets.temporaryActive && (
                   <Badge
                     variant={
@@ -120,7 +135,10 @@ export function ExplorePage({ active }: { active: boolean }) {
               anchorRef={toolbarRef}
             />
           </div>
-          <div className="neighborhood-tools" aria-label={t("text.neighborhoodSettings")}>
+          <div
+            className="neighborhood-tools flex min-w-0 flex-wrap items-center gap-2 max-narrow:gap-1.5"
+            aria-label={t("text.neighborhoodSettings")}
+          >
             <div className="flex shrink-0 items-center gap-1">
               <Badge variant="secondary">
                 {t("selection.count", { count: state.chosenIds.length })}
@@ -176,9 +194,9 @@ export function ExplorePage({ active }: { active: boolean }) {
               </span>
             )}
           </div>
-          <div className="display-tools">
+          <div className="display-tools ml-auto flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3 max-compact:ml-0">
             <ToggleGroup
-              variant="outline"
+              variant="default"
               aria-label={t("layout.mode")}
               value={[state.graphSettings.layoutMode]}
               onValueChange={([layoutMode]) => {
@@ -190,7 +208,7 @@ export function ExplorePage({ active }: { active: boolean }) {
               <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
             </ToggleGroup>
             <ToggleGroup
-              variant="outline"
+              variant="default"
               aria-label={t("text.graphDimension")}
               value={[String(state.graphSettings.dimensions)]}
               onValueChange={([value]) => {
@@ -218,8 +236,17 @@ export function ExplorePage({ active }: { active: boolean }) {
           <AlertDescription>{state.focusLabel}</AlertDescription>
         </Alert>
       )}
-      <div className={cn("explore-layout", hasInspector && "has-inspector")}>
-        <section ref={filterHostRef} className="graph-stage" aria-label={t("text.graphCanvas")}>
+      <div
+        className={cn(
+          "explore-layout relative min-h-0 min-w-0 flex-1",
+          hasInspector && "has-inspector",
+        )}
+      >
+        <section
+          ref={filterHostRef}
+          className="graph-stage relative isolate size-full min-h-0 min-w-0 overflow-hidden"
+          aria-label={t("text.graphCanvas")}
+        >
           <ReadDiagnostics state={state} />
           {data && (
             <Renderer
@@ -254,13 +281,16 @@ export function ExplorePage({ active }: { active: boolean }) {
             />
           )}
           {state.loading && (
-            <div className="stage-message" role="status">
+            <div className={stageMessageClassName} role="status">
               <Spinner className="size-6" />
               <p>{state.loading}</p>
             </div>
           )}
           {state.error && !state.loading && (
-            <Alert variant="destructive" className="stage-error-banner">
+            <Alert
+              variant="destructive"
+              className="stage-error-banner absolute top-3 left-3 w-[calc(100%-1.5rem)]"
+            >
               <AlertDescription>
                 <p>{state.error}</p>
                 <Button variant="outline" size="sm" onClick={() => void state.load()}>
@@ -270,7 +300,7 @@ export function ExplorePage({ active }: { active: boolean }) {
             </Alert>
           )}
           {!state.loading && !state.error && data && !view.nodes.length && (
-            <Empty className="stage-message">
+            <Empty className={stageMessageClassName}>
               <EmptyHeader>
                 <EmptyTitle>
                   {scopeMissing
@@ -285,7 +315,11 @@ export function ExplorePage({ active }: { active: boolean }) {
               </EmptyContent>
             </Empty>
           )}
-          <div className="canvas-controls" role="group" aria-label={t("text.canvasLayoutControls")}>
+          <div
+            className="canvas-controls absolute right-3 bottom-8 flex items-center gap-0.5 rounded-lg border border-border bg-card p-[3px] shadow-canvas-controls"
+            role="group"
+            aria-label={t("text.canvasLayoutControls")}
+          >
             <Button
               variant="ghost"
               size="icon-sm"
@@ -328,13 +362,13 @@ export function ExplorePage({ active }: { active: boolean }) {
           selected && <NodeInspector key={selected.id} state={state} />
         )}
       </div>
-      <footer className="graph-summary">
+      <footer className="graph-summary flex flex-none flex-wrap justify-between gap-x-3 gap-y-1 border-t border-border px-3 py-[7px] text-[11px] text-muted-foreground">
         <span>
           {t("graph.counts", { nodes: view.nodes.length, edges: view.edges.length })}
           {filters.mentions !== "off" &&
             t("text.textMentionsValue2", { p0: state.mentionState.result.edges.length })}
         </span>
-        <span className="gesture-help">
+        <span className="gesture-help max-compact:hidden">
           {state.graphSettings.dimensions === 3
             ? t("text.dragTheBackgroundToRotateSpaceDragTo") + " "
             : ""}

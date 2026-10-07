@@ -47,7 +47,7 @@ export function GraphSearch({
         setOpen(next);
       }}
     >
-      <InputGroup className="search-group">
+      <InputGroup className="search-group w-60 min-w-[8.125rem] max-w-90 flex-[1_1_180px]">
         <InputGroupInput
           ref={input}
           aria-label={t("text.searchGraphNodes")}
@@ -95,7 +95,7 @@ export function GraphSearch({
         aria-label={t("text.searchResults")}
         align="start"
         anchor={anchorRef}
-        className="search-popover p-1"
+        className="search-popover w-[min(25rem,calc(100vw-1.5rem))] p-1"
         initialFocus={() => {
           const target = focusFirstOnOpen.current ? firstResult.current : false;
           focusFirstOnOpen.current = false;
@@ -110,7 +110,7 @@ export function GraphSearch({
         <ScrollArea
           id={resultsId}
           aria-label={t("text.nodeSearchResults")}
-          className="search-results"
+          className="search-results h-[min(26.25rem,var(--available-height))]"
           data-scroll-panel
         >
           {state.results.length ? (
@@ -130,7 +130,7 @@ export function GraphSearch({
                   onDoubleClick={() => state.openDocument(node.id)}
                 >
                   <span
-                    className="color-dot"
+                    className="inline-block size-2 shrink-0 rounded-full"
                     style={{
                       background: nodeColor(
                         presentNode(node, state.currentGraph, state.data?.notebooks ?? []),

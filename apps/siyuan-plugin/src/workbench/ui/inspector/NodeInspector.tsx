@@ -28,6 +28,7 @@ import { NativePreviewButton } from "./NativePreviewButton";
 import { SearchOriginBadge } from "./SearchOriginBadge";
 import { searchOriginDescription } from "../../presentation/search-origins";
 import { UNREACHABLE } from "../../../modules/layout/layers";
+import { InspectorPanel } from "./InspectorPanel";
 
 export function NodeInspector({ state }: { state: WorkbenchState }) {
   useLocale();
@@ -40,7 +41,7 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
   const notebook = state.data?.notebooks.find((book) => book.id === node.notebook);
 
   return (
-    <aside className="inspector-panel" aria-label={t("text.nodeDetails")}>
+    <InspectorPanel aria-label={t("text.nodeDetails")}>
       <Card className="h-full min-h-0">
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-2">
@@ -203,6 +204,6 @@ export function NodeInspector({ state }: { state: WorkbenchState }) {
           </CardContent>
         </ScrollArea>
       </Card>
-    </aside>
+    </InspectorPanel>
   );
 }

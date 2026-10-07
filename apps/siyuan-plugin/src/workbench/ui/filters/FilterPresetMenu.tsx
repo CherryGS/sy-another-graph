@@ -132,6 +132,7 @@ export function FilterPresetMenu({
 
   const saveActions = !presets.temporaryActive && (presets.modified || !presets.activeId) && (
     <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted-foreground">{t("filter.appliedNotSaved")}</p>
       <div className="flex gap-2">
         {presets.activeId && (
           <Button
@@ -226,7 +227,7 @@ export function FilterPresetMenu({
       <PopoverContent
         anchor={anchorRef}
         align="start"
-        className="filter-popover gap-0 p-0"
+        className="filter-popover w-[min(22.5rem,calc(100vw-1.5rem))] gap-0 p-0"
         aria-label={t("text.filterPresets")}
         finalFocus={() => {
           if (naming || editorOpen.current) return false;
@@ -234,7 +235,10 @@ export function FilterPresetMenu({
           return true;
         }}
       >
-        <ScrollArea className="filter-preset-scroll" data-scroll-panel>
+        <ScrollArea
+          className="filter-preset-scroll max-h-[min(32.5rem,var(--available-height))] [&_[data-slot=scroll-area-viewport]]:max-h-[min(32.5rem,var(--available-height))]"
+          data-scroll-panel
+        >
           <div className="flex flex-col gap-2 p-2">
             <Button
               variant="ghost"

@@ -40,6 +40,29 @@ tracked package scripts and tool configuration.
 
 ## Domain rules
 
+### UI styling
+
+- Use Tailwind CSS v4 utilities for React layout, spacing, sizing and responsive
+  presentation. Keep the classes with their component; retain named class hooks
+  only when runtime integration or inspection needs them.
+- Define reusable semantic color, radius, shadow and breakpoint tokens in
+  `apps/siyuan-plugin/src/workbench/styles/theme.css`. Prefer the spacing scale
+  and component variants. Use arbitrary geometry only for a measured host or
+  library constraint; do not invent a parallel palette at call sites.
+- Shared UI primitives own visual variants. Consumers use existing variants and
+  layout utilities; compose recurring layouts into a local component and use
+  `cn()` for conditional classes.
+- Keep `styles.css` limited to layered base resets and documented library or
+  cross-portal selectors. Use `@reference` and `@apply` for those bridges;
+  cross-portal presentation overrides share the utilities layer so they can
+  override the ordinary geometry without changing mounted state.
+- Keep renderer-owned canvas/label CSS in its adapter. Runtime node colors,
+  measured coordinates and primitive positioning may remain computed styles.
+- Labels and controls use moderate or small corners, not full capsule shapes.
+  Round node markers, slider handles and graph symbols retain their meanings.
+
+### Host and graph implementation
+
 - The SiYuan frontend build emits a CommonJS `index.js` and keeps `siyuan`
   external so the host supplies its API, following the official plugin sample.
 - Keep generated build output in the member's `dist/` directory. Root release

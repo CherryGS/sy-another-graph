@@ -62,7 +62,7 @@ export function ReadDiagnostics({ state }: { state: WorkbenchState }) {
   return (
     <>
       {!!data?.warnings.length && (
-        <div className="read-issues-trigger">
+        <div className="read-issues-trigger absolute bottom-3 left-3 z-2">
           <Button
             ref={trigger}
             variant="secondary"

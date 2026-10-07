@@ -9,12 +9,11 @@
 @source "../../";
 @source not "../../shared/i18n";
 
-.filter-preset-scroll,
-.filter-preset-scroll [data-slot="scroll-area-viewport"] {
-  max-height: min(520px, var(--available-height));
-}
-
 @theme inline {
+  --breakpoint-compact: 47.5rem;
+  --breakpoint-narrow: 27.5rem;
+  --shadow-inspector: 0 8px 24px rgb(0 0 0 / 22%), 0 2px 6px rgb(0 0 0 / 14%);
+  --shadow-canvas-controls: 0 2px 8px rgb(0 0 0 / 16%);
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -48,6 +47,7 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --radius-xs: calc(var(--radius) * 0.4);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

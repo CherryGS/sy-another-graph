@@ -24,6 +24,7 @@ import { nodeType } from "../../../core/scope/graph-model";
 import { getGraphLookups } from "../../../core/graph/graph-lookups";
 import type { GraphNode } from "../../../core/graph/types";
 import { NativePreviewButton } from "./NativePreviewButton";
+import { InspectorPanel } from "./InspectorPanel";
 
 function SourceEntry({
   node,
@@ -92,7 +93,7 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
   const occurrences = edge.provenance ?? [];
 
   return (
-    <aside className="inspector-panel edge-inspector" aria-label={t("text.relationshipEvidence")}>
+    <InspectorPanel className="edge-inspector" aria-label={t("text.relationshipEvidence")}>
       <Card className="h-full min-h-0">
         <CardHeader>
           <CardTitle>{EDGE_KIND_LABELS[edge.kind]}</CardTitle>
@@ -283,6 +284,6 @@ export function EdgeInspector({ state }: { state: WorkbenchState }) {
           </CardContent>
         </ScrollArea>
       </Card>
-    </aside>
+    </InspectorPanel>
   );
 }

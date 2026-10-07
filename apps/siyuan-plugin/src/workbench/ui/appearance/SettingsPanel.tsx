@@ -127,7 +127,7 @@ export function SettingsPanel({ state }: { state: WorkbenchState }) {
       >
         <Settings2 />
       </SheetTrigger>
-      <SheetContent className="settings-sheet gap-0">
+      <SheetContent className="settings-sheet w-[min(26.25rem,100vw)] gap-0">
         <SheetHeader>
           <SheetTitle>{t("text.graphSettings")}</SheetTitle>
           <SheetDescription>

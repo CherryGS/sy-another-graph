@@ -10,7 +10,7 @@ import type { WorkbenchState } from "../model/state";
 export function GraphActions({ state }: { state: WorkbenchState }) {
   useLocale();
   return (
-    <div className="graph-actions">
+    <div className="graph-actions flex items-center gap-1">
       <DiscoveryPanel state={state} />
       <Button
         variant="ghost"

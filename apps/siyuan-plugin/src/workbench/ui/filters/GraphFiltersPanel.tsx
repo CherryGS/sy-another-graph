@@ -246,7 +246,7 @@ export function GraphFiltersPanel({
   const currentPage = pages.find(({ value }) => value === page)!;
   return (
     <section
-      className="filter-panel"
+      className="filter-panel flex h-full min-h-0"
       data-filter-expanded={!collapsed}
       aria-label={t("text.graphFilters")}
     >
@@ -277,8 +277,9 @@ export function GraphFiltersPanel({
               onCollapsedChange(!value);
             }}
           >
+            {/* The expanded header already explains this category; its tooltip must not cover actions. */}
             {pages.map(({ value, title, navLabel, icon: Icon, summary, draft }) => (
-              <Tooltip key={value}>
+              <Tooltip key={value} disabled={!collapsed && page === value}>
                 <TooltipTrigger
                   render={
                     <ToggleGroupItem
@@ -302,9 +303,11 @@ export function GraphFiltersPanel({
                   )}
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  <p>{title}</p>
-                  <p>{summary}</p>
-                  {draft && <p>{t("filter.unappliedHint")}</p>}
+                  <div className="flex flex-col gap-1">
+                    <p>{title}</p>
+                    <p>{summary}</p>
+                    {draft && <p>{t("filter.unappliedHint")}</p>}
+                  </div>
                 </TooltipContent>
               </Tooltip>
             ))}
@@ -334,7 +337,7 @@ export function GraphFiltersPanel({
               {state.filterPresets.activeName}
             </h2>
             {state.filterPresets.modified && (
-              <Badge variant="secondary">{t("text.modified2")}</Badge>
+              <Badge variant="outline">{t("filter.presetUnsaved")}</Badge>
             )}
             <Button
               variant="ghost"
@@ -362,7 +365,7 @@ export function GraphFiltersPanel({
             aria-label={title}
             className={cn("min-h-0 flex-1 flex-col", page === value ? "flex" : "hidden")}
           >
-            <ScrollArea className="filter-scroll min-h-0" data-scroll-panel>
+            <ScrollArea className="filter-scroll min-h-0 flex-1 overflow-hidden" data-scroll-panel>
               <div className="p-4">{content}</div>
             </ScrollArea>
           </section>

@@ -59,6 +59,8 @@
   "graph.nodeIdCopyFailed": "无法复制 ID，请检查剪贴板权限后重试。",
   "filter.scope": "范围",
   "filter.unapplied": "未应用",
+  "filter.presetUnsaved": "预设未保存",
+  "filter.appliedNotSaved": "当前筛选已生效，但尚未保存到预设。仅保存已应用的筛选。",
   "filter.mentions": "文本提及",
   "filter.nodeDisplay": "节点显示",
   "filter.editorDescription": "调整当前图谱的筛选，更新预设以保存修改。",

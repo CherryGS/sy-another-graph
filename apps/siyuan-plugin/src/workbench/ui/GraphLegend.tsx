@@ -55,7 +55,7 @@ export function GraphLegend({
 
   return (
     <Popover>
-      <PopoverTrigger render={<Button variant="outline" disabled={!nodes.length} />}>
+      <PopoverTrigger render={<Button variant="ghost" disabled={!nodes.length} />}>
         <List data-icon="inline-start" />
         {t("text.legend")}
       </PopoverTrigger>
@@ -63,12 +63,15 @@ export function GraphLegend({
         anchor={anchorRef}
         align="start"
         aria-labelledby={titleId}
-        className="legend-popover gap-0 p-0"
+        className="legend-popover w-[min(20rem,calc(100vw-1.5rem))] gap-0 p-0"
       >
         <PopoverHeader className="px-3 py-3">
           <PopoverTitle id={titleId}>{t("text.legend")}</PopoverTitle>
         </PopoverHeader>
-        <ScrollArea className="legend-scroll" data-scroll-panel>
+        <ScrollArea
+          className="legend-scroll h-[min(20rem,max(0px,calc(var(--available-height)-3rem)))]"
+          data-scroll-panel
+        >
           <div
             role="region"
             aria-label={t("text.nodeTypeList")}

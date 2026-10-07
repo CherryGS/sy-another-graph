@@ -50,6 +50,7 @@ typography:
     fontSize: "11px"
     lineHeight: "1.5"
 rounded:
+  xs: "0.25rem"
   sm: "0.375rem"
   md: "0.5rem"
   lg: "0.625rem"
@@ -165,14 +166,15 @@ titles, source passages and user-authored preset names.
 The workbench fills its host and stacks a wrapping toolbar, graph stage and
 summary footer. The graph receives the remaining space. Tool groups use an
 observed compact spacing rhythm; toolbar padding is 10px vertically and 12px
-horizontally, with 10px row gaps and 18px between groups. Ordinary group gaps
+horizontally, with 10px row gaps and 16px between groups. Ordinary group gaps
 are 8px; icon-action groups use 4px.
 
 Inspectors overlay the upper-right graph area with 12px outer offsets, a
 320px width and 80px lower clearance. The narrow-width rules reduce inspector
-width and move it into a bottom overlay below 440px. The neighborhood group
-moves onto its own row below 1100px. These are existing layout mechanisms;
-toolbar groups also wrap to preserve control reachability in narrow hosts. Below
+width and move it into a bottom overlay below 440px. Search and scope, neighborhood
+exploration, then display and maintenance follow their DOM order and wrap naturally;
+no CSS ordering moves keyboard focus between visual rows. Toolbar groups preserve
+control reachability in narrow hosts. Below
 760px, expanded filter content temporarily hides the mounted inspector; collapse
 or close restores it without changing the graph viewport or inspection state.
 Below 440px, bottom inspection leaves clearance for an open collapsed category rail.
@@ -207,7 +209,9 @@ blur cost for a moving graph.
 
 Moderate rounding unifies controls. The frontmatter radius scale derives from
 the current 10px base radius at the default 16px root size. Cards use the larger
-step; badges are small pills. Inspectors use the base radius plus 4px. Ordinary
+step; badges and switch tracks use the 4px extra-small step, with 3px switch thumbs.
+Avoid full capsule shapes for labels and controls, as requested by the owner.
+Inspectors use the base radius plus 4px. Ordinary
 graph labels, chosen labels and canvas tooltips have smaller role-specific
 corners; these differences are current facts to assess during refinement.
 
@@ -239,8 +243,11 @@ a reusable design rule.
 
 ### Badges and feedback
 
-Badges are 20px high, with compact text and pill corners. Secondary badges
+Badges are 20px high, with compact text and 4px corners. Secondary badges
 communicate counts and scope; destructive variants communicate problems.
+Unapplied local rules and applied-but-unsaved preset changes remain distinct:
+category badges say Not applied; preset badges say Preset not saved. The save area
+explains that only applied filters are saved, without applying local drafts.
 Loading uses text with a spinner, acquisition issues use a reopenable diagnostic
 entry, and short action feedback uses the existing toast component.
 
@@ -262,6 +269,9 @@ labels use their separate amber roles. Keep label drag behavior intact.
 
 ### Do
 
+- Do keep React presentation in Tailwind utilities, shared variants and semantic
+  theme tokens. Keep only base resets and documented library/cross-portal bridges
+  in global layered CSS; renderer styles remain inside their adapter.
 - Do use the existing semantic theme roles and component variants for ordinary controls.
 - Do keep graph state meanings distinct when changing appearance.
 - Do use the existing compact control scale and readable localized labels.

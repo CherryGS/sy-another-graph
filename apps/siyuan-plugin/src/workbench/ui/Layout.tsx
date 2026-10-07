@@ -15,8 +15,12 @@ export function Layout() {
   }, [state.toast]);
   return (
     <TooltipProvider>
-      <div className="workbench" data-host-active={hostActive} data-snapshot={state.data?.loadedAt}>
-        <main className="main-content">
+      <div
+        className="workbench flex size-full min-w-0 flex-col bg-background text-foreground"
+        data-host-active={hostActive}
+        data-snapshot={state.data?.loadedAt}
+      >
+        <main className="main-content relative min-h-0 min-w-0 flex-1">
           <ExplorePage active={hostActive} />
           <Outlet />
         </main>
