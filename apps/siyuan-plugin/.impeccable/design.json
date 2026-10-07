@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T11:40:49.453Z",
+  "title": "Design System: Another Graph",
+  "extensions": {
+    "colorMeta": {
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White / 纸白"
+      },
+      "ink-gray": {
+        "role": "neutral",
+        "displayName": "Ink Gray / 墨灰"
+      },
+      "night-blue": {
+        "role": "neutral",
+        "displayName": "Night Blue / 夜蓝"
+      },
+      "chosen-surface": {
+        "role": "semantic",
+        "displayName": "Chosen cyan"
+      },
+      "spotlight-surface": {
+        "role": "semantic",
+        "displayName": "Discovery amber"
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Workbench body",
+        "purpose": "Dense interface prose."
+      },
+      "title": {
+        "displayName": "Panel title",
+        "purpose": "Card and dialog headings."
+      },
+      "summary": {
+        "displayName": "Graph summary",
+        "purpose": "Graph counts and gesture hints."
+      }
+    },
+    "shadows": [
+      {
+        "name": "inspector",
+        "value": "0 8px 24px rgb(0 0 0 / 22%), 0 2px 6px rgb(0 0 0 / 14%)",
+        "purpose": "Existing structural inspector elevation."
+      },
+      {
+        "name": "canvas-controls",
+        "value": "0 2px 8px rgb(0 0 0 / 16%)",
+        "purpose": "Existing grouped canvas controls."
+      }
+    ],
+    "motion": [
+      {
+        "name": "popover-dialog-duration",
+        "value": "100ms",
+        "purpose": "Observed primitive entrances/exits; not a new motion standard."
+      },
+      {
+        "name": "sheet-duration",
+        "value": "200ms",
+        "purpose": "Observed directional sheet transitions."
+      },
+      {
+        "name": "sheet-easing",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Existing Tailwind ease-in-out sheet timing."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "toolbar-neighborhood-row",
+        "value": "1100px"
+      },
+      {
+        "name": "narrow-inspector",
+        "value": "760px"
+      },
+      {
+        "name": "bottom-inspector",
+        "value": "440px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary-dark",
+      "description": "Existing neutral primary action.",
+      "html": "<button class=\"ag-demo-button\">Apply</button>",
+      "css": ".ag-demo-button{height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius,10px);background:var(--primary,oklch(0.922 0 0));color:var(--primary-foreground,oklch(0.205 0 0));font:500 14px/20px \"Geist Variable\",sans-serif;cursor:pointer;transition:background-color 150ms}.ag-demo-button:hover{background:color-mix(in oklch,var(--primary,oklch(0.922 0 0)) 80%,transparent)}.ag-demo-button:focus-visible{outline:3px solid color-mix(in oklch,var(--ring,oklch(0.556 0 0)) 50%,transparent);outline-offset:1px}.ag-demo-button:active{transform:translateY(1px)}.ag-demo-button:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "description": "Existing compact semantic field.",
+      "html": "<input class=\"ag-demo-input\" aria-label=\"Node search\" placeholder=\"Search nodes\" />",
+      "css": ".ag-demo-input{height:32px;width:100%;padding:4px 10px;border:1px solid var(--input,oklch(1 0 0 / 15%));border-radius:var(--radius,10px);background:transparent;color:var(--foreground,oklch(0.985 0 0));font:14px/20px \"Geist Variable\",sans-serif;transition:border-color 150ms}.ag-demo-input::placeholder{color:var(--muted-foreground,oklch(0.708 0 0))}.ag-demo-input:focus-visible{border-color:var(--ring,oklch(0.556 0 0));outline:3px solid color-mix(in oklch,var(--ring,oklch(0.556 0 0)) 50%,transparent);outline-offset:1px}.ag-demo-input:disabled{opacity:.5}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-dark",
+      "description": "Existing tonal surface for compact inspection.",
+      "html": "<section class=\"ag-demo-card\"><h3>Node details</h3><p>Relationship evidence</p></section>",
+      "css": ".ag-demo-card{padding:16px;border-radius:14px;background:var(--card,oklch(0.205 0 0));color:var(--card-foreground,oklch(0.985 0 0));box-shadow:0 0 0 1px color-mix(in oklch,var(--foreground,oklch(0.985 0 0)) 10%,transparent);font:14px/20px \"Geist Variable\",sans-serif}.ag-demo-card h3{margin:0 0 4px;font-size:16px;font-weight:500;line-height:1.375}.ag-demo-card p{margin:0;color:var(--muted-foreground,oklch(0.708 0 0))}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Graph Workbench",
+    "overview": "The Graph Workbench keeps the graph central and its tools compact and restrained. Controls support exploration rather than competing with the graph. Paper White and Ink Gray name the existing neutral interface palette; Night Blue names the separate canvas surface.\n\nThe owner confirmed this language on 2026-10-07. This document records the incumbent implementation, not a redesign. The owner wants to explore translucent overlay materials in a later refinement; current inspector and canvas-control surfaces remain opaque.",
+    "keyCharacteristics": [
+      "Graph-centered composition with overlay inspectors.",
+      "Compact, restrained controls with moderate rounded corners.",
+      "Neutral interface surfaces with separate semantic graph colors.",
+      "Evidence and feedback close to the current exploration task."
+    ],
+    "rules": [
+      {
+        "name": "The State Meaning Rule",
+        "body": "Graph-state colors communicate graph state; neutral interface tokens communicate control hierarchy.",
+        "section": "colors"
+      },
+      {
+        "name": "The Content Integrity Rule",
+        "body": "Localize interface copy while preserving note titles, source passages and user-authored preset names.",
+        "section": "typography"
+      },
+      {
+        "name": "The Context Rule",
+        "body": "An inspector stays above the graph without reallocating the graph viewport.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the existing semantic theme roles and component variants for ordinary controls.",
+      "Do keep graph state meanings distinct when changing appearance.",
+      "Do use the existing compact control scale and readable localized labels.",
+      "Do preserve overlay inspection and the filter rail's collapse/draft behavior."
+    ],
+    "donts": [
+      "Don't use graph node colors as a new interface brand palette.",
+      "Don't treat the requested translucent-material experiment as already implemented.",
+      "Don't copy note titles or private workspace content into public design examples.",
+      "Don't turn current layout defects or nested evidence cards into prescribed reusable patterns."
+    ]
+  }
+}
