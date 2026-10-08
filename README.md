@@ -4,7 +4,7 @@ Explore SiYuan notes, blocks, and search results in an interactive 2D / 3D graph
 
 [简体中文](apps/siyuan-plugin/public/README_zh_CN.md) ·
 [User guide](docs/user-guide.md) ·
-[Mouse & keyboard (简体中文)](docs/mouse-keyboard_zh_CN.md) ·
+[Mouse & keyboard](docs/mouse-keyboard.md) ·
 [Development](apps/siyuan-plugin/README.md)
 
 _Screenshots below use demonstration notes from the test workspace._
@@ -25,7 +25,7 @@ It follows the chosen traversal direction and works in 2D / 3D; neighborhood dep
 
 ![Nodes arranged from left to right in hop layers](apps/siyuan-plugin/public/screenshots/layered.jpg)
 
-_Graph Theory is the starting node; the remaining documents occupy layers one to three._
+_Graph Theory starts at layer zero; connected notes follow in hop layers._
 
 ## Discover related documents
 
