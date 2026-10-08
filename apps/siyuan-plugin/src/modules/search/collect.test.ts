@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { type SearchApi, collectSearchResults, type SearchConfig } from "./collect";
 
-import { readOnlySearchProbe } from "./sql";
-
 const id = (index: number) => `20260913000000-${index.toString(36).padStart(7, "0")}`;
 const config: SearchConfig = {
   query: "topic",
@@ -100,7 +98,7 @@ describe("complete native search snapshots", () => {
       .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce(page([1], 1));
-    const sql = "SELECT * FROM blocks LIMIT 1;";
+    const sql = "  SELECT * FROM blocks WHERE content REGEXP 'Graph Theory' /* note */ LIMIT 1;  ";
     await collectSearchResults(
       { ...config, method: 2, query: sql },
       signal(),
@@ -109,7 +107,10 @@ describe("complete native search snapshots", () => {
     );
     expect(mock.mock.calls[0].slice(0, 2)).toEqual([
       "/api/query/sql",
-      { mode: "readonly", stmt: "SELECT 1 FROM (\nSELECT * FROM blocks LIMIT 1\n) LIMIT 0" },
+      {
+        mode: "readonly",
+        stmt: "SELECT 1 FROM (\nSELECT * FROM blocks WHERE content REGEXP 'Graph Theory' /* note */ LIMIT 1\n) LIMIT 0",
+      },
     ]);
     expect(mock.mock.calls[1][1].query).toBe(sql);
   });
@@ -124,24 +125,6 @@ describe("complete native search snapshots", () => {
       ),
     ).rejects.toThrow("invalid query");
     expect(mock).toHaveBeenCalledTimes(1);
-  });
-  it("supports HZ RLIKE without rewriting literals or the native request", async () => {
-    const query =
-      "select * from blocks where type rlike '^[d]$' and content != 'rlike' order by box ASC, hpath ASC";
-    const mock = vi
-      .fn()
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce(page([1], 1));
-    await collectSearchResults({ method: 2, query }, signal(), () => {}, request(mock));
-    expect(mock.mock.calls[0][1].stmt).toContain("type REGEXP '^[d]$' and content != 'rlike'");
-    expect(mock.mock.calls[1][1].query).toBe(query);
-    expect(
-      readOnlySearchProbe(
-        "SELECT \"rlike\", `rlike`, [rlike], 'it''s rlike' FROM blocks -- rlike\nWHERE type RLIKE 'd' /* rlike */;",
-      ),
-    ).toBe(
-      "SELECT 1 FROM (\nSELECT \"rlike\", `rlike`, [rlike], 'it''s rlike' FROM blocks -- rlike\nWHERE type REGEXP 'd' /* rlike */\n) LIMIT 0",
-    );
   });
   it.each([
     { blocks: [{ id: "invalid" }], matchedBlockCount: 1 },

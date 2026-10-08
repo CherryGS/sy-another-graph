@@ -271,9 +271,9 @@ The two-digit rule does not exclude `101` or `Project 01`. Rules filter candidat
 
 ## Build a graph from search results
 
-Graph search locates existing nodes. **Graph all results** in **SiYuan native search / HZ Simple Search** creates an independent temporary scope.
+Graph search locates existing nodes. **Graph all results** in **SiYuan native search** creates an independent temporary scope.
 
-1. Run a native search or [HZ Simple Search](https://github.com/Hug-Zephyr/HZ-syplugin-simple-search) query. To reproduce this small example, enable only **Document block** in native **Search type** and search for `Graph Theory`.
+1. Run a SiYuan native search query. To reproduce this small example, enable only **Document block** in **Search type** and search for `Graph Theory`.
 2. Click **Graph all results** in the search tab/dialog. Click again during reading to cancel.
 3. Explore matches and ancestors. A **magenta outer ring** marks a search match; a document representing a hidden matching block is marked as a projected match.
 4. **Return to previous configuration** restores the original preset and its unsaved changes.

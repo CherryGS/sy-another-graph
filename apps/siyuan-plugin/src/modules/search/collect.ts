@@ -1,6 +1,5 @@
 import { message as msg, MessageError, type Failure } from "../../core/diagnostics/message";
 import { MAX_SEARCH_RESULTS } from "./model";
-import { readOnlySearchProbe } from "./sql";
 
 /** Preserve the host's final search request without depending on its SDK types. */
 export interface SearchConfig {
@@ -27,7 +26,7 @@ export function unsupportedSearch(config: SearchConfig): Failure {
   return "";
 }
 
-/** Use the final native request, including HZ's translation. Group headers are
+/** Use the final native request. Group headers are
  * presentation context, so request ungrouped matches instead of scraping the UI. */
 export async function collectSearchResults(
   config: SearchConfig,
@@ -41,9 +40,10 @@ export async function collectSearchResults(
   if (config.method === 2) {
     // The native SQL-search fallback can execute arbitrary statements. Validate
     // a single query in the kernel's read-only connection before invoking it.
+    const query = (config.query ?? "").trim().replace(/;\s*$/, "");
     await request(
       "/api/query/sql",
-      { stmt: readOnlySearchProbe(config.query ?? ""), mode: "readonly" },
+      { stmt: `SELECT 1 FROM (\n${query}\n) LIMIT 0`, mode: "readonly" },
       signal,
     );
   }

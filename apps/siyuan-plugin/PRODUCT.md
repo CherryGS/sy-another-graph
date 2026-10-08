@@ -30,7 +30,7 @@ must remain tied to measured workloads, hardware and settings.
 ## Operating Context
 
 - The React workbench runs in a persistent iframe inside desktop SiYuan.
-- Source data comes from the local workspace or complete native/HZ Simple Search
+- Source data comes from the local workspace or complete SiYuan native search
   results, with structural ancestor context for search graphs.
 - Users select starting nodes, explore directional neighborhoods and paths,
   inspect nodes/edges, adjust filters and save named filter presets.

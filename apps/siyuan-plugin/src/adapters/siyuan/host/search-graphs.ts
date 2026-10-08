@@ -20,8 +20,8 @@ interface SearchPanel {
   invalidate: () => void;
 }
 
-/** The public hooks cover both native tabs/dialogs and HZ Simple Search 1.3.6.
- * Each input owns its final request and button; plugin listener order is irrelevant. */
+/** Native search tabs and dialogs share the public search hooks.
+ * Each input owns its final request and graph button. */
 export function registerSearchGraphs(
   bus: Pick<EventBus, "on" | "off">,
   open: (snapshot: SearchGraphSnapshot) => Promise<unknown>,
