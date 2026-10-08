@@ -172,7 +172,12 @@ The workbench fills its host and stacks a wrapping toolbar, graph stage and
 summary footer. The graph receives the remaining space. Tool groups use an
 observed compact spacing rhythm; toolbar padding is 10px vertically and 12px
 horizontally, with 10px row gaps and 16px between groups. Ordinary group gaps
-are 8px; icon-action groups use 4px.
+are 8px; icon-action groups use 4px. Below 1280px, search and filter tools occupy
+the first row; neighborhood and display groups wrap in order from the left.
+At wider sizes, the search group stays on one line and the toolbar shares rows
+where space permits. Wrapped groups align at the top, with no trailing auto margin
+moving a new row to the right. Direction, layout and dimension choices each use
+one connected outline group; a vertical separator divides layout from dimension.
 
 Inspectors overlay the upper-right graph area with 12px outer offsets, a
 320px width and 80px lower clearance. The narrow-width rules reduce inspector

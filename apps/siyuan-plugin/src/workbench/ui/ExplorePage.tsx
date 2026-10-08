@@ -9,6 +9,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
+import { Separator } from "@/shared/ui/separator";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/shared/ui/empty";
 import { Spinner } from "@/shared/ui/spinner";
@@ -73,10 +74,10 @@ export function ExplorePage({ active }: { active: boolean }) {
     <div className="explore-page flex size-full min-w-0 flex-col">
       <div
         ref={toolbarRef}
-        className="exploration-toolbar flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-border bg-background px-3 py-2.5 max-compact:gap-2 max-narrow:p-2"
+        className="exploration-toolbar flex flex-none flex-wrap items-start gap-x-4 gap-y-2.5 border-b border-border bg-background px-3 py-2.5 max-compact:gap-2 max-narrow:p-2"
         aria-label={t("text.graphActions")}
       >
-        <div className="search-tools flex min-w-0 flex-[1_1_270px] flex-wrap items-center gap-2 max-narrow:basis-full">
+        <div className="search-tools flex min-w-0 max-w-full basis-full flex-wrap items-center gap-2 xl:min-w-max xl:basis-auto xl:grow xl:flex-nowrap">
           <GraphSearch state={state} anchorRef={toolbarRef} />
           <FilterPresetMenu
             state={state}
@@ -130,7 +131,8 @@ export function ExplorePage({ active }: { active: boolean }) {
           </FieldGroup>
           <ToggleGroup
             variant="outline"
-            className="max-w-full flex-wrap"
+            spacing={0}
+            className="shrink-0"
             aria-label={t("text.traversalDirection")}
             value={[state.direction]}
             onValueChange={([value]) => {
@@ -148,35 +150,40 @@ export function ExplorePage({ active }: { active: boolean }) {
             </span>
           )}
         </div>
-        <div className="display-tools ml-auto flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3 max-compact:ml-0">
-          <ToggleGroup
-            variant="default"
-            aria-label={t("layout.mode")}
-            value={[state.graphSettings.layoutMode]}
-            onValueChange={([layoutMode]) => {
-              if (layoutMode === "force" || layoutMode === "layered")
-                state.setGraphSettings({ layoutMode });
-            }}
-          >
-            <ToggleGroupItem value="force">{t("layout.force")}</ToggleGroupItem>
-            <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
-          </ToggleGroup>
-          <ToggleGroup
-            variant="default"
-            aria-label={t("text.graphDimension")}
-            value={[String(state.graphSettings.dimensions)]}
-            onValueChange={([value]) => {
-              if (value === "2" || value === "3")
-                state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
-            }}
-          >
-            <ToggleGroupItem value="2" aria-label={t("text.2dMode")}>
-              2D
-            </ToggleGroupItem>
-            <ToggleGroupItem value="3" aria-label={t("text.3dMode")}>
-              3D
-            </ToggleGroupItem>
-          </ToggleGroup>
+        <div className="display-tools flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-x-4 gap-y-2.5">
+          <div className="flex shrink-0 items-center gap-4">
+            <ToggleGroup
+              variant="outline"
+              spacing={0}
+              aria-label={t("layout.mode")}
+              value={[state.graphSettings.layoutMode]}
+              onValueChange={([layoutMode]) => {
+                if (layoutMode === "force" || layoutMode === "layered")
+                  state.setGraphSettings({ layoutMode });
+              }}
+            >
+              <ToggleGroupItem value="force">{t("layout.force")}</ToggleGroupItem>
+              <ToggleGroupItem value="layered">{t("layout.layered")}</ToggleGroupItem>
+            </ToggleGroup>
+            <Separator orientation="vertical" className="my-1" />
+            <ToggleGroup
+              variant="outline"
+              spacing={0}
+              aria-label={t("text.graphDimension")}
+              value={[String(state.graphSettings.dimensions)]}
+              onValueChange={([value]) => {
+                if (value === "2" || value === "3")
+                  state.setGraphSettings({ dimensions: Number(value) as 2 | 3 });
+              }}
+            >
+              <ToggleGroupItem value="2" aria-label={t("text.2dMode")}>
+                2D
+              </ToggleGroupItem>
+              <ToggleGroupItem value="3" aria-label={t("text.3dMode")}>
+                3D
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
           <GraphActions state={state} />
         </div>
       </div>
